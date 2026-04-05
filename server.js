@@ -18,25 +18,25 @@ const BOOKINGS = path.join(DATA_DIR, 'bookings.json');
 const SERVICES = {
   'lavage-confort': {
     name:         'Lavage Confort',
-    depositCents: 3900,
+    depositCents: 4000,
     durationMin:  60,
     slots:        ['09:00', '11:00', '14:00', '16:00']
   },
   'lavage-premium': {
     name:         'Lavage Premium',
-    depositCents: 3900,
+    depositCents: 4000,
     durationMin:  120,
     slots:        ['09:00', '11:30', '14:00']
   },
   'lavage-experience': {
     name:         'Lavage Expérience',
-    depositCents: 3900,
+    depositCents: 4000,
     durationMin:  480,
     slots:        ['09:00']
   },
   'vitres-teintees': {
     name:         'Vitres Teintées',
-    depositCents: 3900,
+    depositCents: 4000,
     durationMin:  240,
     slots:        ['09:00', '13:30']
   }
@@ -322,6 +322,79 @@ app.use(express.static(path.join(__dirname)));
 // ============================================================
 // Routes API
 // ============================================================
+
+// ── Contact / Devis ──────────────────────────────────────────
+app.post('/api/contact', async (req, res) => {
+  const { type, firstName, lastName, email, phone, subject, message, source, vehicleInfo } = req.body;
+
+  if (!email || !firstName) {
+    return res.status(400).json({ error: 'Champs obligatoires manquants' });
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.log('[Contact] RESEND_API_KEY non configuré — email ignoré');
+    return res.json({ ok: true });
+  }
+
+  const resend      = new Resend(process.env.RESEND_API_KEY);
+  const fromAddress = process.env.EMAIL_FROM || 'REYCE <onboarding@resend.dev>';
+  const ownerEmail  = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
+
+  const isDevis   = type === 'devis';
+  const subjectLine = isDevis
+    ? `[Devis] ${subject || 'Demande de devis'} — ${firstName} ${lastName}`
+    : `[Contact] ${subject || 'Message'} — ${firstName} ${lastName}`;
+
+  const vehicleBlock = vehicleInfo
+    ? `<tr><td class="lbl">Véhicule</td><td>${vehicleInfo}</td></tr>` : '';
+  const sourceBlock  = source
+    ? `<tr><td class="lbl">Source</td><td>${source}</td></tr>` : '';
+  const subjectBlock = subject
+    ? `<tr><td class="lbl">Objet</td><td>${subject}</td></tr>` : '';
+  const messageBlock = message
+    ? `<tr><td class="lbl">Message</td><td style="white-space:pre-wrap">${message}</td></tr>` : '';
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{background:#080808;margin:0;padding:40px 20px;font-family:sans-serif;}
+  .wrap{max-width:560px;margin:0 auto;background:#111;padding:40px;color:#e0e0e0;}
+  .logo{font-size:18px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#fff;margin-bottom:32px;}
+  .badge{display:inline-block;background:#1a1a1a;border:1px solid #2a2a2a;padding:5px 12px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#bfc8d0;margin-bottom:28px;}
+  table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+  td{padding:10px 0;border-bottom:1px solid #1e1e1e;font-size:13px;line-height:1.6;}
+  .lbl{color:#666;font-size:11px;letter-spacing:.12em;text-transform:uppercase;width:36%;vertical-align:top;padding-top:12px;}
+  .reply{display:block;text-align:center;padding:12px 28px;background:#fff;color:#080808;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;margin-top:32px;}
+  .foot{font-size:11px;color:#444;text-align:center;margin-top:32px;}
+</style></head><body>
+<div class="wrap">
+  <div class="logo">REYCE</div>
+  <div class="badge">${isDevis ? 'Demande de devis' : 'Message de contact'}</div>
+  <table>
+    <tr><td class="lbl">Nom</td><td>${firstName} ${lastName}</td></tr>
+    <tr><td class="lbl">Email</td><td><a href="mailto:${email}" style="color:#bfc8d0">${email}</a></td></tr>
+    <tr><td class="lbl">Téléphone</td><td>${phone || '—'}</td></tr>
+    ${vehicleBlock}${subjectBlock}${sourceBlock}${messageBlock}
+  </table>
+  <a class="reply" href="mailto:${email}">Répondre à ${firstName}</a>
+  <p class="foot">Reçu via le site reyce.fr</p>
+</div></body></html>`;
+
+  try {
+    await resend.emails.send({
+      from:     fromAddress,
+      to:       ownerEmail,
+      subject:  subjectLine,
+      html,
+      reply_to: email
+    });
+    console.log(`[Contact] ✓ Email envoyé → ${ownerEmail} (de ${email})`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Contact] Erreur envoi email :', err.message);
+    res.status(500).json({ error: 'Erreur envoi' });
+  }
+});
+
 app.get('/api/slots', (req, res) => {
   const { service, date } = req.query;
 

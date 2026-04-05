@@ -126,7 +126,7 @@
 
         <!-- Form col -->
         <div class="contact-form reveal reveal--delay-1" data-form-wrap>
-          <form data-form>
+          <form data-form="contact">
             <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Envoyer un message</h2>
             <p class="t-body" style="margin-bottom:var(--space-lg);">Réponse garantie sous 24 heures.</p>
 
@@ -134,27 +134,27 @@
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">Prénom</label>
-                  <input type="text" class="form-input" placeholder="Prénom" required>
+                  <input type="text" name="firstName" class="form-input" placeholder="Prénom" required>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Nom</label>
-                  <input type="text" class="form-input" placeholder="Nom" required>
+                  <input type="text" name="lastName" class="form-input" placeholder="Nom" required>
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Email</label>
-                <input type="email" class="form-input" placeholder="votre@email.com" required>
+                <input type="email" name="email" class="form-input" placeholder="votre@email.com" required>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Téléphone (optionnel)</label>
-                <input type="tel" class="form-input" placeholder="+33 6 00 00 00 00">
+                <input type="tel" name="phone" class="form-input" placeholder="+33 6 00 00 00 00">
               </div>
 
               <div class="form-group">
                 <label class="form-label">Objet</label>
-                <select class="form-select">
+                <select name="subject" class="form-select">
                   <option value="">Sélectionner</option>
                   <option>Demande de devis — PPF</option>
                   <option>Demande de devis — Céramique</option>
@@ -167,7 +167,7 @@
 
               <div class="form-group">
                 <label class="form-label">Votre message</label>
-                <textarea class="form-textarea" placeholder="Décrivez votre demande en détail…" rows="5" required></textarea>
+                <textarea name="message" class="form-textarea" placeholder="Décrivez votre demande en détail…" rows="5" required></textarea>
               </div>
 
               <p style="font-size:12px;color:var(--grey-4);line-height:1.7;">

@@ -20,6 +20,9 @@
         <div class="intro__halo"></div>
         <img class="intro__symbol" src="assets/images/logo.png" alt="REYCE">
       </div>
+      <div class="intro__bar-wrap">
+        <div class="intro__bar"></div>
+      </div>
     </div>
   </div>
 
@@ -60,16 +63,18 @@
        ======================================================== -->
   <section class="hero">
     <div class="hero__bg">
-      <img class="hero__photo" src="assets/images/hero-bg.png" alt="REYCE — Atelier automobile premium, Lyon" loading="eager">
+      <!-- Remplacer par une vidéo cinématographique : assets/videos/hero.mp4 -->
+      <video class="hero__photo" autoplay muted loop playsinline poster="assets/images/hero-bg.png">
+        <source src="assets/videos/hero.mp4" type="video/mp4">
+      </video>
       <div class="hero__overlay"></div>
     </div>
 
     <div class="hero__content">
-      <p class="hero__eyebrow">Protection &amp; Esthétique Automobile · Lyon</p>
+      <p class="hero__eyebrow">Protection &amp; Esthétique · Lyon</p>
       <h1 class="hero__tagline">Chaque détail<br>est maîtrisé.</h1>
       <div class="hero__actions">
-        <a href="prestations.html" class="btn btn--primary">Découvrir les prestations</a>
-        <a href="rendez-vous.html" class="btn btn--outline">Prendre rendez-vous</a>
+        <a href="rendez-vous.html" class="btn btn--primary">Prendre rendez-vous</a>
       </div>
     </div>
 
@@ -203,6 +208,22 @@
   </section>
 
   <!-- ========================================================
+       BRAND STATEMENT
+       ======================================================== -->
+  <section class="section--brand-statement">
+    <div class="container container--narrow">
+      <div class="brand-statement reveal">
+        <div class="brand-statement__line"></div>
+        <p class="brand-statement__quote">
+          Chaque véhicule qui entre dans notre atelier<br>
+          est traité comme une pièce unique.
+        </p>
+        <p class="brand-statement__attr">L'exigence REYCE</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================
        RÉALISATIONS PREVIEW
        ======================================================== -->
   <section class="section section--dark">
@@ -273,18 +294,16 @@
   </section>
 
   <!-- ========================================================
-       CTA STRIP
+       CLOSING — Immersive final CTA
        ======================================================== -->
-  <section class="section--sm" style="background:var(--bg-2);">
+  <section class="section--closing">
     <div class="container">
-      <div class="cta-strip reveal">
-        <p class="cta-strip__text">
-          Prêt à offrir à votre véhicule<br>la protection qu'il mérite&nbsp;?
-        </p>
-        <div class="cta-strip__actions">
-          <a href="rendez-vous.html" class="btn btn--primary">Prendre rendez-vous</a>
-          <a href="contact.html"     class="btn btn--outline">Nous contacter</a>
-        </div>
+      <div class="closing reveal">
+        <p class="t-head">Atelier · Lyon</p>
+        <h2 class="closing__title t-display t-display--md">
+          L'excellence commence<br>par un rendez-vous.
+        </h2>
+        <a href="rendez-vous.html" class="btn btn--primary closing__btn">Réserver ma prestation</a>
       </div>
     </div>
   </section>

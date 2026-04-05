@@ -11,7 +11,8 @@
       "Bash(grep -l 'nav__logo\">REYCE' /Users/yourcar/reyce/*.html)",
       "Bash(npm --version)",
       "Bash(brew --version)",
-      "Bash(curl --version)"
+      "Bash(curl --version)",
+      "Bash(dig TXT _railway-verify.reyce.fr +short)"
     ]
   }
 }

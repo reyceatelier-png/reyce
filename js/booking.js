@@ -4,7 +4,7 @@
 'use strict';
 
 // ─── Acompte unique pour toutes les prestations ───────────────
-const DEPOSIT_AMOUNT = 39; // €
+const DEPOSIT_AMOUNT = 40; // €
 
 // ─── Configuration des prestations ───────────────────────────
 const SERVICES = {

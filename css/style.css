@@ -250,7 +250,7 @@ input, textarea, select {
 }
 .nav__logo:hover { opacity: 0.7; }
 .nav__logo-img {
-  height: 28px;
+  height: 34px;
   width: auto;
   display: block;
 }
@@ -733,6 +733,233 @@ input, textarea, select {
 .cta-strip__actions { display: flex; gap: 16px; flex-shrink: 0; }
 
 /* ============================================================
+   CATEGORY HUB — Page prestations hub
+   ============================================================ */
+.section--categories {
+  padding: var(--space-xl) 0 var(--space-2xl);
+  background: var(--bg);
+}
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+}
+.cat-card {
+  position: relative;
+  height: 54vh;
+  min-height: 380px;
+  overflow: hidden;
+  display: block;
+  text-decoration: none;
+  background: var(--bg-3);
+}
+.cat-card__bg {
+  position: absolute;
+  inset: 0;
+  transition: transform 1.4s var(--ease);
+  will-change: transform;
+}
+.cat-card:hover .cat-card__bg { transform: scale(1.05); }
+.cat-card__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+.cat-card__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,0.90) 0%,
+    rgba(0,0,0,0.25) 50%,
+    rgba(0,0,0,0.08) 100%
+  );
+  transition: opacity var(--t-slow);
+}
+.cat-card:hover .cat-card__overlay { opacity: 0.85; }
+.cat-card__content {
+  position: absolute;
+  bottom: 0;
+  left: 0; right: 0;
+  z-index: 2;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform var(--t-slow);
+}
+.cat-card:hover .cat-card__content { transform: translateY(-8px); }
+.cat-card__num {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--accent-2);
+  letter-spacing: 0.2em;
+}
+.cat-card__title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3vw, 46px);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--white);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.cat-card__desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.50);
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  max-width: 300px;
+}
+.cat-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  transition: gap var(--t), color var(--t);
+  margin-top: 4px;
+}
+.cat-card:hover .cat-card__cta { gap: 18px; color: var(--white); }
+
+/* Placeholder backgrounds when image is absent */
+.cat-card__bg--ppf      { background: linear-gradient(145deg, #06090e 0%, #0e1520 55%, #060608 100%); }
+.cat-card__bg--polissage { background: linear-gradient(145deg, #0b0b0b 0%, #161616 55%, #080808 100%); }
+.cat-card__bg--nettoyage { background: radial-gradient(ellipse 70% 50% at 30% 60%, #181818 0%, #060606 100%); }
+.cat-card__bg--teintees  { background: linear-gradient(145deg, #09090d 0%, #141420 55%, #090909 100%); }
+
+/* Back link on dedicated prestation pages */
+.prestation-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--grey-3);
+  transition: color var(--t);
+  margin-bottom: var(--space-sm);
+}
+.prestation-back:hover { color: var(--white); }
+
+/* ============================================================
+   BRAND STATEMENT — Storytelling section
+   ============================================================ */
+.section--brand-statement {
+  padding: var(--space-3xl) 0;
+  background: var(--bg);
+  text-align: center;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.brand-statement {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+.brand-statement__line {
+  width: 1px;
+  height: 64px;
+  background: var(--accent-line);
+}
+.brand-statement__quote {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.2vw, 50px);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--white);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.brand-statement__attr {
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--grey-3);
+}
+
+/* ============================================================
+   CLOSING SECTION — Immersive final CTA
+   ============================================================ */
+.section--closing {
+  padding: var(--space-3xl) 0;
+  background: var(--bg);
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.closing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.closing__title {
+  font-style: italic;
+  max-width: 680px;
+  margin: 0 auto;
+}
+.closing__btn {
+  margin-top: var(--space-sm);
+}
+
+/* ============================================================
+   PRESTATION SIGNATURE — phrase intro de section
+   ============================================================ */
+.prestation-signature {
+  font-family: var(--font-display);
+  font-size: clamp(18px, 2vw, 26px);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--accent-2);
+  margin-bottom: var(--space-sm);
+  line-height: 1.5;
+}
+
+/* ============================================================
+   LAVAGE EXPÉRIENCE — highlight signature service
+   ============================================================ */
+.lavage-exp {
+  border: 1px solid var(--accent-line);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-md);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+.lavage-exp__badge {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+  padding-top: 4px;
+}
+.lavage-exp__title {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2.5vw, 36px);
+  font-weight: 300;
+  font-style: italic;
+  color: var(--white);
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+.lavage-exp__desc {
+  font-size: 13px;
+  color: var(--grey-3);
+  line-height: 1.8;
+  max-width: 560px;
+}
+
+/* ============================================================
    FOOTER
    ============================================================ */
 .footer {
@@ -881,7 +1108,7 @@ input, textarea, select {
   flex-direction: column;
   gap: 16px;
   cursor: pointer;
-  transition: background var(--t);
+  transition: background var(--t), transform var(--t);
   position: relative;
 }
 .offer-card::before {
@@ -894,7 +1121,8 @@ input, textarea, select {
   transform-origin: left;
   transition: transform var(--t);
 }
-.offer-card:hover, .offer-card.is-featured { background: var(--bg-3); }
+.offer-card:hover { background: var(--bg-3); transform: translateY(-3px); }
+.offer-card.is-featured { background: var(--bg-3); }
 .offer-card.is-featured::before { transform: scaleX(1); }
 .offer-card:hover::before { transform: scaleX(1); }
 .offer-card__badge {
@@ -1617,6 +1845,8 @@ input, textarea, select {
   }
   .nav__links, .nav__cta { display: none; }
   .nav__burger { display: flex; }
+  .cat-grid { grid-template-columns: 1fr; }
+  .cat-card { height: 55vw; min-height: 280px; }
   .service-cards { grid-template-columns: 1fr; }
   .offer-cards { grid-template-columns: 1fr; }
   .offer-cards--2 { grid-template-columns: 1fr; }
@@ -1679,6 +1909,7 @@ input, textarea, select {
 }
 
 .intro__scene {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1686,12 +1917,12 @@ input, textarea, select {
   height: 100%;
 }
 
-/* Wrapper — exactly 1/6 of screen width (half of previous 1/3) */
+/* Wrapper — logo intro */
 .intro__logo-wrap {
   position: relative;
-  width: 16.67vw;
-  min-width: 90px;
-  max-width: 240px;
+  width: 20vw;
+  min-width: 108px;
+  max-width: 288px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1719,6 +1950,24 @@ input, textarea, select {
   display: block;
   opacity: 0;
   will-change: transform, opacity;
+}
+
+/* Loading bar — 200px sous le logo centré */
+.intro__bar-wrap {
+  position: absolute;
+  top: calc(50% + 220px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  overflow: hidden;
+}
+.intro__bar {
+  height: 100%;
+  width: 0%;
+  background: rgba(255,255,255,0.40);
+  transform-origin: left center;
 }
 
 /* Block scroll during intro */

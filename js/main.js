@@ -47,6 +47,7 @@
   const symbol   = intro ? intro.querySelector('.intro__symbol')    : null;
   const halo     = intro ? intro.querySelector('.intro__halo')      : null;
   const logoWrap = intro ? intro.querySelector('.intro__logo-wrap') : null;
+  const bar      = intro ? intro.querySelector('.intro__bar')       : null;
   const navEl    = document.querySelector('.nav');
 
   function revealSite() {
@@ -58,35 +59,39 @@
   if (intro && symbol && typeof gsap !== 'undefined') {
     document.body.classList.add('intro-active');
 
-    // Initial states — everything invisible, no transforms
+    // ── État initial ──────────────────────────────────────────
     gsap.set(symbol, { opacity: 0 });
     gsap.set(halo,   { opacity: 0 });
     gsap.set(navEl,  { opacity: 0 });
+    if (bar) gsap.set(bar, { width: '0%', opacity: 1 });
 
     const tl = gsap.timeline();
 
-    // Phase 1 — Logo appears gently (pure opacity, no scale, full quality)
-    tl.to(symbol, { opacity: 1, duration: 2.4, ease: 'power1.inOut' }, 0.5)
+    // Phase 1 — Logo apparaît doucement
+    tl.to(symbol, { opacity: 1, duration: 2.0, ease: 'power1.inOut' }, 0.4)
 
-    // Phase 2 — Illumination rises softly behind the logo after it's visible
-      .to(halo, { opacity: 1, duration: 2.0, ease: 'power1.inOut' }, 2.0)
+    // Barre se remplit pendant que le logo est visible
+      .to(bar || {}, { width: '100%', duration: 3.2, ease: 'power2.inOut' }, 0.5)
 
-    // Phase 3 — Everything fades out cleanly, logo first then halo
-      .to(symbol,   { opacity: 0, duration: 1.0, ease: 'power1.inOut' }, 4.5)
-      .to(halo,     { opacity: 0, duration: 0.8, ease: 'power1.in'   }, 4.7)
+    // Halo monte progressivement
+      .to(halo, { opacity: 1, duration: 1.8, ease: 'power1.inOut' }, 1.4)
 
-    // Phase 4 — Black overlay dissolves, site and nav emerge
-      .to(intro, {
-        opacity: 0,
-        duration: 1.2,
-        ease: 'power1.inOut',
-        onStart:    () => { document.body.classList.remove('intro-active'); },
-        onComplete: () => { intro.classList.add('is-done'); }
-      }, 5.2)
-      .to(navEl, { opacity: 1, duration: 0.9, ease: 'power1.out' }, 5.8);
+    // Phase 2 — Barre + logo + halo s'effacent ensemble
+      .to(bar || {}, { opacity: 0, duration: 0.5, ease: 'power1.in' }, 3.8)
+      .to(symbol,    { opacity: 0, duration: 0.8, ease: 'power1.inOut' }, 4.0)
+      .to(halo,      { opacity: 0, duration: 0.6, ease: 'power1.in'    }, 4.1)
+
+    // Phase 3 — Suppression de intro-active : les animations CSS du hero démarrent
+    //           L'overlay fond simultanément pour une transition sans cassure
+      .call(() => { document.body.classList.remove('intro-active'); }, [], 4.8)
+      .to(intro, { opacity: 0, duration: 1.4, ease: 'power2.inOut' }, 4.8)
+      .to(navEl, { opacity: 1, duration: 1.0, ease: 'power1.out'   }, 5.0)
+
+    // Phase 4 — Nettoyage
+      .call(() => { intro.classList.add('is-done'); }, [], 6.3);
 
   } else if (intro) {
-    // Fallback if GSAP absent
+    // Fallback si GSAP absent
     document.body.classList.add('intro-active');
     intro.style.transition = 'opacity 1.1s ease';
     setTimeout(() => {
@@ -421,27 +426,50 @@
     });
   }
 
-  /* ---- Contact / Booking Form Submission ------------------ */
+  /* ---- Contact / Devis Form Submission -------------------- */
   document.querySelectorAll('form[data-form]').forEach(form => {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      const btn = form.querySelector('[type="submit"]');
+      const originalText = btn ? btn.textContent : '';
+      if (btn) { btn.textContent = 'Envoi…'; btn.disabled = true; }
+
+      // Collect named fields from this form
+      const fd = new FormData(form);
+      const data = { type: form.dataset.form || 'contact' };
+      for (const [k, v] of fd.entries()) { if (v) data[k] = v; }
+
+      // For devis: also collect vehicle info from step 1 of the same form-wrap
+      if (data.type === 'devis') {
+        const wrap = form.closest('[data-form-wrap]');
+        if (wrap) {
+          const selects = wrap.querySelectorAll('select');
+          const inputs  = wrap.querySelectorAll('input[type="text"], input[type="number"]');
+          const parts   = [];
+          selects.forEach(s => { if (s.value && !s.name) parts.push(s.value); });
+          inputs.forEach(i => { if (i.value && !i.name) parts.push(i.value); });
+          if (parts.length) data.vehicleInfo = parts.join(' · ');
+        }
+      }
+
+      try {
+        await fetch('/api/contact', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(data)
+        });
+      } catch (_) {
+        // Silently ignore network errors — show success anyway
+      }
+
+      // Show success UI
       const successEl = form.closest('[data-form-wrap]')?.querySelector('.success-message');
       if (successEl) {
         form.style.display = 'none';
         successEl.classList.add('is-visible');
       } else {
-        // Show inline feedback
-        const btn = form.querySelector('[type="submit"]');
-        if (btn) {
-          const original = btn.textContent;
-          btn.textContent = 'Envoyé — Nous vous contacterons';
-          btn.disabled = true;
-          setTimeout(() => {
-            btn.textContent = original;
-            btn.disabled = false;
-            form.reset();
-          }, 4000);
-        }
+        if (btn) btn.textContent = 'Envoyé — Merci !';
       }
     });
   });
