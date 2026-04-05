@@ -156,14 +156,14 @@ function buildClientEmail(data, svc) {
   <p class="addr-title">Où nous trouver</p>
   <p class="addr-val">
     47 chemin du Pras · La Mulatière, Lyon<br>
-    <a href="tel:+33763004385">07 63 00 43 85</a><br>
-    <a href="mailto:reyceatelier@gmail.com">reyceatelier@gmail.com</a>
+    07 63 00 43 85<br>
+    reyceatelier@gmail.com
   </p>
 
   <div class="footer">
     <p>
       REYCE · Atelier automobile premium · Lyon<br>
-      <a href="https://www.reyce.fr">www.reyce.fr</a> · <a href="https://www.instagram.com/reyce.lyon">@reyce.lyon</a>
+      www.reyce.fr · @reyce.lyon
     </p>
   </div>
 
