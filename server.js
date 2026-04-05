@@ -227,8 +227,8 @@ function buildOwnerEmail(data, svc) {
     <tr><td class="label">Véhicule</td><td>${vehicleLine}</td></tr>
     ${tintLine}
     <tr><td class="label">Client</td><td>${data.client.firstName} ${data.client.lastName}</td></tr>
-    <tr><td class="label">Téléphone</td><td><a href="tel:${data.client.phone}" style="color:#bfc8d0;">${data.client.phone}</a></td></tr>
-    <tr><td class="label">Email</td><td><a href="mailto:${data.client.email}" style="color:#bfc8d0;">${data.client.email}</a></td></tr>
+    <tr><td class="label">Téléphone</td><td>${data.client.phone}</td></tr>
+    <tr><td class="label">Email</td><td>${data.client.email}</td></tr>
     ${notesLine}
     <tr><td class="label">Acompte reçu</td><td><span class="amount">${svc.depositCents / 100}&thinsp;€</span></td></tr>
   </table>
@@ -389,11 +389,11 @@ app.post('/api/contact', async (req, res) => {
   <div class="badge">${isDevis ? 'Demande de devis' : 'Message de contact'}</div>
   <table>
     <tr><td class="lbl">Nom</td><td>${firstName} ${lastName}</td></tr>
-    <tr><td class="lbl">Email</td><td><a href="mailto:${email}" style="color:#bfc8d0">${email}</a></td></tr>
+    <tr><td class="lbl">Email</td><td>${email}</td></tr>
     <tr><td class="lbl">Téléphone</td><td>${phone || '—'}</td></tr>
     ${vehicleBlock}${subjectBlock}${sourceBlock}${messageBlock}
   </table>
-  <a class="reply" href="mailto:${email}">Répondre à ${firstName}</a>
+  <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${firstName}</p>
   <p class="foot">Reçu via le site reyce.fr</p>
 </div></body></html>`;
 
