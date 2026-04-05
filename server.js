@@ -379,19 +379,20 @@ app.post('/api/contact', async (req, res) => {
   <p class="foot">Reçu via le site reyce.fr</p>
 </div></body></html>`;
 
+  console.log(`[Contact] Tentative envoi → from: ${fromAddress} | to: ${ownerEmail} | reply_to: ${email}`);
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from:     fromAddress,
       to:       ownerEmail,
       subject:  subjectLine,
       html,
       reply_to: email
     });
-    console.log(`[Contact] ✓ Email envoyé → ${ownerEmail} (de ${email})`);
+    console.log('[Contact] ✓ Email envoyé, id:', result?.id || result);
     res.json({ ok: true });
   } catch (err) {
-    console.error('[Contact] Erreur envoi email :', err.message);
-    res.status(500).json({ error: 'Erreur envoi' });
+    console.error('[Contact] ✗ Erreur Resend :', JSON.stringify(err));
+    res.status(500).json({ error: err.message });
   }
 });
 

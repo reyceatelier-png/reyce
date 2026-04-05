@@ -453,23 +453,29 @@
         }
       }
 
+      let ok = false;
       try {
-        await fetch('/api/contact', {
+        const res = await fetch('/api/contact', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify(data)
         });
-      } catch (_) {
-        // Silently ignore network errors — show success anyway
+        ok = res.ok;
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.error('[Contact] Erreur serveur :', res.status, err);
+        }
+      } catch (err) {
+        console.error('[Contact] Erreur réseau :', err);
       }
 
-      // Show success UI
+      // Show success UI (always — user experience)
       const successEl = form.closest('[data-form-wrap]')?.querySelector('.success-message');
       if (successEl) {
         form.style.display = 'none';
         successEl.classList.add('is-visible');
       } else {
-        if (btn) btn.textContent = 'Envoyé — Merci !';
+        if (btn) btn.textContent = ok ? 'Envoyé — Merci !' : 'Envoyé';
       }
     });
   });
