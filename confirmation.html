@@ -39,126 +39,99 @@
     <a href="rendez-vous.html" class="nav__link" style="color:var(--white);margin-top:16px;">Prendre rendez-vous</a>
   </div>
 
-  <section class="section section--dark" style="min-height:calc(100vh - var(--nav-h));display:flex;align-items:center;">
+  <section style="min-height:100vh;display:flex;align-items:center;background:var(--bg);padding:var(--space-xl) 0;">
     <div class="container">
       <div class="confirm-wrap">
 
-        <!-- Icône de validation -->
-        <div class="confirm-icon">✓</div>
+        <!-- Icône -->
+        <div class="confirm-icon">
+          <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
+            <path d="M1 8l6 6L19 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
 
-        <!-- Titre -->
-        <p class="t-head" style="margin-bottom:16px;">Paiement accepté</p>
-        <h1 class="t-display t-display--md" style="margin-bottom:16px;" id="confirmTitle">
-          Réservation confirmée.
+        <!-- En-tête -->
+        <p class="t-head" style="margin-bottom:12px;color:var(--accent);">Acompte encaissé</p>
+        <h1 class="t-display t-display--md" style="margin-bottom:16px;">
+          Votre rendez-vous<br>est confirmé.
         </h1>
-        <p class="t-body" style="max-width:440px;margin-bottom:0;" id="confirmSubtitle">
-          Votre acompte a bien été encaissé. Vous allez recevoir un email de confirmation.
+        <p class="t-body" style="max-width:400px;margin-bottom:0;color:var(--grey-2);">
+          Un email de confirmation vient d'être envoyé à votre adresse.
         </p>
 
-        <!-- Détails de la réservation -->
+        <!-- Récapitulatif -->
         <div class="confirm-details" id="confirmDetails">
-          <p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:8px 0;">
-            Chargement des détails…
+          <p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:16px 0;">
+            Chargement…
+          </p>
+        </div>
+
+        <!-- Acompte déduit -->
+        <div style="width:100%;max-width:480px;border:1px solid var(--accent-line);background:rgba(191,200,208,0.03);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-lg);text-align:left;">
+          <p style="font-size:12px;color:var(--grey-3);line-height:1.8;">
+            L'acompte de <strong style="color:var(--accent);">40&thinsp;€</strong> sera déduit du montant total le jour de votre rendez-vous.<br>
+            Toute annulation moins de 24h avant entraîne la conservation de l'acompte.
+          </p>
+        </div>
+
+        <!-- Adresse -->
+        <div style="width:100%;max-width:480px;border-top:1px solid var(--border);padding-top:var(--space-md);margin-bottom:var(--space-lg);text-align:left;display:flex;flex-direction:column;gap:8px;">
+          <p class="t-head" style="margin-bottom:4px;">Atelier REYCE</p>
+          <p style="font-size:13px;color:var(--grey-2);line-height:1.8;">
+            47 chemin du Pras · La Mulatière, Lyon<br>
+            <a href="tel:+33763004385" style="color:var(--grey-3);">07 63 00 43 85</a> · <a href="mailto:reyceatelier@gmail.com" style="color:var(--grey-3);">reyceatelier@gmail.com</a>
           </p>
         </div>
 
         <!-- Actions -->
         <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;">
-          <a href="index.html" class="btn btn--outline">Retour à l'accueil</a>
+          <a href="index.html"   class="btn btn--outline">Retour à l'accueil</a>
           <a href="contact.html" class="btn btn--ghost">Nous contacter</a>
         </div>
-
-        <!-- Note de bas de page -->
-        <p class="t-body--sm" style="margin-top:var(--space-lg);color:var(--grey-4);max-width:440px;">
-          Pour toute question ou modification, contactez-nous au
-          <a href="tel:+33763004385" style="color:var(--grey-3);">07 63 00 43 85</a>
-          ou à <a href="mailto:reyceatelier@gmail.com" style="color:var(--grey-3);">reyceatelier@gmail.com</a>.
-        </p>
 
       </div>
     </div>
   </section>
 
-  <footer class="footer">
-    <div class="container">
-      <div class="footer__grid">
-        <div>
-          <p class="footer__brand-name">REYCE</p>
-          <p class="footer__brand-desc">Protection et esthétique automobile haut de gamme. Précision, exclusivité, perfection.</p>
-        </div>
-        <div>
-          <p class="footer__col-title">Prestations</p>
-          <ul class="footer__links">
-            <li><a href="prestations.html#ppf"       class="footer__link">Protection PPF</a></li>
-            <li><a href="prestations.html#ceramique" class="footer__link">Céramique</a></li>
-            <li><a href="prestations.html#entretien" class="footer__link">Entretien</a></li>
-            <li><a href="prestations.html#staging"   class="footer__link">Car Staging</a></li>
-          </ul>
-        </div>
-        <div>
-          <p class="footer__col-title">Navigation</p>
-          <ul class="footer__links">
-            <li><a href="index.html"        class="footer__link">Accueil</a></li>
-            <li><a href="realisations.html" class="footer__link">Réalisations</a></li>
-            <li><a href="a-propos.html"     class="footer__link">À propos</a></li>
-            <li><a href="contact.html"      class="footer__link">Contact</a></li>
-          </ul>
-        </div>
-        <div>
-          <p class="footer__col-title">Contact</p>
-          <ul class="footer__links">
-            <li><a href="tel:+33763004385"              class="footer__link">07 63 00 43 85</a></li>
-            <li><a href="mailto:reyceatelier@gmail.com" class="footer__link">reyceatelier@gmail.com</a></li>
-            <li><a href="https://www.instagram.com/reyce.lyon" target="_blank" class="footer__link">@reyce.lyon</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="footer__bottom">
-        <p class="footer__copy">&copy; 2025 REYCE. Tous droits réservés.</p>
-        <p class="footer__legal"><a href="#">Mentions légales</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#">Confidentialité</a></p>
-      </div>
-    </div>
-  </footer>
-
   <script src="js/main.js"></script>
   <script>
-    // ─── Chargement des détails de la réservation ────────────
     (function () {
       const MONTHS = ['janvier','février','mars','avril','mai','juin',
                       'juillet','août','septembre','octobre','novembre','décembre'];
       const DAYS   = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 
-      function formatDate(str) {
+      function fmt(str) {
         if (!str) return '—';
         const [y, m, d] = str.split('-').map(Number);
         const date = new Date(y, m - 1, d);
         return `${DAYS[date.getDay()]} ${d} ${MONTHS[m - 1]} ${y}`;
       }
 
-      const params    = new URLSearchParams(window.location.search);
-      const sessionId = params.get('session_id');
-      const detailsEl = document.getElementById('confirmDetails');
+      const sessionId = new URLSearchParams(window.location.search).get('session_id');
+      const el        = document.getElementById('confirmDetails');
 
       if (!sessionId) {
-        detailsEl.innerHTML = '<p class="t-body--sm" style="color:var(--grey-3);text-align:center;">Référence de session introuvable.</p>';
+        el.innerHTML = '<p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:16px 0;">Référence introuvable.</p>';
         return;
       }
 
       fetch(`/api/booking/${sessionId}`)
         .then(r => r.ok ? r.json() : Promise.reject())
         .then(data => {
+          const vehicleStr = [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—';
+          const tintStr    = data.tintOption === 'legal' ? 'Homologuée' : data.tintOption === 'dark' ? 'Très sombre' : null;
+
           const rows = [
-            ['Prestation',  data.serviceName],
-            ['Véhicule',    [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ')],
-            data.tintOption ? ['Film teinté', data.tintOption === 'legal' ? 'Homologuée' : 'Très sombre'] : null,
-            ['Date',        formatDate(data.date)],
-            ['Heure',       data.time],
-            ['Client',      `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim()],
-            ['Email',       data.client?.email],
-            ['Acompte payé', `${data.depositAmount}\u202f€`]
+            ['Prestation',   data.serviceName],
+            ['Date',         fmt(data.date)],
+            ['Heure',        data.time],
+            ['Véhicule',     vehicleStr],
+            tintStr ? ['Film teinté', tintStr] : null,
+            ['Client',       `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim()],
+            ['Acompte payé', `40\u202f€`]
           ].filter(Boolean);
 
-          detailsEl.innerHTML = rows.map(([label, val]) => `
+          el.innerHTML = rows.map(([label, val]) => `
             <div class="sum-row">
               <span class="sum-row__label">${label}</span>
               <span class="sum-row__value">${val || '—'}</span>
@@ -166,7 +139,7 @@
           `).join('');
         })
         .catch(() => {
-          detailsEl.innerHTML = '<p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:8px 0;">Impossible de charger les détails. Votre réservation est bien enregistrée.</p>';
+          el.innerHTML = '<p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:16px 0;">Votre réservation est bien enregistrée.</p>';
         });
     })();
   </script>

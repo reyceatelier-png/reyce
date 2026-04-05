@@ -93,23 +93,28 @@ function buildClientEmail(data, svc) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#080808; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#e8e8e8; -webkit-font-smoothing:antialiased; }
-  .wrap { max-width:560px; margin:0 auto; padding:48px 24px; }
-  .logo { font-size:22px; font-weight:500; letter-spacing:0.35em; text-transform:uppercase; color:#ffffff; margin-bottom:48px; }
-  .title { font-size:28px; font-weight:300; color:#ffffff; line-height:1.2; margin-bottom:8px; font-style:italic; }
-  .sub { font-size:14px; color:#888; margin-bottom:40px; line-height:1.7; }
-  .badge { display:inline-block; background:#1a1a1a; border:1px solid #2a2a2a; padding:6px 14px; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#bfc8d0; margin-bottom:32px; }
-  .table { width:100%; border-collapse:collapse; margin-bottom:32px; }
-  .table td { padding:13px 0; border-bottom:1px solid #1c1c1c; font-size:14px; vertical-align:top; }
-  .table td.label { color:#666; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; width:38%; padding-top:15px; }
-  .table td:last-child { color:#e8e8e8; }
-  .deposit-box { background:#111; border:1px solid #222; padding:20px 24px; margin-bottom:32px; }
-  .deposit-box p { font-size:13px; color:#888; line-height:1.75; }
-  .deposit-box strong { color:#bfc8d0; }
-  .cta { display:block; text-align:center; padding:14px 32px; background:#ffffff; color:#080808; font-size:12px; font-weight:500; letter-spacing:0.18em; text-transform:uppercase; text-decoration:none; margin-bottom:40px; }
-  .footer { border-top:1px solid #1a1a1a; padding-top:28px; }
-  .footer p { font-size:12px; color:#555; line-height:1.8; }
-  .footer a { color:#888; text-decoration:none; }
+  body { background:#070707; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#e0e0e0; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:560px; margin:0 auto; padding:56px 32px; }
+  .logo { font-size:18px; font-weight:600; letter-spacing:0.38em; text-transform:uppercase; color:#fff; margin-bottom:56px; }
+  .check { width:48px; height:48px; border:1px solid rgba(191,200,208,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:28px; }
+  .title { font-size:30px; font-weight:300; color:#fff; line-height:1.2; margin-bottom:10px; font-style:italic; }
+  .sub { font-size:14px; color:#777; margin-bottom:48px; line-height:1.75; }
+  .badge { display:inline-block; border:1px solid #222; padding:5px 14px; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#bfc8d0; margin-bottom:28px; }
+  .table { width:100%; border-collapse:collapse; margin-bottom:28px; }
+  .table td { padding:14px 0; border-bottom:1px solid #181818; font-size:14px; vertical-align:top; line-height:1.5; }
+  .table td.lbl { color:#555; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; width:40%; padding-top:16px; }
+  .table td.val { color:#e0e0e0; }
+  .accent { color:#bfc8d0; font-weight:500; }
+  .box { background:#0f0f0f; border:1px solid #1c1c1c; padding:20px 24px; margin-bottom:32px; }
+  .box p { font-size:13px; color:#666; line-height:1.8; }
+  .box strong { color:#999; }
+  .divider { border:none; border-top:1px solid #181818; margin:32px 0; }
+  .addr-title { font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#555; margin-bottom:12px; }
+  .addr-val { font-size:13px; color:#888; line-height:1.9; }
+  .addr-val a { color:#999; text-decoration:none; }
+  .footer { border-top:1px solid #141414; padding-top:24px; margin-top:40px; }
+  .footer p { font-size:11px; color:#444; line-height:1.8; }
+  .footer a { color:#555; text-decoration:none; }
 </style>
 </head>
 <body>
@@ -117,36 +122,48 @@ function buildClientEmail(data, svc) {
 
   <div class="logo">REYCE</div>
 
-  <p class="title">Réservation confirmée.</p>
+  <div class="check">
+    <svg width="16" height="13" viewBox="0 0 16 13" fill="none"><path d="M1 6.5l4.5 4.5L15 1" stroke="#bfc8d0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+
+  <p class="title">Votre rendez-vous<br>est confirmé.</p>
   <p class="sub">
-    Votre rendez-vous est bien enregistré et votre acompte a été encaissé.<br>
-    Nous avons hâte de prendre soin de votre véhicule.
+    Bonjour ${data.client.firstName},<br>
+    votre acompte a bien été encaissé. Nous avons hâte de prendre soin de votre véhicule.
   </p>
 
-  <div class="badge">Confirmation de réservation</div>
+  <div class="badge">Récapitulatif de réservation</div>
 
   <table class="table">
-    <tr><td class="label">Prestation</td><td>${svc.name}</td></tr>
-    <tr><td class="label">Date</td><td>${formatDate(data.date)}</td></tr>
-    <tr><td class="label">Heure</td><td>${data.time}</td></tr>
-    <tr><td class="label">Véhicule</td><td>${vehicleLine}</td></tr>
+    <tr><td class="lbl">Prestation</td><td class="val">${svc.name}</td></tr>
+    <tr><td class="lbl">Date</td><td class="val">${formatDate(data.date)}</td></tr>
+    <tr><td class="lbl">Heure</td><td class="val">${data.time}</td></tr>
+    <tr><td class="lbl">Véhicule</td><td class="val">${vehicleLine}</td></tr>
     ${tintLine}
     ${notesLine}
-    <tr><td class="label">Acompte payé</td><td><strong style="color:#bfc8d0;">${svc.depositCents / 100}&thinsp;€</strong> — déduit du montant final</td></tr>
+    <tr><td class="lbl">Acompte payé</td><td class="val"><span class="accent">${svc.depositCents / 100}&thinsp;€</span> — déduit du montant final</td></tr>
   </table>
 
-  <div class="deposit-box">
+  <div class="box">
     <p>
-      <strong>Annulation :</strong> toute annulation tardive (moins de 24h avant le rendez-vous) ou absence pourra entraîner la conservation de l'acompte.<br><br>
-      Pour modifier ou annuler votre rendez-vous, contactez-nous au plus tôt.
+      <strong>Annulation :</strong> toute annulation moins de 24h avant le rendez-vous ou absence non signalée pourra entraîner la conservation de l'acompte.<br><br>
+      Pour modifier ou annuler, contactez-nous le plus tôt possible.
     </p>
   </div>
+
+  <hr class="divider">
+
+  <p class="addr-title">Où nous trouver</p>
+  <p class="addr-val">
+    47 chemin du Pras · La Mulatière, Lyon<br>
+    <a href="tel:+33763004385">07 63 00 43 85</a><br>
+    <a href="mailto:reyceatelier@gmail.com">reyceatelier@gmail.com</a>
+  </p>
 
   <div class="footer">
     <p>
       REYCE · Atelier automobile premium · Lyon<br>
-      <a href="tel:+33763004385">07 63 00 43 85</a> · <a href="mailto:reyceatelier@gmail.com">reyceatelier@gmail.com</a><br>
-      <a href="https://www.instagram.com/reyce.lyon">@reyce.lyon</a>
+      <a href="https://www.reyce.fr">www.reyce.fr</a> · <a href="https://www.instagram.com/reyce.lyon">@reyce.lyon</a>
     </p>
   </div>
 
