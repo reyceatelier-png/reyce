@@ -332,8 +332,8 @@ app.post('/api/webhook',
 
 // ============================================================
 // Middleware
+// IMPORTANT : express.static et express.json après le webhook
 // ============================================================
-app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
 // ============================================================
@@ -341,6 +341,7 @@ app.use(express.static(path.join(__dirname)));
 // ============================================================
 
 // ── Contact / Devis ──────────────────────────────────────────
+app.use('/api/contact', express.json());
 app.post('/api/contact', async (req, res) => {
   const { type, firstName, lastName, email, phone, subject, message, source, vehicleInfo } = req.body;
 
@@ -431,6 +432,7 @@ app.get('/api/slots', (req, res) => {
   res.json({ slots: SERVICES[service].slots.filter(s => !taken.includes(s)) });
 });
 
+app.use('/api/create-checkout-session', express.json());
 app.post('/api/create-checkout-session', async (req, res) => {
   const { service, vehicleType, vehicleModel, tintOption, date, time, client } = req.body;
 
