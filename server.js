@@ -172,8 +172,6 @@ function buildClientEmail(data, svc) {
 </html>`;
 
   return {
-    from:    `"REYCE" <${process.env.SMTP_USER}>`,
-    to:      data.client.email,
     subject: `Réservation confirmée — ${svc.name} · ${formatDate(data.date)}`,
     html
   };
@@ -242,8 +240,6 @@ function buildOwnerEmail(data, svc) {
 </html>`;
 
   return {
-    from:    `"REYCE Booking" <${process.env.SMTP_USER}>`,
-    to:      process.env.OWNER_EMAIL || process.env.SMTP_USER,
     subject: `[RDV] ${svc.name} — ${data.client.firstName} ${data.client.lastName} · ${formatDate(data.date)} à ${data.time}`,
     html
   };
