@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(identify /Users/yourcar/Desktop/reyce_logo_transparent_hd.png)",
+      "Bash(python3 -c ':*)",
+      "Bash(pip3 install:*)",
+      "Bash(xargs ls:*)",
+      "Bash(ls -lt /Users/yourcar/Desktop/*.jpg /Users/yourcar/Desktop/*.png /Users/yourcar/Desktop/*.webp)",
+      "Bash(ls -lt /Users/yourcar/Desktop/*.png /Users/yourcar/Downloads/*.png)",
+      "WebFetch(domain:www.modenaparis.fr)",
+      "Bash(grep -l 'nav__logo\">REYCE' /Users/yourcar/reyce/*.html)",
+      "Bash(npm --version)",
+      "Bash(brew --version)",
+      "Bash(curl --version)"
+    ]
+  }
+}

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Réservation confirmée — REYCE</title>
+  <meta name="description" content="Votre rendez-vous REYCE est confirmé. Merci de votre confiance.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="cursor"></div>
+  <div class="cursor-ring"></div>
+
+  <nav class="nav is-scrolled">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__logo"><img src="assets/images/logo.png" alt="REYCE" class="nav__logo-img"></a>
+      <ul class="nav__links">
+        <li><a href="index.html"       class="nav__link">Accueil</a></li>
+        <li><a href="prestations.html" class="nav__link">Prestations</a></li>
+        <li><a href="realisations.html"class="nav__link">Réalisations</a></li>
+        <li><a href="a-propos.html"    class="nav__link">À propos</a></li>
+        <li><a href="contact.html"     class="nav__link">Contact</a></li>
+      </ul>
+      <a href="rendez-vous.html" class="nav__cta">Prendre rendez-vous</a>
+      <button class="nav__burger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="nav__mobile">
+    <a href="index.html"       class="nav__link">Accueil</a>
+    <a href="prestations.html" class="nav__link">Prestations</a>
+    <a href="realisations.html"class="nav__link">Réalisations</a>
+    <a href="a-propos.html"    class="nav__link">À propos</a>
+    <a href="contact.html"     class="nav__link">Contact</a>
+    <a href="rendez-vous.html" class="nav__link" style="color:var(--white);margin-top:16px;">Prendre rendez-vous</a>
+  </div>
+
+  <section class="section section--dark" style="min-height:calc(100vh - var(--nav-h));display:flex;align-items:center;">
+    <div class="container">
+      <div class="confirm-wrap">
+
+        <!-- Icône de validation -->
+        <div class="confirm-icon">✓</div>
+
+        <!-- Titre -->
+        <p class="t-head" style="margin-bottom:16px;">Paiement accepté</p>
+        <h1 class="t-display t-display--md" style="margin-bottom:16px;" id="confirmTitle">
+          Réservation confirmée.
+        </h1>
+        <p class="t-body" style="max-width:440px;margin-bottom:0;" id="confirmSubtitle">
+          Votre acompte a bien été encaissé. Vous allez recevoir un email de confirmation.
+        </p>
+
+        <!-- Détails de la réservation -->
+        <div class="confirm-details" id="confirmDetails">
+          <p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:8px 0;">
+            Chargement des détails…
+          </p>
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;">
+          <a href="index.html" class="btn btn--outline">Retour à l'accueil</a>
+          <a href="contact.html" class="btn btn--ghost">Nous contacter</a>
+        </div>
+
+        <!-- Note de bas de page -->
+        <p class="t-body--sm" style="margin-top:var(--space-lg);color:var(--grey-4);max-width:440px;">
+          Pour toute question ou modification, contactez-nous au
+          <a href="tel:+33763004385" style="color:var(--grey-3);">07 63 00 43 85</a>
+          ou à <a href="mailto:reyceatelier@gmail.com" style="color:var(--grey-3);">reyceatelier@gmail.com</a>.
+        </p>
+
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <div>
+          <p class="footer__brand-name">REYCE</p>
+          <p class="footer__brand-desc">Protection et esthétique automobile haut de gamme. Précision, exclusivité, perfection.</p>
+        </div>
+        <div>
+          <p class="footer__col-title">Prestations</p>
+          <ul class="footer__links">
+            <li><a href="prestations.html#ppf"       class="footer__link">Protection PPF</a></li>
+            <li><a href="prestations.html#ceramique" class="footer__link">Céramique</a></li>
+            <li><a href="prestations.html#entretien" class="footer__link">Entretien</a></li>
+            <li><a href="prestations.html#staging"   class="footer__link">Car Staging</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer__col-title">Navigation</p>
+          <ul class="footer__links">
+            <li><a href="index.html"        class="footer__link">Accueil</a></li>
+            <li><a href="realisations.html" class="footer__link">Réalisations</a></li>
+            <li><a href="a-propos.html"     class="footer__link">À propos</a></li>
+            <li><a href="contact.html"      class="footer__link">Contact</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer__col-title">Contact</p>
+          <ul class="footer__links">
+            <li><a href="tel:+33763004385"              class="footer__link">07 63 00 43 85</a></li>
+            <li><a href="mailto:reyceatelier@gmail.com" class="footer__link">reyceatelier@gmail.com</a></li>
+            <li><a href="https://www.instagram.com/reyce.lyon" target="_blank" class="footer__link">@reyce.lyon</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <p class="footer__copy">&copy; 2025 REYCE. Tous droits réservés.</p>
+        <p class="footer__legal"><a href="#">Mentions légales</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#">Confidentialité</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    // ─── Chargement des détails de la réservation ────────────
+    (function () {
+      const MONTHS = ['janvier','février','mars','avril','mai','juin',
+                      'juillet','août','septembre','octobre','novembre','décembre'];
+      const DAYS   = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+
+      function formatDate(str) {
+        if (!str) return '—';
+        const [y, m, d] = str.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        return `${DAYS[date.getDay()]} ${d} ${MONTHS[m - 1]} ${y}`;
+      }
+
+      const params    = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session_id');
+      const detailsEl = document.getElementById('confirmDetails');
+
+      if (!sessionId) {
+        detailsEl.innerHTML = '<p class="t-body--sm" style="color:var(--grey-3);text-align:center;">Référence de session introuvable.</p>';
+        return;
+      }
+
+      fetch(`/api/booking/${sessionId}`)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+          const rows = [
+            ['Prestation',  data.serviceName],
+            ['Véhicule',    [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ')],
+            data.tintOption ? ['Film teinté', data.tintOption === 'legal' ? 'Homologuée' : 'Très sombre'] : null,
+            ['Date',        formatDate(data.date)],
+            ['Heure',       data.time],
+            ['Client',      `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim()],
+            ['Email',       data.client?.email],
+            ['Acompte payé', `${data.depositAmount}\u202f€`]
+          ].filter(Boolean);
+
+          detailsEl.innerHTML = rows.map(([label, val]) => `
+            <div class="sum-row">
+              <span class="sum-row__label">${label}</span>
+              <span class="sum-row__value">${val || '—'}</span>
+            </div>
+          `).join('');
+        })
+        .catch(() => {
+          detailsEl.innerHTML = '<p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:8px 0;">Impossible de charger les détails. Votre réservation est bien enregistrée.</p>';
+        });
+    })();
+  </script>
+</body>
+</html>

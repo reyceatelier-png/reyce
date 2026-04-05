@@ -1,0 +1,423 @@
+'use strict';
+require('dotenv').config();
+
+const express    = require('express');
+const stripe     = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { Resend } = require('resend');
+const fs         = require('fs');
+const path       = require('path');
+
+const app      = express();
+const PORT     = process.env.PORT || 3000;
+const DATA_DIR = path.join(__dirname, 'data');
+const BOOKINGS = path.join(DATA_DIR, 'bookings.json');
+
+// ============================================================
+// Configuration des prestations
+// ============================================================
+const SERVICES = {
+  'lavage-confort': {
+    name:         'Lavage Confort',
+    depositCents: 3900,
+    durationMin:  60,
+    slots:        ['09:00', '11:00', '14:00', '16:00']
+  },
+  'lavage-premium': {
+    name:         'Lavage Premium',
+    depositCents: 3900,
+    durationMin:  120,
+    slots:        ['09:00', '11:30', '14:00']
+  },
+  'lavage-experience': {
+    name:         'Lavage Expérience',
+    depositCents: 3900,
+    durationMin:  480,
+    slots:        ['09:00']
+  },
+  'vitres-teintees': {
+    name:         'Vitres Teintées',
+    depositCents: 3900,
+    durationMin:  240,
+    slots:        ['09:00', '13:30']
+  }
+};
+
+// ============================================================
+// Helpers — dates
+// ============================================================
+const MONTHS_FR = ['janvier','février','mars','avril','mai','juin',
+                   'juillet','août','septembre','octobre','novembre','décembre'];
+const DAYS_FR   = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${DAYS_FR[date.getDay()]} ${d} ${MONTHS_FR[m - 1]} ${y}`;
+}
+
+// ============================================================
+// Helpers — réservations
+// ============================================================
+function readBookings() {
+  if (!fs.existsSync(BOOKINGS)) return [];
+  try { return JSON.parse(fs.readFileSync(BOOKINGS, 'utf8')); }
+  catch { return []; }
+}
+
+function saveBooking(booking) {
+  const all = readBookings();
+  all.push(booking);
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(BOOKINGS, JSON.stringify(all, null, 2));
+}
+
+// ============================================================
+// Emails — Resend
+// ============================================================
+
+// ── Email client : confirmation de réservation ────────────────
+function buildClientEmail(data, svc) {
+  const tintLine = data.tintOption
+    ? `<tr><td class="label">Film teinté</td><td>${data.tintOption === 'legal' ? 'Homologuée' : 'Très sombre'}</td></tr>`
+    : '';
+  const vehicleLine = [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—';
+  const notesLine = data.client.notes?.trim()
+    ? `<tr><td class="label">Notes</td><td>${data.client.notes}</td></tr>`
+    : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#080808; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#e8e8e8; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:560px; margin:0 auto; padding:48px 24px; }
+  .logo { font-size:22px; font-weight:500; letter-spacing:0.35em; text-transform:uppercase; color:#ffffff; margin-bottom:48px; }
+  .title { font-size:28px; font-weight:300; color:#ffffff; line-height:1.2; margin-bottom:8px; font-style:italic; }
+  .sub { font-size:14px; color:#888; margin-bottom:40px; line-height:1.7; }
+  .badge { display:inline-block; background:#1a1a1a; border:1px solid #2a2a2a; padding:6px 14px; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#bfc8d0; margin-bottom:32px; }
+  .table { width:100%; border-collapse:collapse; margin-bottom:32px; }
+  .table td { padding:13px 0; border-bottom:1px solid #1c1c1c; font-size:14px; vertical-align:top; }
+  .table td.label { color:#666; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; width:38%; padding-top:15px; }
+  .table td:last-child { color:#e8e8e8; }
+  .deposit-box { background:#111; border:1px solid #222; padding:20px 24px; margin-bottom:32px; }
+  .deposit-box p { font-size:13px; color:#888; line-height:1.75; }
+  .deposit-box strong { color:#bfc8d0; }
+  .cta { display:block; text-align:center; padding:14px 32px; background:#ffffff; color:#080808; font-size:12px; font-weight:500; letter-spacing:0.18em; text-transform:uppercase; text-decoration:none; margin-bottom:40px; }
+  .footer { border-top:1px solid #1a1a1a; padding-top:28px; }
+  .footer p { font-size:12px; color:#555; line-height:1.8; }
+  .footer a { color:#888; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo">REYCE</div>
+
+  <p class="title">Réservation confirmée.</p>
+  <p class="sub">
+    Votre rendez-vous est bien enregistré et votre acompte a été encaissé.<br>
+    Nous avons hâte de prendre soin de votre véhicule.
+  </p>
+
+  <div class="badge">Confirmation de réservation</div>
+
+  <table class="table">
+    <tr><td class="label">Prestation</td><td>${svc.name}</td></tr>
+    <tr><td class="label">Date</td><td>${formatDate(data.date)}</td></tr>
+    <tr><td class="label">Heure</td><td>${data.time}</td></tr>
+    <tr><td class="label">Véhicule</td><td>${vehicleLine}</td></tr>
+    ${tintLine}
+    ${notesLine}
+    <tr><td class="label">Acompte payé</td><td><strong style="color:#bfc8d0;">${svc.depositCents / 100}&thinsp;€</strong> — déduit du montant final</td></tr>
+  </table>
+
+  <div class="deposit-box">
+    <p>
+      <strong>Annulation :</strong> toute annulation tardive (moins de 24h avant le rendez-vous) ou absence pourra entraîner la conservation de l'acompte.<br><br>
+      Pour modifier ou annuler votre rendez-vous, contactez-nous au plus tôt.
+    </p>
+  </div>
+
+  <div class="footer">
+    <p>
+      REYCE · Atelier automobile premium · Lyon<br>
+      <a href="tel:+33763004385">07 63 00 43 85</a> · <a href="mailto:reyceatelier@gmail.com">reyceatelier@gmail.com</a><br>
+      <a href="https://www.instagram.com/reyce.lyon">@reyce.lyon</a>
+    </p>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  return {
+    from:    `"REYCE" <${process.env.SMTP_USER}>`,
+    to:      data.client.email,
+    subject: `Réservation confirmée — ${svc.name} · ${formatDate(data.date)}`,
+    html
+  };
+}
+
+// ── Email propriétaire : nouvelle réservation ─────────────────
+function buildOwnerEmail(data, svc) {
+  const tintLine = data.tintOption
+    ? `<tr><td class="label">Film teinté</td><td>${data.tintOption === 'legal' ? 'Homologuée' : 'Très sombre'}</td></tr>`
+    : '';
+  const vehicleLine = [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—';
+  const notesLine = data.client.notes?.trim()
+    ? `<tr><td class="label">Notes client</td><td>${data.client.notes}</td></tr>`
+    : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#080808; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#e8e8e8; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:560px; margin:0 auto; padding:48px 24px; }
+  .logo { font-size:22px; font-weight:500; letter-spacing:0.35em; text-transform:uppercase; color:#ffffff; margin-bottom:48px; }
+  .badge { display:inline-block; background:#1a1a1a; border:1px solid #2a2a2a; padding:6px 14px; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#bfc8d0; margin-bottom:32px; }
+  .title { font-size:24px; font-weight:300; color:#ffffff; line-height:1.2; margin-bottom:8px; }
+  .sub { font-size:14px; color:#888; margin-bottom:32px; line-height:1.7; }
+  .table { width:100%; border-collapse:collapse; margin-bottom:32px; }
+  .table td { padding:13px 0; border-bottom:1px solid #1c1c1c; font-size:14px; vertical-align:top; }
+  .table td.label { color:#666; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; width:38%; padding-top:15px; }
+  .table td:last-child { color:#e8e8e8; }
+  .amount { font-size:20px; color:#bfc8d0; font-weight:400; }
+  .footer { border-top:1px solid #1a1a1a; padding-top:28px; }
+  .footer p { font-size:12px; color:#555; line-height:1.8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo">REYCE</div>
+  <div class="badge">Nouvelle réservation</div>
+
+  <p class="title">Nouveau rendez-vous confirmé.</p>
+  <p class="sub">Un client vient de réserver et de payer son acompte avec succès.</p>
+
+  <table class="table">
+    <tr><td class="label">Prestation</td><td>${svc.name}</td></tr>
+    <tr><td class="label">Date</td><td>${formatDate(data.date)}</td></tr>
+    <tr><td class="label">Heure</td><td>${data.time}</td></tr>
+    <tr><td class="label">Véhicule</td><td>${vehicleLine}</td></tr>
+    ${tintLine}
+    <tr><td class="label">Client</td><td>${data.client.firstName} ${data.client.lastName}</td></tr>
+    <tr><td class="label">Téléphone</td><td><a href="tel:${data.client.phone}" style="color:#bfc8d0;">${data.client.phone}</a></td></tr>
+    <tr><td class="label">Email</td><td><a href="mailto:${data.client.email}" style="color:#bfc8d0;">${data.client.email}</a></td></tr>
+    ${notesLine}
+    <tr><td class="label">Acompte reçu</td><td><span class="amount">${svc.depositCents / 100}&thinsp;€</span></td></tr>
+  </table>
+
+  <div class="footer">
+    <p>Email automatique — REYCE Booking System</p>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  return {
+    from:    `"REYCE Booking" <${process.env.SMTP_USER}>`,
+    to:      process.env.OWNER_EMAIL || process.env.SMTP_USER,
+    subject: `[RDV] ${svc.name} — ${data.client.firstName} ${data.client.lastName} · ${formatDate(data.date)} à ${data.time}`,
+    html
+  };
+}
+
+// ── Envoi des deux emails ─────────────────────────────────────
+async function sendConfirmationEmails(data, svc) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log('[Email] RESEND_API_KEY non configuré — emails ignorés');
+    return;
+  }
+
+  const resend      = new Resend(process.env.RESEND_API_KEY);
+  const fromAddress = process.env.EMAIL_FROM || 'REYCE <onboarding@resend.dev>';
+  const ownerEmail  = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
+
+  try {
+    const clientMail = buildClientEmail(data, svc);
+    const ownerMail  = buildOwnerEmail(data, svc);
+
+    const [clientResult, ownerResult] = await Promise.all([
+      resend.emails.send({ from: fromAddress, to: data.client.email,  subject: clientMail.subject, html: clientMail.html }),
+      resend.emails.send({ from: fromAddress, to: ownerEmail,          subject: ownerMail.subject,  html: ownerMail.html  })
+    ]);
+
+    console.log(`[Email] ✓ Client → ${data.client.email}`);
+    console.log(`[Email] ✓ Owner  → ${ownerEmail}`);
+  } catch (err) {
+    console.error('[Email] Erreur envoi :', err.message);
+  }
+}
+
+// ============================================================
+// Webhook Stripe
+// IMPORTANT : avant express.json() — Stripe nécessite le body brut
+// ============================================================
+app.post('/api/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+    } catch (err) {
+      console.error('[Webhook] Signature invalide :', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+
+      if (session.metadata?.bookingType === 'reyce') {
+        try {
+          const data = JSON.parse(session.metadata.bookingData);
+          const svc  = SERVICES[data.service];
+
+          saveBooking({
+            sessionId:  session.id,
+            status:     'confirmed',
+            paidAt:     new Date().toISOString(),
+            amountPaid: session.amount_total,
+            ...data
+          });
+
+          console.log(`[Webhook] ✓ Réservation confirmée : ${session.id}`);
+
+          // Envoi des emails de confirmation (non bloquant)
+          sendConfirmationEmails(data, svc).catch(err =>
+            console.error('[Email] Erreur post-webhook :', err.message)
+          );
+
+        } catch (e) {
+          console.error('[Webhook] Erreur sauvegarde :', e);
+        }
+      }
+    }
+
+    res.json({ received: true });
+  }
+);
+
+// ============================================================
+// Middleware
+// ============================================================
+app.use(express.json());
+app.use(express.static(path.join(__dirname)));
+
+// ============================================================
+// Routes API
+// ============================================================
+app.get('/api/slots', (req, res) => {
+  const { service, date } = req.query;
+
+  if (!service || !date || !SERVICES[service]) {
+    return res.status(400).json({ error: 'Paramètres invalides' });
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  if (date < today) return res.json({ slots: [] });
+
+  const taken = readBookings()
+    .filter(b => b.service === service && b.date === date && b.status !== 'cancelled')
+    .map(b => b.time);
+
+  res.json({ slots: SERVICES[service].slots.filter(s => !taken.includes(s)) });
+});
+
+app.post('/api/create-checkout-session', async (req, res) => {
+  const { service, vehicleType, vehicleModel, tintOption, date, time, client } = req.body;
+
+  if (!SERVICES[service])
+    return res.status(400).json({ error: 'Prestation invalide' });
+  if (!date || !time)
+    return res.status(400).json({ error: 'Date et créneau obligatoires' });
+  if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
+    return res.status(400).json({ error: 'Coordonnées incomplètes' });
+
+  const conflict = readBookings().filter(
+    b => b.service === service && b.date === date && b.time === time && b.status !== 'cancelled'
+  );
+  if (conflict.length > 0)
+    return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
+
+  const svc         = SERVICES[service];
+  const bookingData = { service, vehicleType, vehicleModel, tintOption, date, time, client };
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency:     'eur',
+          product_data: {
+            name:        `Acompte — ${svc.name}`,
+            description: [`Rendez-vous : ${date} à ${time}`, vehicleType, vehicleModel]
+              .filter(Boolean).join(' · ')
+          },
+          unit_amount: svc.depositCents
+        },
+        quantity: 1
+      }],
+      mode:           'payment',
+      customer_email: client.email,
+      locale:         'fr',
+      success_url:    `${process.env.BASE_URL}/confirmation.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:     `${process.env.BASE_URL}/rendez-vous.html`,
+      metadata: {
+        bookingType: 'reyce',
+        bookingData: JSON.stringify(bookingData)
+      }
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('[Stripe] Erreur :', err.message);
+    res.status(500).json({ error: 'Erreur lors de la création du paiement. Réessayez.' });
+  }
+});
+
+app.get('/api/booking/:sessionId', async (req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+
+    if (!session || session.metadata?.bookingType !== 'reyce')
+      return res.status(404).json({ error: 'Réservation introuvable' });
+
+    const data = JSON.parse(session.metadata.bookingData);
+    const svc  = SERVICES[data.service];
+
+    res.json({
+      ...data,
+      serviceName:   svc?.name || data.service,
+      depositAmount: (svc?.depositCents || 0) / 100,
+      paymentStatus: session.payment_status,
+      sessionId:     session.id
+    });
+  } catch {
+    res.status(404).json({ error: 'Réservation introuvable' });
+  }
+});
+
+// ============================================================
+app.listen(PORT, () => {
+  console.log(`\n  REYCE — Serveur démarré`);
+  console.log(`  → http://localhost:${PORT}\n`);
+  if (!process.env.RESEND_API_KEY) {
+    console.log('  ⚠  RESEND_API_KEY non configuré — emails désactivés\n');
+  }
+});

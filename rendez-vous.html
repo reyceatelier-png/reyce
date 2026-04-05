@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prendre rendez-vous — REYCE</title>
+  <meta name="description" content="Réservez votre prestation REYCE en ligne. Lavage, vitres teintées avec acompte sécurisé, ou demande de devis pour PPF et céramique.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="cursor"></div>
+  <div class="cursor-ring"></div>
+
+  <nav class="nav is-scrolled">
+    <div class="nav__inner">
+      <a href="index.html" class="nav__logo"><img src="assets/images/logo.png" alt="REYCE" class="nav__logo-img"></a>
+      <ul class="nav__links">
+        <li><a href="index.html"       class="nav__link">Accueil</a></li>
+        <li><a href="prestations.html" class="nav__link">Prestations</a></li>
+        <li><a href="realisations.html"class="nav__link">Réalisations</a></li>
+        <li><a href="a-propos.html"    class="nav__link">À propos</a></li>
+        <li><a href="contact.html"     class="nav__link">Contact</a></li>
+      </ul>
+      <a href="rendez-vous.html" class="nav__cta">Prendre rendez-vous</a>
+      <button class="nav__burger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="nav__mobile">
+    <a href="index.html"       class="nav__link">Accueil</a>
+    <a href="prestations.html" class="nav__link">Prestations</a>
+    <a href="realisations.html"class="nav__link">Réalisations</a>
+    <a href="a-propos.html"    class="nav__link">À propos</a>
+    <a href="contact.html"     class="nav__link">Contact</a>
+    <a href="rendez-vous.html" class="nav__link" style="color:var(--white);margin-top:16px;">Prendre rendez-vous</a>
+  </div>
+
+  <!-- Page Hero -->
+  <section class="page-hero">
+    <div class="container">
+      <div class="page-hero__inner">
+        <div class="t-head reveal">Prise de rendez-vous</div>
+        <h1 class="page-hero__title t-display reveal reveal--delay-1">
+          Réservez votre<br>prestation.
+        </h1>
+        <p class="page-hero__subtitle reveal reveal--delay-2">
+          Réservation en ligne pour lavage et vitres teintées avec acompte sécurisé.
+          Demande de devis pour les prestations PPF, céramique et polissage.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================
+       SYSTÈME DE RÉSERVATION
+       ======================================================== -->
+  <section class="section section--dark" id="bookingAnchor">
+    <div class="container">
+
+      <div class="booking-tabs reveal">
+        <button class="booking-tab is-active" data-tab="nettoyage">Réservation &amp; Acompte</button>
+        <button class="booking-tab" data-tab="premium">Devis Premium</button>
+      </div>
+
+      <!-- ====================================================
+           PANEL 1 — RÉSERVATION AVEC ACOMPTE
+           (Lavage Confort / Premium / Expérience / Vitres teintées)
+           ==================================================== -->
+      <div class="booking-panel is-active" data-panel="nettoyage">
+
+        <!-- Indicateurs d'étapes -->
+        <div class="bsi reveal">
+          <div class="bsi__step is-active" data-step="1">
+            <span class="bsi__num">01</span>
+            <span class="bsi__label">Prestation</span>
+          </div>
+          <div class="bsi__sep"></div>
+          <div class="bsi__step" data-step="2">
+            <span class="bsi__num">02</span>
+            <span class="bsi__label">Véhicule</span>
+          </div>
+          <div class="bsi__sep"></div>
+          <div class="bsi__step" data-step="3">
+            <span class="bsi__num">03</span>
+            <span class="bsi__label">Créneau</span>
+          </div>
+          <div class="bsi__sep"></div>
+          <div class="bsi__step" data-step="4">
+            <span class="bsi__num">04</span>
+            <span class="bsi__label">Coordonnées</span>
+          </div>
+          <div class="bsi__sep"></div>
+          <div class="bsi__step" data-step="5">
+            <span class="bsi__num">05</span>
+            <span class="bsi__label">Paiement</span>
+          </div>
+        </div>
+
+        <!-- ── Étape 1 : Prestation ────────────────────────── -->
+        <div class="bp-step is-active" data-bp-step="1">
+          <div style="max-width:840px;">
+            <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Choisissez votre prestation</h2>
+            <p class="t-body" style="margin-bottom:var(--space-lg);">
+              Un acompte est requis pour confirmer votre créneau. Il sera déduit du prix final lors de votre passage.
+            </p>
+
+            <div class="svc-grid" id="serviceGrid"></div>
+
+            <div class="step-nav">
+              <span></span>
+              <button type="button" class="btn btn--primary" data-bp-next>Étape suivante</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Étape 2 : Véhicule ──────────────────────────── -->
+        <div class="bp-step" data-bp-step="2">
+          <div style="max-width:720px;">
+            <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Votre véhicule</h2>
+            <p class="t-body" style="margin-bottom:var(--space-lg);">Sélectionnez le type de véhicule et ajoutez le modèle si vous le souhaitez.</p>
+
+            <p class="t-head" style="margin-bottom:16px;">Type de véhicule</p>
+            <div class="vtypes-grid" id="vehicleTypesGrid"></div>
+
+            <div style="margin-top:var(--space-md);">
+              <div class="form-group">
+                <label class="form-label">
+                  Marque &amp; Modèle
+                  <span style="color:var(--grey-4);font-weight:300;"> — optionnel</span>
+                </label>
+                <input type="text" class="form-input" id="vehicleModel" placeholder="Ex : Porsche 911 GT3 2023" autocomplete="off">
+              </div>
+            </div>
+
+            <!-- Visible uniquement pour Vitres teintées -->
+            <div id="tintSection" style="display:none;margin-top:var(--space-lg);">
+              <p class="t-head" style="margin-bottom:16px;">Type de film teinté</p>
+              <div class="tint-grid" id="tintOptionsGrid"></div>
+            </div>
+
+            <div class="step-nav">
+              <button type="button" class="btn btn--ghost" data-bp-prev>Retour</button>
+              <button type="button" class="btn btn--primary" data-bp-next>Étape suivante</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Étape 3 : Créneau ───────────────────────────── -->
+        <div class="bp-step" data-bp-step="3">
+          <div>
+            <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Choisissez un créneau</h2>
+            <p class="t-body" style="margin-bottom:var(--space-lg);">Sélectionnez une date puis un horaire disponible. Fermé le dimanche.</p>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-xl);align-items:start;">
+
+              <!-- Calendrier -->
+              <div>
+                <div class="calendar">
+                  <div class="calendar__header">
+                    <button type="button" class="calendar__nav" id="bCalPrev" aria-label="Mois précédent">
+                      <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M7 1L1 7l6 6" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                    <span class="calendar__month" id="bCalMonth"></span>
+                    <button type="button" class="calendar__nav" id="bCalNext" aria-label="Mois suivant">
+                      <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                  </div>
+                  <div class="calendar__days-header">
+                    <div class="calendar__day-label">Lu</div>
+                    <div class="calendar__day-label">Ma</div>
+                    <div class="calendar__day-label">Me</div>
+                    <div class="calendar__day-label">Je</div>
+                    <div class="calendar__day-label">Ve</div>
+                    <div class="calendar__day-label">Sa</div>
+                    <div class="calendar__day-label">Di</div>
+                  </div>
+                  <div class="calendar__days" id="bCalDays"></div>
+                </div>
+              </div>
+
+              <!-- Créneaux -->
+              <div>
+                <p class="t-head" style="margin-bottom:16px;">Créneaux disponibles</p>
+                <div id="bookingSlots">
+                  <p class="t-body--sm" style="color:var(--grey-3);padding:8px 0;">
+                    Sélectionnez d'abord une date.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="step-nav">
+              <button type="button" class="btn btn--ghost" data-bp-prev>Retour</button>
+              <button type="button" class="btn btn--primary" data-bp-next>Étape suivante</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Étape 4 : Coordonnées ───────────────────────── -->
+        <div class="bp-step" data-bp-step="4">
+          <div style="max-width:600px;">
+            <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Vos coordonnées</h2>
+            <p class="t-body" style="margin-bottom:var(--space-lg);">
+              Ces informations sont nécessaires pour votre confirmation de rendez-vous.
+            </p>
+
+            <div style="display:flex;flex-direction:column;gap:var(--space-sm);">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Prénom *</label>
+                  <input type="text" class="form-input" id="clientFirstName" placeholder="Prénom" autocomplete="given-name">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Nom *</label>
+                  <input type="text" class="form-input" id="clientLastName" placeholder="Nom" autocomplete="family-name">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Téléphone *</label>
+                <input type="tel" class="form-input" id="clientPhone" placeholder="+33 6 00 00 00 00" autocomplete="tel">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email *</label>
+                <input type="email" class="form-input" id="clientEmail" placeholder="votre@email.com" autocomplete="email">
+              </div>
+              <div class="form-group">
+                <label class="form-label">
+                  Notes
+                  <span style="color:var(--grey-4);font-weight:300;"> — optionnel</span>
+                </label>
+                <textarea class="form-textarea" id="clientNotes" placeholder="Précisions sur votre véhicule, accès particulier…" rows="3"></textarea>
+              </div>
+            </div>
+
+            <p style="font-size:12px;color:var(--grey-4);line-height:1.7;margin-top:var(--space-sm);">
+              Vos données sont utilisées uniquement pour la gestion de votre réservation et ne sont jamais partagées avec des tiers.
+            </p>
+
+            <div class="step-nav">
+              <button type="button" class="btn btn--ghost" data-bp-prev>Retour</button>
+              <button type="button" class="btn btn--primary" data-bp-next>Voir le récapitulatif</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Étape 5 : Récapitulatif + Paiement ─────────── -->
+        <div class="bp-step" data-bp-step="5">
+          <div style="max-width:600px;">
+            <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Récapitulatif</h2>
+            <p class="t-body" style="margin-bottom:var(--space-lg);">
+              Vérifiez les informations ci-dessous avant de procéder au paiement de l'acompte.
+            </p>
+
+            <!-- Récapitulatif -->
+            <div class="booking-summary" id="bookingSummary"></div>
+
+            <!-- Notice acompte obligatoire -->
+            <div class="deposit-notice">
+              <p class="deposit-notice__amount">
+                Un acompte de <strong id="summaryDeposit">39&thinsp;€</strong> est requis pour valider votre rendez-vous.
+              </p>
+              <ul class="deposit-notice__rules">
+                <li>Cet acompte sera déduit du montant final lors de votre passage</li>
+                <li>En cas d'annulation tardive ou d'absence, l'acompte pourra être conservé</li>
+              </ul>
+            </div>
+
+            <div class="step-nav">
+              <button type="button" class="btn btn--ghost" data-bp-prev>Modifier</button>
+              <button type="button" class="btn btn--primary" id="payBtn">
+                Payer l'acompte et confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /panel nettoyage -->
+
+      <!-- ====================================================
+           PANEL 2 — DEVIS PREMIUM
+           (PPF, Céramique, Polissage, Car Staging — inchangé)
+           ==================================================== -->
+      <div class="booking-panel" data-panel="premium">
+        <div data-form-wrap>
+
+          <!-- Step indicators -->
+          <div class="form-steps reveal">
+            <div class="form-step is-active">
+              <div class="form-step__num">1</div>
+              <span class="form-step__label">Votre véhicule</span>
+            </div>
+            <div class="form-step">
+              <div class="form-step__num">2</div>
+              <span class="form-step__label">Votre besoin</span>
+            </div>
+            <div class="form-step">
+              <div class="form-step__num">3</div>
+              <span class="form-step__label">Vos coordonnées</span>
+            </div>
+          </div>
+
+          <!-- Step 1 -->
+          <div class="form-panel is-active">
+            <div style="max-width:640px;">
+              <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Votre véhicule</h2>
+              <p class="t-body" style="margin-bottom:var(--space-lg);">Donnez-nous les informations clés pour établir votre devis précis.</p>
+
+              <div style="display:flex;flex-direction:column;gap:var(--space-sm);">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Marque</label>
+                    <select class="form-select">
+                      <option value="">Sélectionner</option>
+                      <option>Porsche</option>
+                      <option>Ferrari</option>
+                      <option>Lamborghini</option>
+                      <option>Bentley</option>
+                      <option>McLaren</option>
+                      <option>Aston Martin</option>
+                      <option>Mercedes-AMG</option>
+                      <option>BMW M</option>
+                      <option>Audi RS</option>
+                      <option>Autre</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Modèle</label>
+                    <input type="text" class="form-input" placeholder="Ex : 911 GT3 RS">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Année</label>
+                    <input type="number" class="form-input" placeholder="2024" min="1980" max="2026">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Couleur</label>
+                    <input type="text" class="form-input" placeholder="Ex : Gris Shark Métallisé">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">État actuel de la peinture</label>
+                  <select class="form-select">
+                    <option value="">Sélectionner</option>
+                    <option>Neuf / Livraison récente</option>
+                    <option>Très bon — légères micro-rayures</option>
+                    <option>Bon — quelques défauts visibles</option>
+                    <option>Passable — correction nécessaire</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Protection actuelle</label>
+                  <select class="form-select">
+                    <option value="">Aucune protection</option>
+                    <option>Céramique existante</option>
+                    <option>PPF partiel</option>
+                    <option>PPF complet</option>
+                    <option>Je ne sais pas</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-nav">
+                <span></span>
+                <button class="btn btn--primary" data-next-step>Étape suivante</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="form-panel">
+            <div style="max-width:640px;">
+              <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Votre besoin</h2>
+              <p class="t-body" style="margin-bottom:var(--space-lg);">Sélectionnez la prestation qui correspond à votre projet.</p>
+
+              <div class="service-selector" style="margin-bottom:var(--space-md);">
+                <div class="service-option">
+                  <div class="service-option__check">✓</div>
+                  <div class="service-option__name">PPF Partiel</div>
+                  <div class="service-option__sub">Zones ciblées — capot, rétroviseurs, seuils</div>
+                </div>
+                <div class="service-option">
+                  <div class="service-option__check">✓</div>
+                  <div class="service-option__name">PPF Complet</div>
+                  <div class="service-option__sub">Carrosserie intégrale</div>
+                </div>
+                <div class="service-option">
+                  <div class="service-option__check">✓</div>
+                  <div class="service-option__name">PPF Ultime</div>
+                  <div class="service-option__sub">Carrosserie + jantes + vitres</div>
+                </div>
+                <div class="service-option">
+                  <div class="service-option__check">✓</div>
+                  <div class="service-option__name">Pare-brise PPF</div>
+                  <div class="service-option__sub">Protection vitrage spécifique</div>
+                </div>
+                <div class="service-option">
+                  <div class="service-option__check">✓</div>
+                  <div class="service-option__name">Polissage &amp; Correction</div>
+                  <div class="service-option__sub">Élimination défauts peinture</div>
+                </div>
+                <div class="service-option">
+                  <div class="service-option__check">✓</div>
+                  <div class="service-option__name">Traitement Céramique</div>
+                  <div class="service-option__sub">Protection durable longue durée</div>
+                </div>
+                <div class="service-option">
+                  <div class="service-option__check">✓</div>
+                  <div class="service-option__name">Car Staging</div>
+                  <div class="service-option__sub">Préparation vente ou leasing</div>
+                </div>
+                <div class="service-option">
+                  <div class="service-option__check">✓</div>
+                  <div class="service-option__name">Combiné PPF + Céramique</div>
+                  <div class="service-option__sub">La protection ultime</div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Précisions ou questions</label>
+                <textarea class="form-textarea" placeholder="Décrivez votre projet, vos attentes particulières, délais souhaités…"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Délai souhaité</label>
+                <select class="form-select">
+                  <option value="">Pas de contrainte</option>
+                  <option>Dans les 2 semaines</option>
+                  <option>Dans le mois</option>
+                  <option>Dans les 3 mois</option>
+                  <option>Autre</option>
+                </select>
+              </div>
+
+              <div class="form-nav">
+                <button class="btn btn--ghost" data-prev-step>Retour</button>
+                <button class="btn btn--primary" data-next-step>Étape suivante</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="form-panel">
+            <div style="max-width:640px;">
+              <h2 class="t-display t-display--sm" style="margin-bottom:8px;">Vos coordonnées</h2>
+              <p class="t-body" style="margin-bottom:var(--space-lg);">Nous vous contacterons sous 24h pour finaliser votre devis.</p>
+
+              <form data-form style="display:flex;flex-direction:column;gap:var(--space-sm);">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Prénom</label>
+                    <input type="text" class="form-input" placeholder="Prénom" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-input" placeholder="Nom" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input type="email" class="form-input" placeholder="votre@email.com" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Téléphone</label>
+                  <input type="tel" class="form-input" placeholder="+33 6 00 00 00 00" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Comment nous avez-vous trouvés ?</label>
+                  <select class="form-select">
+                    <option value="">Sélectionner</option>
+                    <option>Instagram</option>
+                    <option>Google</option>
+                    <option>Recommandation</option>
+                    <option>Client existant</option>
+                    <option>Autre</option>
+                  </select>
+                </div>
+                <p style="font-size:12px;color:var(--grey-4);line-height:1.7;margin-top:8px;">
+                  Vos données sont utilisées uniquement pour vous contacter au sujet de votre demande. Elles ne sont jamais partagées avec des tiers.
+                </p>
+                <div class="form-nav">
+                  <button type="button" class="btn btn--ghost" data-prev-step>Retour</button>
+                  <button type="submit" class="btn btn--primary">Envoyer ma demande</button>
+                </div>
+              </form>
+
+              <div class="success-message">
+                <div class="success-message__icon">&#10003;</div>
+                <h2 class="success-message__title">Demande envoyée</h2>
+                <p class="success-message__text">
+                  Votre demande de devis a bien été reçue.<br>
+                  Un expert REYCE vous contactera sous 24 heures pour vous proposer un devis précis et personnalisé.
+                </p>
+                <a href="index.html" class="btn btn--outline" style="margin-top:32px;">Retour à l'accueil</a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /panel premium -->
+
+    </div>
+  </section>
+
+  <!-- Info band -->
+  <section class="section--sm" style="background:var(--bg-3);border-top:1px solid var(--border);">
+    <div class="container">
+      <div class="stats">
+        <div class="stat reveal">
+          <p style="font-family:var(--font-display);font-size:22px;font-weight:300;color:var(--white);">Paiement sécurisé</p>
+          <p class="stat__label">Via Stripe — chiffrement SSL</p>
+        </div>
+        <div class="stat reveal reveal--delay-1">
+          <p style="font-family:var(--font-display);font-size:22px;font-weight:300;color:var(--white);">Réponse sous 24h</p>
+          <p class="stat__label">Pour tout devis premium</p>
+        </div>
+        <div class="stat reveal reveal--delay-2">
+          <p style="font-family:var(--font-display);font-size:22px;font-weight:300;color:var(--white);">Acompte déduit</p>
+          <p class="stat__label">Du montant final</p>
+        </div>
+        <div class="stat reveal reveal--delay-3">
+          <p style="font-family:var(--font-display);font-size:22px;font-weight:300;color:var(--white);">Confidentialité</p>
+          <p class="stat__label">Données protégées</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <div>
+          <p class="footer__brand-name">REYCE</p>
+          <p class="footer__brand-desc">Protection et esthétique automobile haut de gamme. Précision, exclusivité, perfection.</p>
+        </div>
+        <div>
+          <p class="footer__col-title">Prestations</p>
+          <ul class="footer__links">
+            <li><a href="prestations.html#ppf"       class="footer__link">Protection PPF</a></li>
+            <li><a href="prestations.html#ceramique" class="footer__link">Céramique</a></li>
+            <li><a href="prestations.html#entretien" class="footer__link">Entretien</a></li>
+            <li><a href="prestations.html#staging"   class="footer__link">Car Staging</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer__col-title">Navigation</p>
+          <ul class="footer__links">
+            <li><a href="index.html"        class="footer__link">Accueil</a></li>
+            <li><a href="realisations.html" class="footer__link">Réalisations</a></li>
+            <li><a href="a-propos.html"     class="footer__link">À propos</a></li>
+            <li><a href="contact.html"      class="footer__link">Contact</a></li>
+          </ul>
+        </div>
+        <div>
+          <p class="footer__col-title">Contact</p>
+          <ul class="footer__links">
+            <li><a href="tel:+33763004385"              class="footer__link">07 63 00 43 85</a></li>
+            <li><a href="mailto:reyceatelier@gmail.com" class="footer__link">reyceatelier@gmail.com</a></li>
+            <li><a href="https://www.instagram.com/reyce.lyon" target="_blank" class="footer__link">@reyce.lyon</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <p class="footer__copy">&copy; 2025 REYCE. Tous droits réservés.</p>
+        <p class="footer__legal"><a href="#">Mentions légales</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="#">Confidentialité</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/booking.js"></script>
+</body>
+</html>
