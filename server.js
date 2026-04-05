@@ -260,13 +260,22 @@ async function sendConfirmationEmails(data, svc) {
     const clientMail = buildClientEmail(data, svc);
     const ownerMail  = buildOwnerEmail(data, svc);
 
-    const [clientResult, ownerResult] = await Promise.all([
+    const [clientResult, ownerResult] = await Promise.allSettled([
       resend.emails.send({ from: fromAddress, to: data.client.email,  subject: clientMail.subject, html: clientMail.html }),
       resend.emails.send({ from: fromAddress, to: ownerEmail,          subject: ownerMail.subject,  html: ownerMail.html  })
     ]);
 
-    console.log(`[Email] ✓ Client → ${data.client.email}`);
-    console.log(`[Email] ✓ Owner  → ${ownerEmail}`);
+    if (clientResult.status === 'fulfilled') {
+      console.log(`[Email] ✓ Client → ${data.client.email} | id: ${clientResult.value?.data?.id}`);
+    } else {
+      console.error(`[Email] ✗ Client → ${data.client.email} | erreur: ${JSON.stringify(clientResult.reason)}`);
+    }
+
+    if (ownerResult.status === 'fulfilled') {
+      console.log(`[Email] ✓ Owner  → ${ownerEmail} | id: ${ownerResult.value?.data?.id}`);
+    } else {
+      console.error(`[Email] ✗ Owner  → ${ownerEmail} | erreur: ${JSON.stringify(ownerResult.reason)}`);
+    }
   } catch (err) {
     console.error('[Email] Erreur envoi :', err.message);
   }
