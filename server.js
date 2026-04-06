@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const express    = require('express');
 const stripe     = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const fs         = require('fs');
 const path       = require('path');
 
@@ -245,39 +245,46 @@ function buildOwnerEmail(data, svc) {
   };
 }
 
+// ── Transporter Gmail ─────────────────────────────────────────
+function createTransporter() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD
+    }
+  });
+}
+
 // ── Envoi des deux emails ─────────────────────────────────────
 async function sendConfirmationEmails(data, svc) {
-  if (!process.env.RESEND_API_KEY) {
-    console.log('[Email] RESEND_API_KEY non configuré — emails ignorés');
+  if (!process.env.GMAIL_APP_PASSWORD) {
+    console.log('[Email] GMAIL_APP_PASSWORD non configuré — emails ignorés');
     return;
   }
 
-  const resend      = new Resend(process.env.RESEND_API_KEY);
-  const fromAddress = process.env.EMAIL_FROM || 'REYCE <onboarding@resend.dev>';
+  const transporter = createTransporter();
+  const from        = `"REYCE" <${process.env.GMAIL_USER || 'reyceatelier@gmail.com'}>`;
   const ownerEmail  = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
 
-  try {
-    const clientMail = buildClientEmail(data, svc);
-    const ownerMail  = buildOwnerEmail(data, svc);
+  const clientMail = buildClientEmail(data, svc);
+  const ownerMail  = buildOwnerEmail(data, svc);
 
-    const [clientResult, ownerResult] = await Promise.allSettled([
-      resend.emails.send({ from: fromAddress, to: data.client.email,  subject: clientMail.subject, html: clientMail.html }),
-      resend.emails.send({ from: fromAddress, to: ownerEmail,          subject: ownerMail.subject,  html: ownerMail.html  })
-    ]);
+  const [clientResult, ownerResult] = await Promise.allSettled([
+    transporter.sendMail({ from, to: data.client.email, subject: clientMail.subject, html: clientMail.html }),
+    transporter.sendMail({ from, to: ownerEmail,        subject: ownerMail.subject,  html: ownerMail.html  })
+  ]);
 
-    if (clientResult.status === 'fulfilled') {
-      console.log(`[Email] ✓ Client → ${data.client.email} | id: ${clientResult.value?.data?.id}`);
-    } else {
-      console.error(`[Email] ✗ Client → ${data.client.email} | erreur: ${JSON.stringify(clientResult.reason)}`);
-    }
+  if (clientResult.status === 'fulfilled') {
+    console.log(`[Email] ✓ Client → ${data.client.email}`);
+  } else {
+    console.error(`[Email] ✗ Client → ${data.client.email} | ${clientResult.reason?.message}`);
+  }
 
-    if (ownerResult.status === 'fulfilled') {
-      console.log(`[Email] ✓ Owner  → ${ownerEmail} | id: ${ownerResult.value?.data?.id}`);
-    } else {
-      console.error(`[Email] ✗ Owner  → ${ownerEmail} | erreur: ${JSON.stringify(ownerResult.reason)}`);
-    }
-  } catch (err) {
-    console.error('[Email] Erreur envoi :', err.message);
+  if (ownerResult.status === 'fulfilled') {
+    console.log(`[Email] ✓ Owner  → ${ownerEmail}`);
+  } else {
+    console.error(`[Email] ✗ Owner  → ${ownerEmail} | ${ownerResult.reason?.message}`);
   }
 }
 
@@ -354,14 +361,12 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Champs obligatoires manquants' });
   }
 
-  if (!process.env.RESEND_API_KEY) {
-    console.log('[Contact] RESEND_API_KEY non configuré — email ignoré');
+  if (!process.env.GMAIL_APP_PASSWORD) {
+    console.log('[Contact] GMAIL_APP_PASSWORD non configuré — email ignoré');
     return res.json({ ok: true });
   }
 
-  const resend      = new Resend(process.env.RESEND_API_KEY);
-  const fromAddress = process.env.EMAIL_FROM || 'REYCE <onboarding@resend.dev>';
-  const ownerEmail  = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
+  const ownerEmail = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
 
   const isDevis   = type === 'devis';
   const subjectLine = isDevis
@@ -402,20 +407,15 @@ app.post('/api/contact', async (req, res) => {
   <p class="foot">Reçu via le site reyce.fr</p>
 </div></body></html>`;
 
-  const from = 'REYCE <onboarding@resend.dev>';
-  console.log(`[Contact] Envoi → from: ${from} | to: ${ownerEmail} | replyTo: ${email}`);
+  const from = `"REYCE" <${process.env.GMAIL_USER || 'reyceatelier@gmail.com'}>`;
+  console.log(`[Contact] Envoi → to: ${ownerEmail} | replyTo: ${email}`);
   try {
-    const result = await resend.emails.send({
-      from,
-      to:      ownerEmail,
-      subject: subjectLine,
-      html,
-      replyTo: email
-    });
-    console.log('[Contact] ✓ Email envoyé, id:', result?.id || JSON.stringify(result));
+    const transporter = createTransporter();
+    await transporter.sendMail({ from, to: ownerEmail, subject: subjectLine, html, replyTo: email });
+    console.log('[Contact] ✓ Email envoyé');
     res.json({ ok: true });
   } catch (err) {
-    console.error('[Contact] ✗ Erreur Resend :', JSON.stringify(err));
+    console.error('[Contact] ✗ Erreur Gmail :', err.message);
     res.status(500).json({ error: err.message });
   }
 });
