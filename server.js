@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const express    = require('express');
 const stripe     = require('stripe')(process.env.STRIPE_SECRET_KEY);
-// Email via Brevo HTTP API (pas de dépendance externe)
+// Email via Gmail REST API (HTTPS uniquement — pas bloqué par Railway)
 const fs         = require('fs');
 const path       = require('path');
 
@@ -245,29 +245,53 @@ function buildOwnerEmail(data, svc) {
   };
 }
 
-// ── Envoi via Brevo HTTP API ──────────────────────────────────
-async function sendEmail(to, subject, html) {
-  const apiKey      = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || 'reyceatelier@gmail.com';
+// ── Gmail OAuth2 : obtenir un access token ────────────────────
+async function getAccessToken() {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams({
+      client_id:     process.env.GMAIL_CLIENT_ID,
+      client_secret: process.env.GMAIL_CLIENT_SECRET,
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+      grant_type:    'refresh_token'
+    })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`OAuth2 token error: ${JSON.stringify(data)}`);
+  return data.access_token;
+}
 
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+// ── Envoi via Gmail REST API (HTTPS port 443) ─────────────────
+async function sendEmail(to, subject, html) {
+  const accessToken = await getAccessToken();
+  const from        = `"REYCE" <${process.env.GMAIL_USER}>`;
+
+  const raw = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(html).toString('base64')
+  ].join('\r\n');
+
+  const encoded = Buffer.from(raw).toString('base64url');
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
     method:  'POST',
     headers: {
-      'accept':       'application/json',
-      'api-key':      apiKey,
-      'content-type': 'application/json'
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type':  'application/json'
     },
-    body: JSON.stringify({
-      sender:      { name: 'REYCE', email: senderEmail },
-      to:          [{ email: to }],
-      subject,
-      htmlContent: html
-    })
+    body: JSON.stringify({ raw: encoded })
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Brevo ${res.status}: ${err}`);
+    throw new Error(`Gmail API ${res.status}: ${err}`);
   }
 
   return res.json();
@@ -275,8 +299,8 @@ async function sendEmail(to, subject, html) {
 
 // ── Envoi des deux emails de confirmation ─────────────────────
 async function sendConfirmationEmails(data, svc) {
-  if (!process.env.BREVO_API_KEY) {
-    console.error('[Email] BREVO_API_KEY manquant — emails ignorés');
+  if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
+    console.error('[Email] Variables Gmail OAuth2 manquantes — emails ignorés');
     return;
   }
 
@@ -287,7 +311,7 @@ async function sendConfirmationEmails(data, svc) {
 
   const clientMail = buildClientEmail(data, svc);
   const ownerMail  = buildOwnerEmail(data, svc);
-  const ownerEmail = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
+  const ownerEmail = process.env.OWNER_EMAIL || process.env.GMAIL_USER;
 
   try {
     await sendEmail(data.client.email, clientMail.subject, clientMail.html);
@@ -377,8 +401,8 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Champs obligatoires manquants' });
   }
 
-  if (!process.env.BREVO_API_KEY) {
-    console.log('[Contact] BREVO_API_KEY non configuré — email ignoré');
+  if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) {
+    console.log('[Contact] Variables Gmail OAuth2 manquantes — email ignoré');
     return res.json({ ok: true });
   }
 
@@ -530,9 +554,9 @@ app.get('/api/booking/:sessionId', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n  REYCE — Serveur démarré`);
   console.log(`  → http://localhost:${PORT}\n`);
-  if (!process.env.BREVO_API_KEY) {
-    console.log('  ⚠  BREVO_API_KEY manquant — emails désactivés\n');
+  if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) {
+    console.log('  ⚠  Gmail OAuth2 non configuré — emails désactivés\n');
   } else {
-    console.log(`  ✓  Brevo configuré\n`);
+    console.log(`  ✓  Gmail OAuth2 configuré → ${process.env.GMAIL_USER}\n`);
   }
 });
