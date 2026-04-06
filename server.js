@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const express    = require('express');
 const stripe     = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const nodemailer = require('nodemailer');
+// Email via Brevo HTTP API (pas de dépendance externe)
 const fs         = require('fs');
 const path       = require('path');
 
@@ -245,27 +245,38 @@ function buildOwnerEmail(data, svc) {
   };
 }
 
-// ── Transporter Gmail ─────────────────────────────────────────
-function createTransporter() {
-  const user = process.env.GMAIL_USER;
-  const pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s/g, '');
-  console.log(`[Email] Transporter → user: ${user} | pass length: ${pass.length}`);
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    auth: { user, pass }
+// ── Envoi via Brevo HTTP API ──────────────────────────────────
+async function sendEmail(to, subject, html) {
+  const apiKey      = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || 'reyceatelier@gmail.com';
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method:  'POST',
+    headers: {
+      'accept':       'application/json',
+      'api-key':      apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender:      { name: 'REYCE', email: senderEmail },
+      to:          [{ email: to }],
+      subject,
+      htmlContent: html
+    })
   });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Brevo ${res.status}: ${err}`);
+  }
+
+  return res.json();
 }
 
-// ── Envoi des deux emails ─────────────────────────────────────
+// ── Envoi des deux emails de confirmation ─────────────────────
 async function sendConfirmationEmails(data, svc) {
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
-
-  if (!gmailUser || !gmailPass) {
-    console.error('[Email] GMAIL_USER ou GMAIL_APP_PASSWORD manquant — emails ignorés');
+  if (!process.env.BREVO_API_KEY) {
+    console.error('[Email] BREVO_API_KEY manquant — emails ignorés');
     return;
   }
 
@@ -274,32 +285,22 @@ async function sendConfirmationEmails(data, svc) {
     return;
   }
 
+  const clientMail = buildClientEmail(data, svc);
+  const ownerMail  = buildOwnerEmail(data, svc);
+  const ownerEmail = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
+
   try {
-    const transporter = createTransporter();
-    const from        = `"REYCE" <${gmailUser}>`;
-    const ownerEmail  = process.env.OWNER_EMAIL || gmailUser;
-
-    const clientMail = buildClientEmail(data, svc);
-    const ownerMail  = buildOwnerEmail(data, svc);
-
-    console.log(`[Email] Envoi client → ${data.client.email}`);
-    try {
-      await transporter.sendMail({ from, to: data.client.email, subject: clientMail.subject, html: clientMail.html });
-      console.log(`[Email] ✓ Client → ${data.client.email}`);
-    } catch (err) {
-      console.error(`[Email] ✗ Client → ${data.client.email} | ${err.message}`);
-    }
-
-    console.log(`[Email] Envoi owner → ${ownerEmail}`);
-    try {
-      await transporter.sendMail({ from, to: ownerEmail, subject: ownerMail.subject, html: ownerMail.html });
-      console.log(`[Email] ✓ Owner → ${ownerEmail}`);
-    } catch (err) {
-      console.error(`[Email] ✗ Owner → ${ownerEmail} | ${err.message}`);
-    }
-
+    await sendEmail(data.client.email, clientMail.subject, clientMail.html);
+    console.log(`[Email] ✓ Client → ${data.client.email}`);
   } catch (err) {
-    console.error('[Email] Erreur critique :', err.message);
+    console.error(`[Email] ✗ Client → ${data.client.email} | ${err.message}`);
+  }
+
+  try {
+    await sendEmail(ownerEmail, ownerMail.subject, ownerMail.html);
+    console.log(`[Email] ✓ Owner → ${ownerEmail}`);
+  } catch (err) {
+    console.error(`[Email] ✗ Owner → ${ownerEmail} | ${err.message}`);
   }
 }
 
@@ -376,8 +377,8 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Champs obligatoires manquants' });
   }
 
-  if (!process.env.GMAIL_APP_PASSWORD) {
-    console.log('[Contact] GMAIL_APP_PASSWORD non configuré — email ignoré');
+  if (!process.env.BREVO_API_KEY) {
+    console.log('[Contact] BREVO_API_KEY non configuré — email ignoré');
     return res.json({ ok: true });
   }
 
@@ -422,15 +423,13 @@ app.post('/api/contact', async (req, res) => {
   <p class="foot">Reçu via le site reyce.fr</p>
 </div></body></html>`;
 
-  const from = `"REYCE" <${process.env.GMAIL_USER || 'reyceatelier@gmail.com'}>`;
-  console.log(`[Contact] Envoi → to: ${ownerEmail} | replyTo: ${email}`);
+  console.log(`[Contact] Envoi → to: ${ownerEmail}`);
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({ from, to: ownerEmail, subject: subjectLine, html, replyTo: email });
+    await sendEmail(ownerEmail, subjectLine, html);
     console.log('[Contact] ✓ Email envoyé');
     res.json({ ok: true });
   } catch (err) {
-    console.error('[Contact] ✗ Erreur Gmail :', err.message);
+    console.error('[Contact] ✗ Erreur Brevo :', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -531,9 +530,9 @@ app.get('/api/booking/:sessionId', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n  REYCE — Serveur démarré`);
   console.log(`  → http://localhost:${PORT}\n`);
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.log('  ⚠  GMAIL_USER ou GMAIL_APP_PASSWORD manquant — emails désactivés\n');
+  if (!process.env.BREVO_API_KEY) {
+    console.log('  ⚠  BREVO_API_KEY manquant — emails désactivés\n');
   } else {
-    console.log(`  ✓  Gmail configuré → ${process.env.GMAIL_USER}\n`);
+    console.log(`  ✓  Brevo configuré\n`);
   }
 });
