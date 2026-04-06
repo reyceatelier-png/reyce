@@ -247,44 +247,58 @@ function buildOwnerEmail(data, svc) {
 
 // ── Transporter Gmail ─────────────────────────────────────────
 function createTransporter() {
+  const user = process.env.GMAIL_USER;
+  const pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s/g, '');
+  console.log(`[Email] Transporter → user: ${user} | pass length: ${pass.length}`);
   return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD
-    }
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user, pass }
   });
 }
 
 // ── Envoi des deux emails ─────────────────────────────────────
 async function sendConfirmationEmails(data, svc) {
-  if (!process.env.GMAIL_APP_PASSWORD) {
-    console.log('[Email] GMAIL_APP_PASSWORD non configuré — emails ignorés');
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+
+  if (!gmailUser || !gmailPass) {
+    console.error('[Email] GMAIL_USER ou GMAIL_APP_PASSWORD manquant — emails ignorés');
     return;
   }
 
-  const transporter = createTransporter();
-  const from        = `"REYCE" <${process.env.GMAIL_USER || 'reyceatelier@gmail.com'}>`;
-  const ownerEmail  = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
-
-  const clientMail = buildClientEmail(data, svc);
-  const ownerMail  = buildOwnerEmail(data, svc);
-
-  const [clientResult, ownerResult] = await Promise.allSettled([
-    transporter.sendMail({ from, to: data.client.email, subject: clientMail.subject, html: clientMail.html }),
-    transporter.sendMail({ from, to: ownerEmail,        subject: ownerMail.subject,  html: ownerMail.html  })
-  ]);
-
-  if (clientResult.status === 'fulfilled') {
-    console.log(`[Email] ✓ Client → ${data.client.email}`);
-  } else {
-    console.error(`[Email] ✗ Client → ${data.client.email} | ${clientResult.reason?.message}`);
+  if (!svc) {
+    console.error('[Email] Service introuvable — emails ignorés');
+    return;
   }
 
-  if (ownerResult.status === 'fulfilled') {
-    console.log(`[Email] ✓ Owner  → ${ownerEmail}`);
-  } else {
-    console.error(`[Email] ✗ Owner  → ${ownerEmail} | ${ownerResult.reason?.message}`);
+  try {
+    const transporter = createTransporter();
+    const from        = `"REYCE" <${gmailUser}>`;
+    const ownerEmail  = process.env.OWNER_EMAIL || gmailUser;
+
+    const clientMail = buildClientEmail(data, svc);
+    const ownerMail  = buildOwnerEmail(data, svc);
+
+    console.log(`[Email] Envoi client → ${data.client.email}`);
+    try {
+      await transporter.sendMail({ from, to: data.client.email, subject: clientMail.subject, html: clientMail.html });
+      console.log(`[Email] ✓ Client → ${data.client.email}`);
+    } catch (err) {
+      console.error(`[Email] ✗ Client → ${data.client.email} | ${err.message}`);
+    }
+
+    console.log(`[Email] Envoi owner → ${ownerEmail}`);
+    try {
+      await transporter.sendMail({ from, to: ownerEmail, subject: ownerMail.subject, html: ownerMail.html });
+      console.log(`[Email] ✓ Owner → ${ownerEmail}`);
+    } catch (err) {
+      console.error(`[Email] ✗ Owner → ${ownerEmail} | ${err.message}`);
+    }
+
+  } catch (err) {
+    console.error('[Email] Erreur critique :', err.message);
   }
 }
 
@@ -516,7 +530,9 @@ app.get('/api/booking/:sessionId', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n  REYCE — Serveur démarré`);
   console.log(`  → http://localhost:${PORT}\n`);
-  if (!process.env.RESEND_API_KEY) {
-    console.log('  ⚠  RESEND_API_KEY non configuré — emails désactivés\n');
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.log('  ⚠  GMAIL_USER ou GMAIL_APP_PASSWORD manquant — emails désactivés\n');
+  } else {
+    console.log(`  ✓  Gmail configuré → ${process.env.GMAIL_USER}\n`);
   }
 });
