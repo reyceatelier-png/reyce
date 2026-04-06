@@ -8,6 +8,204 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .conf-page {
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Hero ── */
+    .conf-hero {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 24px 80px;
+    }
+    .conf-hero__inner {
+      max-width: 560px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0;
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .conf-hero__inner.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Icône check animée */
+    .conf-check {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 1px solid rgba(191,200,208,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .conf-check::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: rgba(191,200,208,0.04);
+      transform: scale(0);
+      transition: transform 0.5s ease 0.3s;
+    }
+    .conf-hero__inner.is-visible .conf-check::before {
+      transform: scale(1);
+    }
+    .conf-check svg {
+      opacity: 0;
+      transition: opacity 0.4s ease 0.6s;
+    }
+    .conf-hero__inner.is-visible .conf-check svg {
+      opacity: 1;
+    }
+
+    /* Label */
+    .conf-label {
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    /* Titre */
+    .conf-title {
+      font-size: clamp(36px, 5vw, 52px);
+      font-weight: 300;
+      color: var(--white);
+      line-height: 1.1;
+      font-style: italic;
+      margin-bottom: 20px;
+    }
+
+    /* Sous-titre */
+    .conf-sub {
+      font-size: 14px;
+      color: var(--grey-3);
+      line-height: 1.8;
+      margin-bottom: 56px;
+      max-width: 400px;
+    }
+
+    /* ── Récap ── */
+    .conf-recap {
+      width: 100%;
+      border-top: 1px solid var(--border);
+      padding-top: 32px;
+      margin-bottom: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .conf-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 24px;
+    }
+    .conf-row:last-child { border-bottom: none; }
+    .conf-row__label {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--grey-4);
+      flex-shrink: 0;
+    }
+    .conf-row__value {
+      font-size: 13px;
+      color: var(--white);
+      text-align: right;
+    }
+    .conf-row__value--accent {
+      color: var(--accent);
+      font-size: 15px;
+    }
+
+    /* ── Note acompte ── */
+    .conf-note {
+      width: 100%;
+      padding: 16px 20px;
+      background: rgba(191,200,208,0.03);
+      border: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+    .conf-note p {
+      font-size: 12px;
+      color: var(--grey-4);
+      line-height: 1.8;
+    }
+    .conf-note strong {
+      color: var(--accent);
+    }
+
+    /* ── Adresse ── */
+    .conf-address {
+      width: 100%;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      margin-bottom: 48px;
+    }
+    .conf-address__label {
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--grey-4);
+      margin-bottom: 12px;
+    }
+    .conf-address__value {
+      font-size: 13px;
+      color: var(--grey-2);
+      line-height: 2;
+    }
+
+    /* ── Actions ── */
+    .conf-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Side déco ── */
+    .conf-side {
+      position: fixed;
+      right: 48px;
+      top: 50%;
+      transform: translateY(-50%);
+      writing-mode: vertical-rl;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--border-2);
+      opacity: 0;
+      transition: opacity 1s ease 1s;
+    }
+    .conf-side.is-visible { opacity: 1; }
+
+    @media (max-width: 900px) {
+      .conf-side { display: none; }
+    }
+    @media (max-width: 600px) {
+      .conf-hero { padding: 100px 20px 60px; }
+      .conf-actions { flex-direction: column; }
+      .conf-actions .btn { justify-content: center; }
+    }
+  </style>
 </head>
 <body>
 
@@ -18,11 +216,11 @@
     <div class="nav__inner">
       <a href="index.html" class="nav__logo"><img src="assets/images/logo.png" alt="REYCE" class="nav__logo-img"></a>
       <ul class="nav__links">
-        <li><a href="index.html"       class="nav__link">Accueil</a></li>
-        <li><a href="prestations.html" class="nav__link">Prestations</a></li>
-        <li><a href="realisations.html"class="nav__link">Réalisations</a></li>
-        <li><a href="a-propos.html"    class="nav__link">À propos</a></li>
-        <li><a href="contact.html"     class="nav__link">Contact</a></li>
+        <li><a href="index.html"        class="nav__link">Accueil</a></li>
+        <li><a href="prestations.html"  class="nav__link">Prestations</a></li>
+        <li><a href="realisations.html" class="nav__link">Réalisations</a></li>
+        <li><a href="a-propos.html"     class="nav__link">À propos</a></li>
+        <li><a href="contact.html"      class="nav__link">Contact</a></li>
       </ul>
       <a href="rendez-vous.html" class="nav__cta">Prendre rendez-vous</a>
       <button class="nav__burger" aria-label="Menu">
@@ -31,67 +229,67 @@
     </div>
   </nav>
   <div class="nav__mobile">
-    <a href="index.html"       class="nav__link">Accueil</a>
-    <a href="prestations.html" class="nav__link">Prestations</a>
-    <a href="realisations.html"class="nav__link">Réalisations</a>
-    <a href="a-propos.html"    class="nav__link">À propos</a>
-    <a href="contact.html"     class="nav__link">Contact</a>
-    <a href="rendez-vous.html" class="nav__link" style="color:var(--white);margin-top:16px;">Prendre rendez-vous</a>
+    <a href="index.html"        class="nav__link">Accueil</a>
+    <a href="prestations.html"  class="nav__link">Prestations</a>
+    <a href="realisations.html" class="nav__link">Réalisations</a>
+    <a href="a-propos.html"     class="nav__link">À propos</a>
+    <a href="contact.html"      class="nav__link">Contact</a>
+    <a href="rendez-vous.html"  class="nav__link" style="color:var(--white);margin-top:16px;">Prendre rendez-vous</a>
   </div>
 
-  <section style="min-height:100vh;display:flex;align-items:center;background:var(--bg);padding:var(--space-xl) 0;">
-    <div class="container">
-      <div class="confirm-wrap">
+  <div class="conf-page">
+    <div class="conf-hero">
+      <div class="conf-hero__inner" id="confInner">
 
-        <!-- Icône -->
-        <div class="confirm-icon">
-          <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
-            <path d="M1 8l6 6L19 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <div class="conf-check">
+          <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+            <path d="M1 7l5.5 5.5L17 1" stroke="#bfc8d0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
 
-        <!-- En-tête -->
-        <p class="t-head" style="margin-bottom:12px;color:var(--accent);">Acompte encaissé</p>
-        <h1 class="t-display t-display--md" style="margin-bottom:16px;">
-          Votre rendez-vous<br>est confirmé.
-        </h1>
-        <p class="t-body" style="max-width:400px;margin-bottom:0;color:var(--grey-2);">
-          Un email de confirmation vient d'être envoyé à votre adresse.
+        <p class="conf-label">Acompte encaissé</p>
+        <h1 class="conf-title">Votre rendez-vous<br>est confirmé.</h1>
+        <p class="conf-sub">
+          Un email de confirmation vient d'être envoyé à votre adresse.<br>
+          Nous avons hâte de prendre soin de votre véhicule.
         </p>
 
-        <!-- Récapitulatif -->
-        <div class="confirm-details" id="confirmDetails">
-          <p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:16px 0;">
-            Chargement…
-          </p>
+        <!-- Récapitulatif dynamique -->
+        <div class="conf-recap" id="confRecap">
+          <div class="conf-row">
+            <span class="conf-row__label">Statut</span>
+            <span class="conf-row__value" style="color:var(--grey-4);">Chargement…</span>
+          </div>
         </div>
 
-        <!-- Acompte déduit -->
-        <div style="width:100%;max-width:480px;border:1px solid var(--accent-line);background:rgba(191,200,208,0.03);padding:var(--space-sm) var(--space-md);margin-bottom:var(--space-lg);text-align:left;">
-          <p style="font-size:12px;color:var(--grey-3);line-height:1.8;">
-            L'acompte de <strong style="color:var(--accent);">40&thinsp;€</strong> sera déduit du montant total le jour de votre rendez-vous.<br>
+        <!-- Note acompte -->
+        <div class="conf-note">
+          <p>
+            L'acompte de <strong>40&thinsp;€</strong> sera déduit du montant total le jour de votre rendez-vous.<br>
             Toute annulation moins de 24h avant entraîne la conservation de l'acompte.
           </p>
         </div>
 
         <!-- Adresse -->
-        <div style="width:100%;max-width:480px;border-top:1px solid var(--border);padding-top:var(--space-md);margin-bottom:var(--space-lg);text-align:left;display:flex;flex-direction:column;gap:8px;">
-          <p class="t-head" style="margin-bottom:4px;">Atelier REYCE</p>
-          <p style="font-size:13px;color:var(--grey-2);line-height:1.8;">
+        <div class="conf-address">
+          <p class="conf-address__label">Atelier REYCE</p>
+          <p class="conf-address__value">
             47 chemin du Pras · La Mulatière, Lyon<br>
-            <a href="tel:+33763004385" style="color:var(--grey-3);">07 63 00 43 85</a> · <a href="mailto:reyceatelier@gmail.com" style="color:var(--grey-3);">reyceatelier@gmail.com</a>
+            07 63 00 43 85 · reyceatelier@gmail.com
           </p>
         </div>
 
         <!-- Actions -->
-        <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;">
+        <div class="conf-actions">
           <a href="index.html"   class="btn btn--outline">Retour à l'accueil</a>
           <a href="contact.html" class="btn btn--ghost">Nous contacter</a>
         </div>
 
       </div>
     </div>
-  </section>
+  </div>
+
+  <div class="conf-side" id="confSide">Réservation confirmée — REYCE</div>
 
   <script src="js/main.js"></script>
   <script>
@@ -107,11 +305,20 @@
         return `${DAYS[date.getDay()]} ${d} ${MONTHS[m - 1]} ${y}`;
       }
 
+      // Animation d'entrée
+      const inner = document.getElementById('confInner');
+      const side  = document.getElementById('confSide');
+      setTimeout(() => {
+        inner.classList.add('is-visible');
+        side.classList.add('is-visible');
+      }, 80);
+
+      // Chargement des données
       const sessionId = new URLSearchParams(window.location.search).get('session_id');
-      const el        = document.getElementById('confirmDetails');
+      const recap     = document.getElementById('confRecap');
 
       if (!sessionId) {
-        el.innerHTML = '<p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:16px 0;">Référence introuvable.</p>';
+        recap.innerHTML = buildRows([['Statut', 'Réservation enregistrée']]);
         return;
       }
 
@@ -120,26 +327,31 @@
         .then(data => {
           const vehicleStr = [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—';
           const tintStr    = data.tintOption === 'legal' ? 'Homologuée' : data.tintOption === 'dark' ? 'Très sombre' : null;
+          const clientName = `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim();
 
           const rows = [
-            ['Prestation',   data.serviceName],
-            ['Date',         fmt(data.date)],
-            ['Heure',        data.time],
-            ['Véhicule',     vehicleStr],
+            ['Prestation', data.serviceName],
+            ['Date',       fmt(data.date)],
+            ['Heure',      data.time],
+            ['Véhicule',   vehicleStr],
             tintStr ? ['Film teinté', tintStr] : null,
-            ['Client',       `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim()],
-            ['Acompte payé', `40\u202f€`]
+            ['Client',     clientName],
+            ['Acompte',    '40\u202f€', true]
           ].filter(Boolean);
 
-          el.innerHTML = rows.map(([label, val]) => `
-            <div class="sum-row">
-              <span class="sum-row__label">${label}</span>
-              <span class="sum-row__value">${val || '—'}</span>
+          recap.innerHTML = rows.map(([label, val, accent]) => `
+            <div class="conf-row">
+              <span class="conf-row__label">${label}</span>
+              <span class="conf-row__value${accent ? ' conf-row__value--accent' : ''}">${val || '—'}</span>
             </div>
           `).join('');
         })
         .catch(() => {
-          el.innerHTML = '<p class="t-body--sm" style="color:var(--grey-3);text-align:center;padding:16px 0;">Votre réservation est bien enregistrée.</p>';
+          recap.innerHTML = `
+            <div class="conf-row">
+              <span class="conf-row__label">Statut</span>
+              <span class="conf-row__value">Réservation bien enregistrée</span>
+            </div>`;
         });
     })();
   </script>
