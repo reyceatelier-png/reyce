@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — REYCE</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080808;
+      --bg2:      #0f0f0f;
+      --bg3:      #141414;
+      --border:   #1e1e1e;
+      --border2:  #2a2a2a;
+      --white:    #ffffff;
+      --grey1:    #c8c8c8;
+      --grey2:    #888;
+      --grey3:    #555;
+      --accent:   #bfc8d0;
+      --red:      #e05252;
+      --green:    #52b788;
+      --font:     'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--grey1);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Login ── */
+    .login {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .login__box {
+      width: 100%;
+      max-width: 360px;
+    }
+    .login__logo {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: .38em;
+      text-transform: uppercase;
+      color: var(--white);
+      margin-bottom: 40px;
+    }
+    .login__title {
+      font-size: 22px;
+      font-weight: 300;
+      color: var(--white);
+      margin-bottom: 8px;
+    }
+    .login__sub {
+      font-size: 12px;
+      color: var(--grey3);
+      margin-bottom: 32px;
+    }
+
+    /* ── App ── */
+    .app { display: none; }
+    .app.is-visible { display: block; }
+
+    /* ── Header ── */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      height: 56px;
+    }
+    .header__logo {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .3em;
+      text-transform: uppercase;
+      color: var(--white);
+      margin-right: 16px;
+    }
+    .header__badge {
+      font-size: 9px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--grey3);
+      border: 1px solid var(--border2);
+      padding: 3px 8px;
+    }
+    .header__logout {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--grey3);
+      cursor: pointer;
+      background: none;
+      border: none;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .header__logout:hover { color: var(--grey1); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+    }
+    .tab {
+      padding: 14px 0;
+      margin-right: 32px;
+      font-size: 12px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--grey3);
+      cursor: pointer;
+      border-bottom: 1px solid transparent;
+      margin-bottom: -1px;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+      transition: color .2s;
+    }
+    .tab:hover { color: var(--grey1); }
+    .tab.is-active { color: var(--white); border-bottom-color: var(--white); }
+
+    /* ── Content ── */
+    .content {
+      padding: 32px;
+      max-width: 1000px;
+    }
+    .panel { display: none; }
+    .panel.is-active { display: block; }
+
+    /* ── Section title ── */
+    .section-title {
+      font-size: 10px;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+      color: var(--grey3);
+      margin-bottom: 20px;
+    }
+
+    /* ── Input / Button ── */
+    input, select {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      color: var(--white);
+      padding: 10px 14px;
+      font-size: 13px;
+      font-family: var(--font);
+      outline: none;
+      width: 100%;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--grey3); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      font-size: 11px;
+      font-family: var(--font);
+      font-weight: 500;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      transition: opacity .2s;
+    }
+    .btn:hover { opacity: .8; }
+    .btn--primary { background: var(--white); color: #080808; }
+    .btn--danger  { background: var(--red); color: var(--white); }
+    .btn--ghost   { background: transparent; border: 1px solid var(--border2); color: var(--grey1); }
+    .btn--sm      { padding: 6px 12px; font-size: 10px; }
+
+    /* ── Booking card ── */
+    .booking-list { display: flex; flex-direction: column; gap: 1px; }
+    .booking-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 120px 1fr 1fr 1fr auto;
+      align-items: center;
+      gap: 24px;
+    }
+    .booking-card--cancelled { opacity: .4; }
+    .booking-card__date {
+      font-size: 12px;
+      color: var(--white);
+    }
+    .booking-card__time {
+      font-size: 11px;
+      color: var(--grey3);
+      margin-top: 2px;
+    }
+    .booking-card__label {
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--grey3);
+      margin-bottom: 2px;
+    }
+    .booking-card__val { font-size: 13px; color: var(--grey1); }
+    .status-badge {
+      font-size: 9px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border: 1px solid;
+    }
+    .status-badge--confirmed { color: var(--green); border-color: var(--green); }
+    .status-badge--cancelled { color: var(--grey3); border-color: var(--border2); }
+
+    /* ── Availability ── */
+    .avail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+    .avail-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 24px;
+    }
+    .avail-box__title {
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--white);
+      margin-bottom: 20px;
+    }
+    .avail-form { display: flex; flex-direction: column; gap: 12px; }
+    .avail-row { display: flex; gap: 8px; }
+    .avail-row input, .avail-row select { flex: 1; }
+
+    /* ── Blocked list ── */
+    .blocked-list { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; }
+    .blocked-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+    }
+    .blocked-item__label { font-size: 12px; color: var(--grey1); }
+    .blocked-item__sub   { font-size: 11px; color: var(--grey3); margin-top: 2px; }
+
+    /* ── Stats ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+    }
+    .stat-card__val  { font-size: 28px; font-weight: 300; color: var(--white); }
+    .stat-card__label { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--grey3); margin-top: 4px; }
+
+    /* ── Empty state ── */
+    .empty {
+      padding: 48px 0;
+      text-align: center;
+      color: var(--grey3);
+      font-size: 12px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      padding: 12px 20px;
+      font-size: 12px;
+      color: var(--grey1);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .3s, transform .3s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    .toast.is-visible { opacity: 1; transform: translateY(0); }
+    .toast.is-error   { border-color: var(--red); color: var(--red); }
+
+    @media (max-width: 700px) {
+      .booking-card { grid-template-columns: 1fr; }
+      .avail-grid   { grid-template-columns: 1fr; }
+      .stats-row    { grid-template-columns: 1fr 1fr; }
+      .header       { padding: 0 16px; }
+      .tabs         { padding: 0 16px; }
+      .content      { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login -->
+  <div class="login" id="loginScreen">
+    <div class="login__box">
+      <div class="login__logo">REYCE</div>
+      <h1 class="login__title">Espace administration</h1>
+      <p class="login__sub">Accès restreint — identifiez-vous pour continuer.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <input type="password" id="tokenInput" placeholder="Token d'accès" autocomplete="current-password">
+        <button class="btn btn--primary" onclick="login()">Accéder</button>
+      </div>
+      <p id="loginError" style="font-size:11px;color:var(--red);margin-top:12px;display:none;">Token incorrect.</p>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div class="app" id="app">
+
+    <div class="header">
+      <span class="header__logo">REYCE</span>
+      <span class="header__badge">Administration</span>
+      <button class="header__logout" onclick="logout()">Déconnexion</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab is-active" data-tab="bookings"       onclick="switchTab('bookings')">Réservations</button>
+      <button class="tab"           data-tab="availability"   onclick="switchTab('availability')">Disponibilités</button>
+    </div>
+
+    <div class="content">
+
+      <!-- ── Panel : Réservations ── -->
+      <div class="panel is-active" id="panel-bookings">
+
+        <div class="stats-row" id="statsRow">
+          <div class="stat-card"><div class="stat-card__val" id="statTotal">—</div><div class="stat-card__label">Total réservations</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="statConfirmed">—</div><div class="stat-card__label">Confirmées</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="statUpcoming">—</div><div class="stat-card__label">À venir</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="statRevenue">—</div><div class="stat-card__label">Acomptes encaissés</div></div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <p class="section-title" style="margin:0;">Toutes les réservations</p>
+          <select id="filterStatus" onchange="renderBookings()" style="width:160px;">
+            <option value="all">Tous les statuts</option>
+            <option value="confirmed">Confirmées</option>
+            <option value="cancelled">Annulées</option>
+          </select>
+        </div>
+
+        <div class="booking-list" id="bookingList"></div>
+      </div>
+
+      <!-- ── Panel : Disponibilités ── -->
+      <div class="panel" id="panel-availability">
+
+        <div class="avail-grid">
+
+          <!-- Bloquer une journée -->
+          <div class="avail-box">
+            <p class="avail-box__title">Bloquer une journée</p>
+            <div class="avail-form">
+              <input type="date" id="blockDate" min="">
+              <button class="btn btn--danger" onclick="blockDate()">Bloquer cette journée</button>
+            </div>
+
+            <div class="blocked-list" id="blockedDatesList"></div>
+          </div>
+
+          <!-- Bloquer un créneau -->
+          <div class="avail-box">
+            <p class="avail-box__title">Bloquer un créneau</p>
+            <div class="avail-form">
+              <input type="date" id="blockSlotDate" min="">
+              <select id="blockSlotTime">
+                <option value="">Sélectionner un créneau</option>
+                <option>09:00</option><option>11:00</option><option>11:30</option>
+                <option>13:30</option><option>14:00</option><option>16:00</option>
+              </select>
+              <button class="btn btn--danger" onclick="blockSlot()">Bloquer ce créneau</button>
+            </div>
+
+            <div class="blocked-list" id="blockedSlotsList"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    'use strict';
+
+    const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+    const DAYS   = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+
+    let token     = sessionStorage.getItem('adminToken') || '';
+    let bookings  = [];
+    let blocked   = { dates: [], slots: {} };
+
+    // ── Auth ──────────────────────────────────────────────────
+    function login() {
+      const val = document.getElementById('tokenInput').value.trim();
+      if (!val) return;
+      token = val;
+      sessionStorage.setItem('adminToken', token);
+      loadAll();
+    }
+
+    document.getElementById('tokenInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') login();
+    });
+
+    function logout() {
+      sessionStorage.removeItem('adminToken');
+      token = '';
+      document.getElementById('app').classList.remove('is-visible');
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    // ── API ───────────────────────────────────────────────────
+    async function api(method, path, body) {
+      const res = await fetch(path, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      if (res.status === 401) {
+        document.getElementById('loginError').style.display = 'block';
+        document.getElementById('app').classList.remove('is-visible');
+        document.getElementById('loginScreen').style.display = 'flex';
+        throw new Error('Non autorisé');
+      }
+      return res.json();
+    }
+
+    async function loadAll() {
+      try {
+        const [b, bl] = await Promise.all([
+          api('GET', '/api/admin/bookings'),
+          api('GET', '/api/admin/blocked')
+        ]);
+        bookings = b.bookings || [];
+        blocked  = bl;
+
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('app').classList.add('is-visible');
+        document.getElementById('loginError').style.display = 'none';
+
+        renderStats();
+        renderBookings();
+        renderBlocked();
+      } catch (e) {
+        if (e.message !== 'Non autorisé') showToast('Erreur de connexion', true);
+      }
+    }
+
+    // ── Tabs ─────────────────────────────────────────────────
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('is-active', p.id === `panel-${name}`));
+    }
+
+    // ── Stats ─────────────────────────────────────────────────
+    function renderStats() {
+      const today     = new Date().toISOString().split('T')[0];
+      const confirmed = bookings.filter(b => b.status !== 'cancelled');
+      const upcoming  = confirmed.filter(b => b.date >= today);
+      const revenue   = confirmed.reduce((s, b) => s + (b.amountPaid || 0), 0);
+
+      document.getElementById('statTotal').textContent     = bookings.length;
+      document.getElementById('statConfirmed').textContent = confirmed.length;
+      document.getElementById('statUpcoming').textContent  = upcoming.length;
+      document.getElementById('statRevenue').textContent   = `${(revenue / 100).toFixed(0)} €`;
+    }
+
+    // ── Bookings ──────────────────────────────────────────────
+    function renderBookings() {
+      const filter = document.getElementById('filterStatus').value;
+      const list   = document.getElementById('bookingList');
+
+      let filtered = bookings;
+      if (filter === 'confirmed') filtered = bookings.filter(b => b.status !== 'cancelled');
+      if (filter === 'cancelled') filtered = bookings.filter(b => b.status === 'cancelled');
+
+      if (!filtered.length) {
+        list.innerHTML = '<div class="empty">Aucune réservation</div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(b => {
+        const dateStr = fmtDate(b.date);
+        const vehicle = [b.vehicleType, b.vehicleModel].filter(Boolean).join(' — ') || '—';
+        const isCancelled = b.status === 'cancelled';
+        return `
+          <div class="booking-card${isCancelled ? ' booking-card--cancelled' : ''}">
+            <div>
+              <div class="booking-card__date">${dateStr}</div>
+              <div class="booking-card__time">${b.time || '—'}</div>
+            </div>
+            <div>
+              <div class="booking-card__label">Prestation</div>
+              <div class="booking-card__val">${b.serviceName || b.service || '—'}</div>
+            </div>
+            <div>
+              <div class="booking-card__label">Client</div>
+              <div class="booking-card__val">${(b.client?.firstName || '') + ' ' + (b.client?.lastName || '')}</div>
+              <div style="font-size:11px;color:var(--grey3);">${b.client?.email || ''}</div>
+            </div>
+            <div>
+              <div class="booking-card__label">Véhicule</div>
+              <div class="booking-card__val">${vehicle}</div>
+              <div style="margin-top:6px;"><span class="status-badge status-badge--${isCancelled ? 'cancelled' : 'confirmed'}">${isCancelled ? 'Annulée' : 'Confirmée'}</span></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-direction:column;">
+              ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="cancelBooking('${b.sessionId}')">Annuler</button>` : ''}
+              <div style="font-size:11px;color:var(--grey3);">${(b.amountPaid / 100) || 0} €</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function cancelBooking(sessionId) {
+      if (!confirm('Annuler cette réservation ?')) return;
+      try {
+        await api('PATCH', `/api/admin/booking/${sessionId}`, { status: 'cancelled' });
+        const idx = bookings.findIndex(b => b.sessionId === sessionId);
+        if (idx !== -1) bookings[idx].status = 'cancelled';
+        renderStats();
+        renderBookings();
+        showToast('Réservation annulée');
+      } catch { showToast('Erreur', true); }
+    }
+
+    // ── Blocked ───────────────────────────────────────────────
+    function renderBlocked() {
+      // Dates
+      const datesList = document.getElementById('blockedDatesList');
+      if (!blocked.dates.length) {
+        datesList.innerHTML = '<p style="font-size:11px;color:var(--grey3);margin-top:12px;">Aucune journée bloquée.</p>';
+      } else {
+        datesList.innerHTML = blocked.dates.sort().map(date => `
+          <div class="blocked-item">
+            <div>
+              <div class="blocked-item__label">${fmtDate(date)}</div>
+              <div class="blocked-item__sub">Journée entière</div>
+            </div>
+            <button class="btn btn--ghost btn--sm" onclick="unblockDate('${date}')">Débloquer</button>
+          </div>
+        `).join('');
+      }
+
+      // Slots
+      const slotsList = document.getElementById('blockedSlotsList');
+      const slotsEntries = Object.entries(blocked.slots).filter(([, times]) => times.length > 0);
+      if (!slotsEntries.length) {
+        slotsList.innerHTML = '<p style="font-size:11px;color:var(--grey3);margin-top:12px;">Aucun créneau bloqué.</p>';
+      } else {
+        slotsList.innerHTML = slotsEntries.sort().map(([date, times]) =>
+          times.map(time => `
+            <div class="blocked-item">
+              <div>
+                <div class="blocked-item__label">${fmtDate(date)}</div>
+                <div class="blocked-item__sub">${time}</div>
+              </div>
+              <button class="btn btn--ghost btn--sm" onclick="unblockSlot('${date}','${time}')">Débloquer</button>
+            </div>
+          `).join('')
+        ).join('');
+      }
+    }
+
+    async function blockDate() {
+      const date = document.getElementById('blockDate').value;
+      if (!date) return showToast('Sélectionnez une date', true);
+      try {
+        await api('POST', '/api/admin/block-date', { date });
+        if (!blocked.dates.includes(date)) blocked.dates.push(date);
+        renderBlocked();
+        showToast('Journée bloquée');
+      } catch { showToast('Erreur', true); }
+    }
+
+    async function unblockDate(date) {
+      try {
+        await api('DELETE', '/api/admin/block-date', { date });
+        blocked.dates = blocked.dates.filter(d => d !== date);
+        renderBlocked();
+        showToast('Journée débloquée');
+      } catch { showToast('Erreur', true); }
+    }
+
+    async function blockSlot() {
+      const date = document.getElementById('blockSlotDate').value;
+      const time = document.getElementById('blockSlotTime').value;
+      if (!date || !time) return showToast('Sélectionnez une date et un créneau', true);
+      try {
+        await api('POST', '/api/admin/block-slot', { date, time });
+        if (!blocked.slots[date]) blocked.slots[date] = [];
+        if (!blocked.slots[date].includes(time)) blocked.slots[date].push(time);
+        renderBlocked();
+        showToast('Créneau bloqué');
+      } catch { showToast('Erreur', true); }
+    }
+
+    async function unblockSlot(date, time) {
+      try {
+        await api('DELETE', '/api/admin/block-slot', { date, time });
+        if (blocked.slots[date]) {
+          blocked.slots[date] = blocked.slots[date].filter(t => t !== time);
+        }
+        renderBlocked();
+        showToast('Créneau débloqué');
+      } catch { showToast('Erreur', true); }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────
+    function fmtDate(str) {
+      if (!str) return '—';
+      const [y, m, d] = str.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      return `${DAYS[date.getDay()]} ${d} ${MONTHS[m - 1]} ${y}`;
+    }
+
+    let toastTimer;
+    function showToast(msg, isError = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.toggle('is-error', isError);
+      t.classList.add('is-visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('is-visible'), 3000);
+    }
+
+    // ── Set min date on date inputs ───────────────────────────
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('blockDate').min     = today;
+    document.getElementById('blockSlotDate').min = today;
+
+    // ── Init ──────────────────────────────────────────────────
+    if (token) {
+      loadAll();
+    }
+  </script>
+</body>
+</html>

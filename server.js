@@ -11,6 +11,7 @@ const app      = express();
 const PORT     = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
 const BOOKINGS = path.join(DATA_DIR, 'bookings.json');
+const BLOCKED  = path.join(DATA_DIR, 'blocked.json');
 
 // ============================================================
 // Configuration des prestations
@@ -70,6 +71,17 @@ function saveBooking(booking) {
   all.push(booking);
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(BOOKINGS, JSON.stringify(all, null, 2));
+}
+
+function readBlocked() {
+  if (!fs.existsSync(BLOCKED)) return { dates: [], slots: {} };
+  try { return JSON.parse(fs.readFileSync(BLOCKED, 'utf8')); }
+  catch { return { dates: [], slots: {} }; }
+}
+
+function saveBlocked(data) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(BLOCKED, JSON.stringify(data, null, 2));
 }
 
 // ============================================================
@@ -329,6 +341,70 @@ async function sendConfirmationEmails(data, svc) {
 }
 
 // ============================================================
+// Google Calendar
+// ============================================================
+async function createCalendarEvent(data, svc) {
+  const clientId     = process.env.GMAIL_CLIENT_ID;
+  const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN;
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    console.log('[Calendar] GOOGLE_CALENDAR_REFRESH_TOKEN non configuré — ignoré');
+    return;
+  }
+
+  try {
+    // Obtenir un access token
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:    new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' })
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok) throw new Error(`OAuth: ${JSON.stringify(tokenData)}`);
+    const accessToken = tokenData.access_token;
+
+    // Calculer start/end
+    const [y, m, d]  = data.date.split('-').map(Number);
+    const [h, min]   = data.time.split(':').map(Number);
+    const start      = new Date(y, m - 1, d, h, min);
+    const end        = new Date(start.getTime() + svc.durationMin * 60000);
+
+    const pad = n => String(n).padStart(2, '0');
+    const fmt = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}:00`;
+
+    const vehicleStr = [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—';
+
+    const event = {
+      summary:     `${svc.name} — ${data.client.firstName} ${data.client.lastName}`,
+      description: [
+        `Prestation : ${svc.name}`,
+        `Client : ${data.client.firstName} ${data.client.lastName}`,
+        `Téléphone : ${data.client.phone}`,
+        `Email : ${data.client.email}`,
+        `Véhicule : ${vehicleStr}`,
+        `Acompte payé : ${svc.depositCents / 100} €`,
+        data.client.notes?.trim() ? `Notes : ${data.client.notes}` : null
+      ].filter(Boolean).join('\n'),
+      start: { dateTime: fmt(start), timeZone: 'Europe/Paris' },
+      end:   { dateTime: fmt(end),   timeZone: 'Europe/Paris' }
+    };
+
+    const calId = encodeURIComponent(process.env.GOOGLE_CALENDAR_ID || 'primary');
+    const calRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calId}/events`, {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body:    JSON.stringify(event)
+    });
+
+    if (!calRes.ok) { const e = await calRes.text(); throw new Error(`${calRes.status}: ${e}`); }
+    console.log('[Calendar] ✓ Événement créé');
+  } catch (err) {
+    console.error('[Calendar] ✗', err.message);
+  }
+}
+
+// ============================================================
 // Webhook Stripe
 // IMPORTANT : avant express.json() — Stripe nécessite le body brut
 // ============================================================
@@ -370,6 +446,11 @@ app.post('/api/webhook',
           // Envoi des emails de confirmation (non bloquant)
           sendConfirmationEmails(data, svc).catch(err =>
             console.error('[Email] Erreur post-webhook :', err.message)
+          );
+
+          // Création de l'événement Google Calendar (non bloquant)
+          createCalendarEvent(data, svc).catch(err =>
+            console.error('[Calendar] Erreur post-webhook :', err.message)
           );
 
         } catch (e) {
@@ -468,11 +549,18 @@ app.get('/api/slots', (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   if (date < today) return res.json({ slots: [] });
 
+  const blocked = readBlocked();
+
+  // Date entièrement bloquée
+  if (blocked.dates.includes(date)) return res.json({ slots: [] });
+
   const taken = readBookings()
     .filter(b => b.service === service && b.date === date && b.status !== 'cancelled')
     .map(b => b.time);
 
-  res.json({ slots: SERVICES[service].slots.filter(s => !taken.includes(s)) });
+  const blockedSlots = blocked.slots[date] || [];
+
+  res.json({ slots: SERVICES[service].slots.filter(s => !taken.includes(s) && !blockedSlots.includes(s)) });
 });
 
 app.use('/api/create-checkout-session', express.json());
@@ -548,6 +636,88 @@ app.get('/api/booking/:sessionId', async (req, res) => {
   } catch {
     res.status(404).json({ error: 'Réservation introuvable' });
   }
+});
+
+// ============================================================
+// Admin API
+// ============================================================
+function requireAdmin(req, res, next) {
+  const token = req.headers['x-admin-token'];
+  if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'Non autorisé' });
+  }
+  next();
+}
+
+app.use('/api/admin', express.json(), requireAdmin);
+
+// Lister toutes les réservations
+app.get('/api/admin/bookings', (req, res) => {
+  const bookings = readBookings()
+    .sort((a, b) => (a.date + a.time) < (b.date + b.time) ? 1 : -1);
+  res.json({ bookings });
+});
+
+// Annuler / modifier le statut d'une réservation
+app.patch('/api/admin/booking/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  const { status }    = req.body;
+  const all = readBookings();
+  const idx = all.findIndex(b => b.sessionId === sessionId);
+  if (idx === -1) return res.status(404).json({ error: 'Réservation introuvable' });
+  all[idx].status = status || 'cancelled';
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(BOOKINGS, JSON.stringify(all, null, 2));
+  res.json({ ok: true });
+});
+
+// Lire les blocages
+app.get('/api/admin/blocked', (req, res) => {
+  res.json(readBlocked());
+});
+
+// Bloquer une date entière
+app.post('/api/admin/block-date', (req, res) => {
+  const { date } = req.body;
+  if (!date) return res.status(400).json({ error: 'Date requise' });
+  const blocked = readBlocked();
+  if (!blocked.dates.includes(date)) blocked.dates.push(date);
+  saveBlocked(blocked);
+  res.json({ ok: true });
+});
+
+// Débloquer une date
+app.delete('/api/admin/block-date', (req, res) => {
+  const { date } = req.body;
+  if (!date) return res.status(400).json({ error: 'Date requise' });
+  const blocked = readBlocked();
+  blocked.dates = blocked.dates.filter(d => d !== date);
+  saveBlocked(blocked);
+  res.json({ ok: true });
+});
+
+// Bloquer un créneau spécifique
+app.post('/api/admin/block-slot', (req, res) => {
+  const { date, time } = req.body;
+  if (!date || !time) return res.status(400).json({ error: 'Date et créneau requis' });
+  const blocked = readBlocked();
+  if (!blocked.slots[date]) blocked.slots[date] = [];
+  if (!blocked.slots[date].includes(time)) blocked.slots[date].push(time);
+  saveBlocked(blocked);
+  res.json({ ok: true });
+});
+
+// Débloquer un créneau
+app.delete('/api/admin/block-slot', (req, res) => {
+  const { date, time } = req.body;
+  if (!date || !time) return res.status(400).json({ error: 'Date et créneau requis' });
+  const blocked = readBlocked();
+  if (blocked.slots[date]) {
+    blocked.slots[date] = blocked.slots[date].filter(t => t !== time);
+    if (!blocked.slots[date].length) delete blocked.slots[date];
+  }
+  saveBlocked(blocked);
+  res.json({ ok: true });
 });
 
 // ============================================================
