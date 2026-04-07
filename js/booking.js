@@ -13,6 +13,7 @@ const SERVICES = {
     name:     'Lavage Confort',
     desc:     'Lavage extérieur soigné — carrosserie, jantes et vitres.',
     duration: '~1h',
+    price:    99,
     deposit:  DEPOSIT_AMOUNT
   },
   'lavage-premium': {
@@ -20,6 +21,7 @@ const SERVICES = {
     name:     'Lavage Premium',
     desc:     'Lavage complet intérieur + extérieur, finitions et traitement des plastiques.',
     duration: '~2h',
+    price:    169,
     deposit:  DEPOSIT_AMOUNT
   },
   'lavage-experience': {
@@ -27,6 +29,7 @@ const SERVICES = {
     name:     'Lavage Expérience',
     desc:     'Préparation haut de gamme complète — une journée entière de travail minutieux.',
     duration: 'Journée complète',
+    price:    299,
     deposit:  DEPOSIT_AMOUNT
   },
   'vitres-teintees': {
@@ -34,6 +37,7 @@ const SERVICES = {
     name:     'Vitres Teintées',
     desc:     'Pose de film teintant professionnel sur l\'ensemble des vitres.',
     duration: '3–4h',
+    price:    199,
     deposit:  DEPOSIT_AMOUNT
   }
 };
@@ -79,6 +83,7 @@ const state = {
   time:         null,
   calYear:      null,
   calMonth:     null,
+  paymentType:  'deposit', // 'deposit' | 'full'
   client: {
     firstName: '',
     lastName:  '',
@@ -223,7 +228,7 @@ function renderServiceCards() {
       </div>
       <div class="svc-card__meta">
         <span class="svc-card__duration">${s.duration}</span>
-        <span class="svc-card__deposit">Acompte ${s.deposit}\u202f€</span>
+        <span class="svc-card__price">À partir de ${s.price}\u202f€</span>
       </div>
     </div>
   `).join('');
@@ -500,7 +505,38 @@ function renderSummary() {
     `).join('');
   }
 
-  // Afficher le montant de l'acompte
+  // Choix du mode de paiement
+  const paymentWrap = document.getElementById('paymentChoice');
+  if (paymentWrap) {
+    paymentWrap.innerHTML = `
+      <p class="t-head" style="margin-bottom:16px;">Mode de paiement</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:var(--space-md);">
+        <label class="payment-option${state.paymentType === 'deposit' ? ' is-selected' : ''}" data-payment="deposit">
+          <div class="payment-option__check"></div>
+          <div class="payment-option__body">
+            <span class="payment-option__name">Acompte — ${DEPOSIT_AMOUNT}\u202f€</span>
+            <span class="payment-option__sub">Le solde (${svc.price - DEPOSIT_AMOUNT}\u202f€) sera réglé le jour du rendez-vous</span>
+          </div>
+        </label>
+        <label class="payment-option${state.paymentType === 'full' ? ' is-selected' : ''}" data-payment="full">
+          <div class="payment-option__check"></div>
+          <div class="payment-option__body">
+            <span class="payment-option__name">Paiement complet — à partir de ${svc.price}\u202f€</span>
+            <span class="payment-option__sub">Règlement intégral maintenant — aucun paiement en atelier</span>
+          </div>
+        </label>
+      </div>
+    `;
+
+    paymentWrap.querySelectorAll('.payment-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        state.paymentType = opt.dataset.payment;
+        paymentWrap.querySelectorAll('.payment-option').forEach(o => o.classList.remove('is-selected'));
+        opt.classList.add('is-selected');
+      });
+    });
+  }
+
   const depositEl = document.getElementById('summaryDeposit');
   if (depositEl) depositEl.textContent = `${DEPOSIT_AMOUNT}\u202f€`;
 }
@@ -532,7 +568,8 @@ function setupPaymentBtn() {
           tintOption:   state.tintOption,
           date:         state.date,
           time:         state.time,
-          client:       state.client
+          client:       state.client,
+          paymentType:  state.paymentType
         })
       });
 

@@ -217,8 +217,10 @@
       padding: 3px 8px;
       border: 1px solid;
     }
-    .status-badge--confirmed { color: var(--green); border-color: var(--green); }
-    .status-badge--cancelled { color: var(--grey3); border-color: var(--border2); }
+    .status-badge--confirmed { color: var(--green);  border-color: var(--green); }
+    .status-badge--today     { color: #f0c040;       border-color: #f0c040; }
+    .status-badge--done      { color: var(--accent); border-color: var(--accent); }
+    .status-badge--cancelled { color: var(--grey3);  border-color: var(--border2); }
 
     /* ── Availability ── */
     .avail-grid {
@@ -355,7 +357,8 @@
           <p class="section-title" style="margin:0;">Toutes les réservations</p>
           <select id="filterStatus" onchange="renderBookings()" style="width:160px;">
             <option value="all">Tous les statuts</option>
-            <option value="confirmed">Confirmées</option>
+            <option value="upcoming">À venir</option>
+            <option value="done">Terminées</option>
             <option value="cancelled">Annulées</option>
           </select>
         </div>
@@ -478,9 +481,8 @@
 
     // ── Stats ─────────────────────────────────────────────────
     function renderStats() {
-      const today     = new Date().toISOString().split('T')[0];
       const confirmed = bookings.filter(b => b.status !== 'cancelled');
-      const upcoming  = confirmed.filter(b => b.date >= today);
+      const upcoming  = bookings.filter(b => ['upcoming','today'].includes(getStatus(b)));
       const revenue   = confirmed.reduce((s, b) => s + (b.amountPaid || 0), 0);
 
       document.getElementById('statTotal').textContent     = bookings.length;
@@ -488,6 +490,18 @@
       document.getElementById('statUpcoming').textContent  = upcoming.length;
       document.getElementById('statRevenue').textContent   = `${(revenue / 100).toFixed(0)} €`;
     }
+
+    // ── Statut automatique ────────────────────────────────────
+    function getStatus(b) {
+      if (b.status === 'cancelled') return 'cancelled';
+      const today = new Date().toISOString().split('T')[0];
+      if (b.date < today) return 'done';
+      if (b.date === today) return 'today';
+      return 'upcoming';
+    }
+
+    const STATUS_LABEL = { confirmed: 'Confirmé', upcoming: 'À venir', today: 'Aujourd\'hui', done: 'Terminé', cancelled: 'Annulée' };
+    const STATUS_CLASS = { confirmed: 'confirmed', upcoming: 'confirmed', today: 'today', done: 'done', cancelled: 'cancelled' };
 
     // ── Bookings ──────────────────────────────────────────────
     function renderBookings() {
@@ -497,6 +511,8 @@
       let filtered = bookings;
       if (filter === 'confirmed') filtered = bookings.filter(b => b.status !== 'cancelled');
       if (filter === 'cancelled') filtered = bookings.filter(b => b.status === 'cancelled');
+      if (filter === 'done')      filtered = bookings.filter(b => getStatus(b) === 'done');
+      if (filter === 'upcoming')  filtered = bookings.filter(b => ['upcoming','today'].includes(getStatus(b)));
 
       if (!filtered.length) {
         list.innerHTML = '<div class="empty">Aucune réservation</div>';
@@ -504,9 +520,12 @@
       }
 
       list.innerHTML = filtered.map(b => {
-        const dateStr = fmtDate(b.date);
-        const vehicle = [b.vehicleType, b.vehicleModel].filter(Boolean).join(' — ') || '—';
-        const isCancelled = b.status === 'cancelled';
+        const dateStr   = fmtDate(b.date);
+        const vehicle   = [b.vehicleType, b.vehicleModel].filter(Boolean).join(' — ') || '—';
+        const status    = getStatus(b);
+        const isDone    = status === 'done';
+        const isCancelled = status === 'cancelled';
+        const payment   = b.paymentType === 'full' ? 'Complet' : 'Acompte';
         return `
           <div class="booking-card${isCancelled ? ' booking-card--cancelled' : ''}">
             <div>
@@ -516,20 +535,24 @@
             <div>
               <div class="booking-card__label">Prestation</div>
               <div class="booking-card__val">${b.serviceName || b.service || '—'}</div>
+              <div style="font-size:11px;color:var(--grey3);margin-top:2px;">${payment} — ${(b.amountPaid / 100) || 0} €</div>
             </div>
             <div>
               <div class="booking-card__label">Client</div>
               <div class="booking-card__val">${(b.client?.firstName || '') + ' ' + (b.client?.lastName || '')}</div>
-              <div style="font-size:11px;color:var(--grey3);">${b.client?.email || ''}</div>
+              <div style="font-size:11px;color:var(--grey3);">${b.client?.phone || ''}</div>
             </div>
             <div>
               <div class="booking-card__label">Véhicule</div>
               <div class="booking-card__val">${vehicle}</div>
-              <div style="margin-top:6px;"><span class="status-badge status-badge--${isCancelled ? 'cancelled' : 'confirmed'}">${isCancelled ? 'Annulée' : 'Confirmée'}</span></div>
+              <div style="margin-top:6px;"><span class="status-badge status-badge--${STATUS_CLASS[status] || 'confirmed'}">${STATUS_LABEL[status] || status}</span></div>
             </div>
-            <div style="display:flex;gap:8px;flex-direction:column;">
-              ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="cancelBooking('${b.sessionId}')">Annuler</button>` : ''}
-              <div style="font-size:11px;color:var(--grey3);">${(b.amountPaid / 100) || 0} €</div>
+            <div style="display:flex;gap:6px;flex-direction:column;align-items:flex-end;">
+              ${isDone ? `
+                <button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Véhicule prêt</button>
+                <button class="btn btn--ghost btn--sm" onclick="sendReview('${b.sessionId}')">Demande avis</button>
+              ` : ''}
+              ${!isCancelled && !isDone ? `<button class="btn btn--ghost btn--sm" onclick="cancelBooking('${b.sessionId}')">Annuler</button>` : ''}
             </div>
           </div>
         `;
@@ -545,6 +568,20 @@
         renderStats();
         renderBookings();
         showToast('Réservation annulée');
+      } catch { showToast('Erreur', true); }
+    }
+
+    async function sendReady(sessionId) {
+      try {
+        await api('POST', '/api/admin/send-ready', { sessionId });
+        showToast('Message "véhicule prêt" envoyé');
+      } catch { showToast('Erreur', true); }
+    }
+
+    async function sendReview(sessionId) {
+      try {
+        await api('POST', '/api/admin/send-review', { sessionId });
+        showToast('Demande d\'avis envoyée');
       } catch { showToast('Erreur', true); }
     }
 

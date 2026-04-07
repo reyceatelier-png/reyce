@@ -19,24 +19,28 @@ const BLOCKED  = path.join(DATA_DIR, 'blocked.json');
 const SERVICES = {
   'lavage-confort': {
     name:         'Lavage Confort',
+    priceCents:   9900,
     depositCents: 4000,
     durationMin:  60,
     slots:        ['09:00', '11:00', '14:00', '16:00']
   },
   'lavage-premium': {
     name:         'Lavage Premium',
+    priceCents:   16900,
     depositCents: 4000,
     durationMin:  120,
     slots:        ['09:00', '11:30', '14:00']
   },
   'lavage-experience': {
     name:         'Lavage Expérience',
+    priceCents:   29900,
     depositCents: 4000,
     durationMin:  480,
     slots:        ['09:00']
   },
   'vitres-teintees': {
     name:         'Vitres Teintées',
+    priceCents:   19900,
     depositCents: 4000,
     durationMin:  240,
     slots:        ['09:00', '13:30']
@@ -341,6 +345,35 @@ async function sendConfirmationEmails(data, svc) {
 }
 
 // ============================================================
+// SMS via Twilio
+// ============================================================
+async function sendSMS(to, body) {
+  const sid   = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from  = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!sid || !token || !from) {
+    console.log('[SMS] Twilio non configuré — ignoré');
+    return;
+  }
+
+  const phone = to.startsWith('+') ? to : `+33${to.replace(/^0/, '')}`;
+
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+    method:  'POST',
+    headers: {
+      'Authorization': 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
+      'Content-Type':  'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({ From: from, To: phone, Body: body })
+  });
+
+  if (!res.ok) { const e = await res.text(); throw new Error(`Twilio ${res.status}: ${e}`); }
+  console.log(`[SMS] ✓ Envoyé → ${phone}`);
+  return res.json();
+}
+
+// ============================================================
 // Google Calendar
 // ============================================================
 async function createCalendarEvent(data, svc) {
@@ -452,6 +485,14 @@ app.post('/api/webhook',
           createCalendarEvent(data, svc).catch(err =>
             console.error('[Calendar] Erreur post-webhook :', err.message)
           );
+
+          // SMS de confirmation (non bloquant)
+          if (data.client?.phone) {
+            const smsBody = `REYCE — Votre réservation est confirmée.\n${svc.name} · ${formatDate(data.date)} à ${data.time}\nAtelier : 47 chemin du Pras, La Mulatière`;
+            sendSMS(data.client.phone, smsBody).catch(err =>
+              console.error('[SMS] Erreur post-webhook :', err.message)
+            );
+          }
 
         } catch (e) {
           console.error('[Webhook] Erreur sauvegarde :', e);
@@ -565,7 +606,7 @@ app.get('/api/slots', (req, res) => {
 
 app.use('/api/create-checkout-session', express.json());
 app.post('/api/create-checkout-session', async (req, res) => {
-  const { service, vehicleType, vehicleModel, tintOption, date, time, client } = req.body;
+  const { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType } = req.body;
 
   if (!SERVICES[service])
     return res.status(400).json({ error: 'Prestation invalide' });
@@ -581,7 +622,10 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
 
   const svc         = SERVICES[service];
-  const bookingData = { service, vehicleType, vehicleModel, tintOption, date, time, client };
+  const isFull      = paymentType === 'full';
+  const amountCents = isFull ? svc.priceCents : svc.depositCents;
+  const productName = isFull ? `Paiement complet — ${svc.name}` : `Acompte — ${svc.name}`;
+  const bookingData = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: paymentType || 'deposit' };
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -590,11 +634,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
         price_data: {
           currency:     'eur',
           product_data: {
-            name:        `Acompte — ${svc.name}`,
+            name:        productName,
             description: [`Rendez-vous : ${date} à ${time}`, vehicleType, vehicleModel]
               .filter(Boolean).join(' · ')
           },
-          unit_amount: svc.depositCents
+          unit_amount: amountCents
         },
         quantity: 1
       }],
@@ -718,6 +762,83 @@ app.delete('/api/admin/block-slot', (req, res) => {
   }
   saveBlocked(blocked);
   res.json({ ok: true });
+});
+
+// Email véhicule prêt
+app.post('/api/admin/send-ready', async (req, res) => {
+  const { sessionId } = req.body;
+  const booking = readBookings().find(b => b.sessionId === sessionId);
+  if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
+
+  const firstName = booking.client?.firstName || 'Client';
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{background:#070707;margin:0;padding:48px 20px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;}
+  .wrap{max-width:520px;margin:0 auto;padding:0;}
+  .logo{font-size:16px;font-weight:600;letter-spacing:.38em;text-transform:uppercase;color:#fff;margin-bottom:48px;}
+  .title{font-size:28px;font-weight:300;color:#fff;line-height:1.2;font-style:italic;margin-bottom:16px;}
+  .body{font-size:14px;color:#888;line-height:1.8;margin-bottom:40px;}
+  .divider{border:none;border-top:1px solid #1a1a1a;margin:32px 0;}
+  .addr{font-size:12px;color:#555;line-height:1.9;}
+  .foot{font-size:11px;color:#333;margin-top:40px;}
+</style></head><body>
+<div class="wrap">
+  <div class="logo">REYCE</div>
+  <p class="title">Votre véhicule<br>est prêt.</p>
+  <p class="body">Bonjour ${firstName},<br><br>Chaque détail a été traité avec précision. Votre véhicule vous attend à l'atelier.</p>
+  <hr class="divider">
+  <p class="addr">47 chemin du Pras · La Mulatière, Lyon<br>07 63 00 43 85</p>
+  <p class="foot">REYCE · Atelier automobile premium · Lyon</p>
+</div></body></html>`;
+
+  try {
+    await sendEmail(booking.client.email, 'Votre véhicule est prêt — REYCE', html);
+    if (booking.client?.phone) {
+      await sendSMS(booking.client.phone, `REYCE — Votre véhicule est prêt. Chaque détail a été traité avec précision. À tout de suite ! 47 chemin du Pras, La Mulatière.`).catch(() => {});
+    }
+    console.log(`[Admin] ✓ Email "prêt" → ${booking.client.email}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Admin] ✗ send-ready :', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Email demande d'avis
+app.post('/api/admin/send-review', async (req, res) => {
+  const { sessionId } = req.body;
+  const booking = readBookings().find(b => b.sessionId === sessionId);
+  if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
+
+  const firstName = booking.client?.firstName || 'Client';
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{background:#070707;margin:0;padding:48px 20px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;}
+  .wrap{max-width:520px;margin:0 auto;}
+  .logo{font-size:16px;font-weight:600;letter-spacing:.38em;text-transform:uppercase;color:#fff;margin-bottom:48px;}
+  .title{font-size:28px;font-weight:300;color:#fff;line-height:1.2;font-style:italic;margin-bottom:16px;}
+  .body{font-size:14px;color:#888;line-height:1.8;margin-bottom:32px;}
+  .cta{display:inline-block;padding:13px 28px;background:#fff;color:#080808;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;margin-bottom:40px;}
+  .divider{border:none;border-top:1px solid #1a1a1a;margin:32px 0;}
+  .foot{font-size:11px;color:#333;margin-top:32px;}
+</style></head><body>
+<div class="wrap">
+  <div class="logo">REYCE</div>
+  <p class="title">Merci pour<br>votre confiance.</p>
+  <p class="body">Bonjour ${firstName},<br><br>Nous espérons que votre expérience REYCE a été à la hauteur de vos attentes. Votre avis compte énormément pour nous et aide d'autres passionnés à nous découvrir.</p>
+  <a href="https://www.google.com/search?q=REYCE+Lyon+avis" class="cta">Laisser un avis Google</a>
+  <hr class="divider">
+  <p class="foot">REYCE · Atelier automobile premium · Lyon</p>
+</div></body></html>`;
+
+  try {
+    await sendEmail(booking.client.email, 'Merci pour votre confiance — REYCE', html);
+    console.log(`[Admin] ✓ Email "avis" → ${booking.client.email}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Admin] ✗ send-review :', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ============================================================
