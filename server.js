@@ -6,6 +6,8 @@ const stripe     = require('stripe')(process.env.STRIPE_SECRET_KEY);
 // Email via Gmail REST API (HTTPS uniquement — pas bloqué par Railway)
 const fs         = require('fs');
 const path       = require('path');
+const multer     = require('multer');
+const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6 * 1024 * 1024, files: 3 } });
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
@@ -16,35 +18,27 @@ const BLOCKED  = path.join(DATA_DIR, 'blocked.json');
 // ============================================================
 // Configuration des prestations
 // ============================================================
+// Tarifs de base (gabarit Citadine). Le supplément gabarit (voir GABARIT_SUPP)
+// est ajouté au moment de la création de la session Stripe.
 const SERVICES = {
-  'lavage-confort': {
-    name:         'Lavage Confort',
-    priceCents:   9900,
-    depositCents: 4000,
-    durationMin:  60,
-    slots:        ['09:00', '11:00', '14:00', '16:00']
-  },
-  'lavage-premium': {
-    name:         'Lavage Premium',
-    priceCents:   16900,
-    depositCents: 4000,
-    durationMin:  120,
-    slots:        ['09:00', '11:30', '14:00']
-  },
-  'lavage-experience': {
-    name:         'Lavage Expérience',
-    priceCents:   29900,
-    depositCents: 4000,
-    durationMin:  480,
-    slots:        ['09:00']
-  },
-  'vitres-teintees': {
-    name:         'Vitres Teintées',
-    priceCents:   19900,
-    depositCents: 4000,
-    durationMin:  240,
-    slots:        ['09:00', '13:30']
-  }
+  'nettoyage-int-confort':      { name: 'Nettoyage Intérieur — Confort',      priceCents:  6900, depositCents: 4000, durationMin: 60,  slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-int-premium':      { name: 'Nettoyage Intérieur — Premium',      priceCents: 12900, depositCents: 4000, durationMin: 90,  slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-int-experience':   { name: 'Nettoyage Intérieur — Expérience',   priceCents: 22900, depositCents: 4000, durationMin: 240, slots: ['09:00'] },
+  'nettoyage-ext-confort':      { name: 'Nettoyage Extérieur — Confort',      priceCents:  4900, depositCents: 4000, durationMin: 45,  slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-ext-premium':      { name: 'Nettoyage Extérieur — Premium',      priceCents:  8900, depositCents: 4000, durationMin: 75,  slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-ext-experience':   { name: 'Nettoyage Extérieur — Expérience',   priceCents: 14900, depositCents: 4000, durationMin: 180, slots: ['09:00'] },
+  'nettoyage-duo-confort':      { name: 'Nettoyage Intérieur + Extérieur — Confort',    priceCents:  9900, depositCents: 4000, durationMin: 90,  slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-duo-premium':      { name: 'Nettoyage Intérieur + Extérieur — Premium',    priceCents: 19900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-duo-experience':   { name: 'Nettoyage Intérieur + Extérieur — Expérience', priceCents: 34900, depositCents: 4000, durationMin: 480, slots: ['09:00'] }
+};
+
+// Supplément (en centimes) ajouté au prix de base selon le gabarit détecté du véhicule.
+const GABARIT_SUPP_CENTS = {
+  citadine: 0,
+  berline:  2000,
+  suv:      4000,
+  van:      7000,
+  sportive: 6000
 };
 
 // ============================================================
@@ -279,20 +273,53 @@ async function getAccessToken() {
 }
 
 // ── Envoi via Gmail REST API (HTTPS port 443) ─────────────────
-async function sendEmail(to, subject, html) {
+async function sendEmail(to, subject, html, attachments) {
   const accessToken = await getAccessToken();
   const from        = `"REYCE" <${process.env.GMAIL_USER}>`;
+  const subjectHdr  = `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
 
-  const raw = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    '',
-    Buffer.from(html).toString('base64')
-  ].join('\r\n');
+  let raw;
+  if (attachments && attachments.length) {
+    const boundary = 'reyce_' + Date.now();
+    const parts = [
+      `From: ${from}`,
+      `To: ${to}`,
+      subjectHdr,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(html).toString('base64'),
+      ''
+    ];
+    attachments.forEach(att => {
+      parts.push(
+        `--${boundary}`,
+        `Content-Type: ${att.contentType || 'application/octet-stream'}; name="${att.filename}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${att.filename}"`,
+        '',
+        att.buffer.toString('base64'),
+        ''
+      );
+    });
+    parts.push(`--${boundary}--`);
+    raw = parts.join('\r\n');
+  } else {
+    raw = [
+      `From: ${from}`,
+      `To: ${to}`,
+      subjectHdr,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      Buffer.from(html).toString('base64')
+    ].join('\r\n');
+  }
 
   const encoded = Buffer.from(raw).toString('base64url');
 
@@ -580,6 +607,73 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+// ============================================================
+// Demande de devis "projet" avec photos jointes (jusqu'à 3)
+// ============================================================
+app.post('/api/devis-photos', upload.array('photos', 3), async (req, res) => {
+  const { firstName, lastName, email, phone, subject, message, vehicleInfo } = req.body;
+
+  if (!email || !firstName) {
+    return res.status(400).json({ error: 'Champs obligatoires manquants' });
+  }
+
+  if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) {
+    console.log('[Devis photos] Variables Gmail OAuth2 manquantes — email ignoré');
+    return res.json({ ok: true });
+  }
+
+  const ownerEmail = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
+  const subjectLine = `[Devis] ${subject || 'Discuter d\'un projet'} — ${firstName} ${lastName || ''}`.trim();
+
+  const files = Array.isArray(req.files) ? req.files : [];
+  const photoNote = files.length
+    ? `<tr><td class="lbl">Photos</td><td>${files.length} photo${files.length > 1 ? 's' : ''} jointe${files.length > 1 ? 's' : ''}</td></tr>` : '';
+  const vehicleBlock = vehicleInfo
+    ? `<tr><td class="lbl">Véhicule</td><td>${vehicleInfo}</td></tr>` : '';
+  const messageBlock = message
+    ? `<tr><td class="lbl">Message</td><td style="white-space:pre-wrap">${message}</td></tr>` : '';
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{background:#080808;margin:0;padding:40px 20px;font-family:sans-serif;}
+  .wrap{max-width:560px;margin:0 auto;background:#111;padding:40px;color:#e0e0e0;}
+  .logo{font-size:18px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#fff;margin-bottom:32px;}
+  .badge{display:inline-block;background:#1a1a1a;border:1px solid #2a2a2a;padding:5px 12px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#bfc8d0;margin-bottom:28px;}
+  table{width:100%;border-collapse:collapse;margin-bottom:24px;}
+  td{padding:10px 0;border-bottom:1px solid #1e1e1e;font-size:13px;line-height:1.6;}
+  .lbl{color:#666;font-size:11px;letter-spacing:.12em;text-transform:uppercase;width:36%;vertical-align:top;padding-top:12px;}
+  .foot{font-size:11px;color:#444;text-align:center;margin-top:32px;}
+</style></head><body>
+<div class="wrap">
+  <div class="logo">REYCE</div>
+  <div class="badge">Demande de devis — projet</div>
+  <table>
+    <tr><td class="lbl">Nom</td><td>${firstName} ${lastName || ''}</td></tr>
+    <tr><td class="lbl">Email</td><td>${email}</td></tr>
+    <tr><td class="lbl">Téléphone</td><td>${phone || '—'}</td></tr>
+    ${vehicleBlock}${messageBlock}${photoNote}
+  </table>
+  <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${firstName}</p>
+  <p class="foot">Reçu via le site reyce.fr</p>
+</div></body></html>`;
+
+  const attachments = files.map((f, i) => ({
+    filename: f.originalname || `photo-${i + 1}.jpg`,
+    contentType: f.mimetype,
+    buffer: f.buffer
+  }));
+
+  console.log(`[Devis photos] Envoi → to: ${ownerEmail} (${files.length} photo(s))`);
+  try {
+    await sendEmail(ownerEmail, subjectLine, html, attachments);
+    console.log('[Devis photos] ✓ Email envoyé');
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Devis photos] ✗ Erreur :', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/slots', (req, res) => {
   const { service, date } = req.query;
 
@@ -623,7 +717,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
 
   const svc         = SERVICES[service];
   const isFull      = paymentType === 'full';
-  const amountCents = isFull ? svc.priceCents : svc.depositCents;
+  const suppCents   = GABARIT_SUPP_CENTS[vehicleType] || 0;
+  const amountCents = isFull ? (svc.priceCents + suppCents) : svc.depositCents;
   const productName = isFull ? `Paiement complet — ${svc.name}` : `Acompte — ${svc.name}`;
   const bookingData = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: paymentType || 'deposit' };
 
@@ -839,6 +934,21 @@ app.post('/api/admin/send-review', async (req, res) => {
     console.error('[Admin] ✗ send-review :', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ============================================================
+// Erreurs Multer (photos trop lourdes / trop nombreuses)
+// ============================================================
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    const msg = err.code === 'LIMIT_FILE_SIZE'
+      ? 'Photo trop lourde (6 Mo max par photo).'
+      : err.code === 'LIMIT_FILE_COUNT'
+      ? '3 photos maximum.'
+      : 'Erreur lors de l\'envoi des photos.';
+    return res.status(400).json({ error: msg });
+  }
+  next(err);
 });
 
 // ============================================================
