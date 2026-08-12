@@ -5,7 +5,7 @@
   --line:rgba(255,255,255,.14); --line-soft:rgba(255,255,255,.07);
   --gold:#c9b18a; --gold-dim:rgba(201,177,138,.5);
   --disp:"Montserrat",sans-serif; --body:"Montserrat",sans-serif;
-  --ease:cubic-bezier(.23,1,.32,1); --ease-io:cubic-bezier(.77,0,.175,1); --pad:clamp(20px,5vw,80px);
+  --ease:cubic-bezier(.23,1,.32,1); --ease-io:cubic-bezier(.77,0,.175,1); --ease-open:cubic-bezier(.76,0,.24,1); --pad:clamp(20px,5vw,80px);
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -36,25 +36,23 @@ img{display:block;max-width:100%}
   @keyframes progressGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 }
 
-/* ---- loader signature ---- */
-#pre{position:fixed;inset:0;z-index:1000;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:30px;animation:preHide .6s ease 2.4s forwards}
-@keyframes preHide{to{opacity:0;visibility:hidden;pointer-events:none}}
-#pre.done{opacity:0;visibility:hidden;pointer-events:none}
-.sig-logo{position:relative;width:110px;filter:drop-shadow(0 0 0 rgba(255,255,255,0));animation:sigGlow 1.2s var(--ease) 1.85s forwards}
-.sig-logo img{width:100%;display:block;-webkit-mask-image:linear-gradient(180deg,#000 0 0);mask-image:linear-gradient(180deg,#000 0 0);
-  -webkit-mask-size:100% 0%;mask-size:100% 0%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
-  -webkit-mask-position:0 100%;mask-position:0 100%;animation:sigDraw 1.9s var(--ease) .25s forwards}
-.sig-logo .scan{position:absolute;left:-6%;right:-6%;height:2px;background:#fff;box-shadow:0 0 16px 3px rgba(255,255,255,.85);opacity:0;
-  animation:sigScan 1.9s var(--ease) .25s forwards}
-@keyframes sigDraw{0%{-webkit-mask-size:100% 0%;mask-size:100% 0%}100%{-webkit-mask-size:100% 100%;mask-size:100% 100%}}
-@keyframes sigScan{0%{top:100%;opacity:0}8%{opacity:1}92%{opacity:1}100%{top:-2%;opacity:0}}
-@keyframes sigGlow{0%{filter:drop-shadow(0 0 0 rgba(255,255,255,0))}
-  55%{filter:drop-shadow(0 0 26px rgba(255,255,255,.7)) drop-shadow(0 0 60px rgba(255,255,255,.3))}
-  100%{filter:drop-shadow(0 0 16px rgba(255,255,255,.42)) drop-shadow(0 0 38px rgba(255,255,255,.16))}}
-#pre .bar{width:0;height:1px;background:#fff;animation:preBar 2.1s var(--ease) .3s forwards;box-shadow:0 0 8px rgba(255,255,255,.6)}
-#pre .lab{opacity:0;animation:preIn .9s ease 1.5s forwards}
-@keyframes preIn{to{opacity:1;transform:none}}
-@keyframes preBar{to{width:190px}}
+/* ---- loader signature : rideau (une seule animation, geste unique) ---- */
+#pre{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#pre.done{opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s}
+.cur{position:absolute;top:0;bottom:0;width:50%;background:#000;z-index:1;will-change:transform;pointer-events:auto;
+  animation-duration:1.7s;animation-timing-function:var(--ease-open);animation-delay:2.1s;animation-fill-mode:forwards}
+.cur-l{left:0;transform-origin:left;animation-name:curL}
+.cur-r{right:0;transform-origin:right;animation-name:curR}
+.cur-l::after,.cur-r::after{content:"";position:absolute;top:0;bottom:0;width:70px}
+.cur-l::after{right:0;background:linear-gradient(to left,rgba(0,0,0,.6),transparent)}
+.cur-r::after{left:0;background:linear-gradient(to right,rgba(0,0,0,.6),transparent)}
+@keyframes curL{to{transform:translateX(-100%)}}
+@keyframes curR{to{transform:translateX(100%)}}
+.sig-logo{position:relative;z-index:2;width:110px;filter:drop-shadow(0 0 18px rgba(255,255,255,.38)) drop-shadow(0 0 44px rgba(255,255,255,.16));
+  animation:sigFade 1.7s var(--ease-open) 2.1s forwards}
+.sig-logo img{width:100%;display:block}
+.sig-logo .scan{display:none}
+@keyframes sigFade{to{opacity:0;transform:scale(.94)}}
 
 /* ---- transition de page (fondu au noir) ---- */
 #veil{position:fixed;inset:0;z-index:900;background:#000;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .55s var(--ease),visibility .55s}
@@ -826,8 +824,8 @@ footer{border-top:1px solid var(--line);padding-top:clamp(60px,9vh,120px);margin
   .uline::after{content:none}
   .svc .bg,.tcard img,.rcard img,.bcard .bimg img,.feature .fimg img,.nsvc img,.svc-gal img,.mag{transition:none!important;transform:none!important}
   .hero .vidwrap,[data-plx]{transform:none!important}
-  #pre .bar,.sig-logo img,.sig-logo .scan,.sig-logo,.scrollcue .dot,.neon-pulse,.foot-logo{animation:none!important}
-  #pre{animation:preHide .6s ease 2.4s forwards!important}
+  .cur-l,.cur-r,.sig-logo img,.sig-logo .scan,.sig-logo,.scrollcue .dot,.neon-pulse,.foot-logo{animation:none!important}
+  #pre{opacity:0;visibility:hidden;transition:none!important}
   .sig-logo img{-webkit-mask-image:none;mask-image:none}
   .page-in{animation:none}
   #veil{transition:opacity .2s ease}
