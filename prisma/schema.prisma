@@ -112,12 +112,16 @@ model Appointment {
   guestLastName  String
   guestEmail     String
   guestPhone     String?
+  guestNotes     String? // notes/remarques transmises par le client au moment de la réservation
   vehicleLabel   String? // texte libre marque + modèle tel que saisi au moment du RDV
+  vehicleCategory String? // gabarit détecté : citadine / berline / suv / van / sportive
+  tintOption     String? // "legal" | "dark" — option film teinté, si applicable
 
   totalCents      Int // montant total de la prestation (avec supplément gabarit)
   depositCents    Int // acompte attendu
   amountPaidCents Int      @default(0) // montant réellement encaissé (vérifié côté Stripe)
   paymentType     String   @default("deposit") // "deposit" | "full"
+  paidAt          DateTime? // horodatage de la confirmation de paiement (webhook Stripe)
 
   stripeSessionId     String? @unique
   stripePaymentStatus String? // "unpaid" | "paid" | "no_payment_required" ...

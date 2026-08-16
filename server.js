@@ -2,18 +2,32 @@
 require('dotenv').config();
 
 const express    = require('express');
+const crypto     = require('crypto');
 const stripe     = require('stripe')(process.env.STRIPE_SECRET_KEY);
 // Email via Gmail REST API (HTTPS uniquement — pas bloqué par Railway)
-const fs         = require('fs');
 const path       = require('path');
 const multer     = require('multer');
 const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6 * 1024 * 1024, files: 3 } });
+const prisma     = require('./db');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
-const BOOKINGS = path.join(DATA_DIR, 'bookings.json');
-const BLOCKED  = path.join(DATA_DIR, 'blocked.json');
+
+// Toute route async qui rejette (ex. base de données injoignable) doit
+// répondre 500 au client au lieu de crasher tout le process Node (rejet de
+// promesse non capturé). On enveloppe automatiquement chaque handler async
+// enregistré via app.get/post/patch/delete — aucune route à modifier une
+// par une, aucun risque d'en oublier une nouvelle à l'avenir.
+function ah(fn) {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+}
+['get', 'post', 'patch', 'delete'].forEach(method => {
+  const original = app[method].bind(app);
+  app[method] = (routePath, ...handlers) => original(
+    routePath,
+    ...handlers.map(h => (h.constructor.name === 'AsyncFunction' ? ah(h) : h))
+  );
+});
 
 // ============================================================
 // Configuration des prestations
@@ -56,31 +70,223 @@ function formatDate(dateStr) {
 }
 
 // ============================================================
-// Helpers — réservations
+// Helpers — réservations (base de données PostgreSQL via Prisma)
 // ============================================================
-function readBookings() {
-  if (!fs.existsSync(BOOKINGS)) return [];
-  try { return JSON.parse(fs.readFileSync(BOOKINGS, 'utf8')); }
-  catch { return []; }
+// Le reste du fichier manipule les réservations sous la forme "plate"
+// historique ({ sessionId, status, date, time, client:{...}, ... }) afin de
+// ne rien changer au comportement existant. Ces helpers font la traduction
+// entre cette forme et le modèle Appointment de la base.
+
+function dateToStr(d) {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-function saveBooking(booking) {
-  const all = readBookings();
-  all.push(booking);
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(BOOKINGS, JSON.stringify(all, null, 2));
+function strToDate(s) {
+  return new Date(`${s}T00:00:00.000Z`);
 }
 
-function readBlocked() {
-  if (!fs.existsSync(BLOCKED)) return { dates: [], slots: {} };
-  try { return JSON.parse(fs.readFileSync(BLOCKED, 'utf8')); }
-  catch { return { dates: [], slots: {} }; }
+function addMinutes(time, minutes) {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + minutes;
+  const hh = Math.floor(((total % 1440) + 1440) % 1440 / 60);
+  const mm = ((total % 60) + 60) % 60;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
-function saveBlocked(data) {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(BLOCKED, JSON.stringify(data, null, 2));
+function toBooking(row) {
+  return {
+    sessionId:   row.stripeSessionId,
+    status:      row.status === 'cancelled' ? 'cancelled' : 'confirmed',
+    paidAt:      row.paidAt ? row.paidAt.toISOString() : null,
+    amountPaid:  row.amountPaidCents,
+    service:     row.serviceId,
+    vehicleType: row.vehicleCategory,
+    vehicleModel: row.vehicleLabel,
+    tintOption:  row.tintOption,
+    date:        dateToStr(row.date),
+    time:        row.startTime,
+    paymentType: row.paymentType,
+    client: {
+      firstName: row.guestFirstName,
+      lastName:  row.guestLastName,
+      email:     row.guestEmail,
+      phone:     row.guestPhone,
+      notes:     row.guestNotes
+    }
+  };
 }
+
+async function readBookings() {
+  const rows = await prisma.appointment.findMany({
+    where: { status: { not: 'pending_payment' } }
+  });
+  return rows.map(toBooking);
+}
+
+async function findBookingBySessionId(sessionId) {
+  const row = await prisma.appointment.findUnique({ where: { stripeSessionId: sessionId } });
+  return row ? toBooking(row) : null;
+}
+
+// Pose une réservation "en attente de paiement" avant la création de la
+// session Stripe (créneau tenu / soft-hold). La contrainte EXCLUDE en base
+// (voir migration 20260101000001_no_overlap_constraint) rejette toute
+// tentative concurrente sur le même service/créneau, indépendamment de la
+// vérification applicative déjà faite plus haut dans la route.
+async function holdSlot({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, paymentType, totalCents, depositCents }) {
+  const placeholder = `pending_${crypto.randomUUID()}`;
+  const row = await prisma.appointment.create({
+    data: {
+      serviceId:       service,
+      date:            strToDate(date),
+      startTime:       time,
+      endTime:         addMinutes(time, svc.durationMin),
+      durationMin:     svc.durationMin,
+      status:          'pending_payment',
+      guestFirstName:  client.firstName,
+      guestLastName:   client.lastName,
+      guestEmail:      client.email,
+      guestPhone:      client.phone,
+      guestNotes:      client.notes || null,
+      vehicleLabel:    vehicleModel || null,
+      vehicleCategory: vehicleType || null,
+      tintOption:      tintOption || null,
+      totalCents,
+      depositCents,
+      paymentType:     paymentType || 'deposit',
+      stripeSessionId: placeholder
+    }
+  });
+  return row;
+}
+
+async function attachStripeSession(appointmentId, sessionId) {
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data:  { stripeSessionId: sessionId }
+  });
+}
+
+async function releaseHold(appointmentId) {
+  await prisma.appointment.delete({ where: { id: appointmentId } }).catch(() => {});
+}
+
+async function confirmPayment(sessionId, session) {
+  const existing = await prisma.appointment.findUnique({ where: { stripeSessionId: sessionId } });
+  if (existing) {
+    return prisma.appointment.update({
+      where: { stripeSessionId: sessionId },
+      data: {
+        status:              'confirmed',
+        paidAt:              new Date(),
+        amountPaidCents:     session.amount_total,
+        stripePaymentStatus: session.payment_status
+      }
+    });
+  }
+  // Filet de sécurité : pas de ligne "en attente" trouvée (ne devrait pas
+  // arriver en fonctionnement normal). On enregistre quand même le paiement
+  // pour ne jamais perdre une réservation payée.
+  const data = JSON.parse(session.metadata.bookingData);
+  const svc  = SERVICES[data.service];
+  return prisma.appointment.create({
+    data: {
+      serviceId:           data.service,
+      date:                strToDate(data.date),
+      startTime:           data.time,
+      endTime:             addMinutes(data.time, svc.durationMin),
+      durationMin:         svc.durationMin,
+      status:              'confirmed',
+      guestFirstName:      data.client.firstName,
+      guestLastName:       data.client.lastName,
+      guestEmail:          data.client.email,
+      guestPhone:          data.client.phone,
+      guestNotes:          data.client.notes || null,
+      vehicleLabel:        data.vehicleModel || null,
+      vehicleCategory:     data.vehicleType || null,
+      tintOption:          data.tintOption || null,
+      totalCents:          session.amount_total,
+      depositCents:        svc.depositCents,
+      amountPaidCents:     session.amount_total,
+      paymentType:         data.paymentType || 'deposit',
+      paidAt:              new Date(),
+      stripeSessionId:     sessionId,
+      stripePaymentStatus: session.payment_status
+    }
+  });
+}
+
+async function setBookingStatus(sessionId, status) {
+  await prisma.appointment.update({
+    where: { stripeSessionId: sessionId },
+    data:  { status }
+  });
+}
+
+async function readBlocked() {
+  const rows = await prisma.unavailability.findMany({ where: { source: 'manual' } });
+  const dates = [];
+  const slots = {};
+  for (const r of rows) {
+    const date = dateToStr(r.startDate);
+    if (!r.startTime) {
+      if (!dates.includes(date)) dates.push(date);
+    } else {
+      if (!slots[date]) slots[date] = [];
+      if (!slots[date].includes(r.startTime)) slots[date].push(r.startTime);
+    }
+  }
+  return { dates, slots };
+}
+
+async function blockDate(date) {
+  const already = await prisma.unavailability.findFirst({
+    where: { startDate: strToDate(date), endDate: strToDate(date), startTime: null }
+  });
+  if (already) return;
+  await prisma.unavailability.create({
+    data: { startDate: strToDate(date), endDate: strToDate(date), reason: 'Journée bloquée (admin)', source: 'manual' }
+  });
+}
+
+async function unblockDate(date) {
+  await prisma.unavailability.deleteMany({
+    where: { startDate: strToDate(date), endDate: strToDate(date), startTime: null }
+  });
+}
+
+async function blockSlot(date, time) {
+  const already = await prisma.unavailability.findFirst({
+    where: { startDate: strToDate(date), endDate: strToDate(date), startTime: time }
+  });
+  if (already) return;
+  await prisma.unavailability.create({
+    data: { startDate: strToDate(date), endDate: strToDate(date), startTime: time, endTime: time, reason: 'Créneau bloqué (admin)', source: 'manual' }
+  });
+}
+
+async function unblockSlot(date, time) {
+  await prisma.unavailability.deleteMany({
+    where: { startDate: strToDate(date), endDate: strToDate(date), startTime: time }
+  });
+}
+
+// Libère les créneaux "tenus" (pending_payment) dont le paiement Stripe a
+// été abandonné ou a échoué — sans quoi un panier abandonné bloquerait le
+// créneau indéfiniment.
+const HOLD_TIMEOUT_MIN = 30;
+async function cleanupAbandonedHolds() {
+  try {
+    const cutoff = new Date(Date.now() - HOLD_TIMEOUT_MIN * 60000);
+    const { count } = await prisma.appointment.deleteMany({
+      where: { status: 'pending_payment', createdAt: { lt: cutoff } }
+    });
+    if (count > 0) console.log(`[Holds] ${count} créneau(x) en attente expiré(s) libéré(s)`);
+  } catch (err) {
+    console.error('[Holds] Erreur nettoyage :', err.message);
+  }
+}
+setInterval(cleanupAbandonedHolds, 5 * 60000);
 
 // ============================================================
 // Emails — Resend
@@ -458,9 +664,30 @@ async function createCalendarEvent(data, svc) {
     });
 
     if (!calRes.ok) { const e = await calRes.text(); throw new Error(`${calRes.status}: ${e}`); }
-    console.log('[Calendar] ✓ Événement créé');
+    const created = await calRes.json();
+    console.log('[Calendar] ✓ Événement créé', created.id);
+    return created.id;
   } catch (err) {
     console.error('[Calendar] ✗', err.message);
+    return null;
+  }
+}
+
+// Crée l'événement Calendar puis enregistre son id / statut de synchro sur
+// la réservation. Une réservation payée n'est JAMAIS perdue si Calendar
+// échoue : on marque simplement google_sync_status="error" pour un retry
+// ultérieur, le rendez-vous reste "confirmed" en base.
+async function syncCalendarForBooking(sessionId, data, svc) {
+  const eventId = await createCalendarEvent(data, svc);
+  try {
+    await prisma.appointment.update({
+      where: { stripeSessionId: sessionId },
+      data: eventId
+        ? { googleEventId: eventId, googleSyncStatus: 'synced', googleSyncError: null }
+        : { googleSyncStatus: 'error', googleSyncError: 'Échec de création de l\'événement Calendar' }
+    });
+  } catch (err) {
+    console.error('[Calendar] ✗ Enregistrement du statut de synchro impossible :', err.message);
   }
 }
 
@@ -489,17 +716,20 @@ app.post('/api/webhook',
       const session = event.data.object;
 
       if (session.metadata?.bookingType === 'reyce') {
+        // Validation côté serveur : on ne considère jamais un rendez-vous
+        // comme payé sur la seule base de l'événement webhook, on vérifie
+        // explicitement le statut de paiement renvoyé par Stripe.
+        if (session.payment_status !== 'paid') {
+          console.warn(`[Webhook] Session ${session.id} complétée mais payment_status="${session.payment_status}" — ignorée`);
+          res.json({ received: true });
+          return;
+        }
+
         try {
           const data = JSON.parse(session.metadata.bookingData);
           const svc  = SERVICES[data.service];
 
-          saveBooking({
-            sessionId:  session.id,
-            status:     'confirmed',
-            paidAt:     new Date().toISOString(),
-            amountPaid: session.amount_total,
-            ...data
-          });
+          await confirmPayment(session.id, session);
 
           console.log(`[Webhook] ✓ Réservation confirmée : ${session.id}`);
 
@@ -509,7 +739,7 @@ app.post('/api/webhook',
           );
 
           // Création de l'événement Google Calendar (non bloquant)
-          createCalendarEvent(data, svc).catch(err =>
+          syncCalendarForBooking(session.id, data, svc).catch(err =>
             console.error('[Calendar] Erreur post-webhook :', err.message)
           );
 
@@ -674,7 +904,7 @@ app.post('/api/devis-photos', upload.array('photos', 3), async (req, res) => {
   }
 });
 
-app.get('/api/slots', (req, res) => {
+app.get('/api/slots', async (req, res) => {
   const { service, date } = req.query;
 
   if (!service || !date || !SERVICES[service]) {
@@ -684,14 +914,18 @@ app.get('/api/slots', (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   if (date < today) return res.json({ slots: [] });
 
-  const blocked = readBlocked();
+  const blocked = await readBlocked();
 
   // Date entièrement bloquée
   if (blocked.dates.includes(date)) return res.json({ slots: [] });
 
-  const taken = readBookings()
-    .filter(b => b.service === service && b.date === date && b.status !== 'cancelled')
-    .map(b => b.time);
+  // Créneaux déjà pris : réservations actives (y compris les tenues
+  // "en attente de paiement" en cours de checkout Stripe).
+  const activeRows = await prisma.appointment.findMany({
+    where: { serviceId: service, date: strToDate(date), status: { notIn: ['cancelled', 'no_show'] } },
+    select: { startTime: true }
+  });
+  const taken = activeRows.map(r => r.startTime);
 
   const blockedSlots = blocked.slots[date] || [];
 
@@ -709,18 +943,29 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
     return res.status(400).json({ error: 'Coordonnées incomplètes' });
 
-  const conflict = readBookings().filter(
-    b => b.service === service && b.date === date && b.time === time && b.status !== 'cancelled'
-  );
-  if (conflict.length > 0)
-    return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
-
   const svc         = SERVICES[service];
   const isFull      = paymentType === 'full';
   const suppCents   = GABARIT_SUPP_CENTS[vehicleType] || 0;
   const amountCents = isFull ? (svc.priceCents + suppCents) : svc.depositCents;
   const productName = isFull ? `Paiement complet — ${svc.name}` : `Acompte — ${svc.name}`;
   const bookingData = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: paymentType || 'deposit' };
+
+  // Pose une réservation "en attente de paiement" avant de créer la session
+  // Stripe : la contrainte EXCLUDE de la base rejette immédiatement toute
+  // tentative concurrente sur le même créneau (double-réservation impossible
+  // même en cas de deux requêtes simultanées).
+  let hold;
+  try {
+    hold = await holdSlot({
+      service, svc, date, time, vehicleType, vehicleModel, tintOption, client,
+      paymentType: paymentType || 'deposit',
+      totalCents:   isFull ? amountCents : svc.priceCents + suppCents,
+      depositCents: svc.depositCents
+    });
+  } catch (err) {
+    console.error('[Slots] Conflit de réservation :', err.message);
+    return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -748,9 +993,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
       }
     });
 
+    await attachStripeSession(hold.id, session.id);
     res.json({ url: session.url });
   } catch (err) {
     console.error('[Stripe] Erreur :', err.message);
+    await releaseHold(hold.id);
     res.status(500).json({ error: 'Erreur lors de la création du paiement. Réessayez.' });
   }
 });
@@ -782,87 +1029,76 @@ app.get('/api/booking/:sessionId', async (req, res) => {
 // ============================================================
 function requireAdmin(req, res, next) {
   const token = req.headers['x-admin-token'];
-  if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
-    return res.status(401).json({ error: 'Non autorisé' });
-  }
+  const expected = process.env.ADMIN_TOKEN;
+  const valid = !!expected && !!token
+    && token.length === expected.length
+    && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  if (!valid) return res.status(401).json({ error: 'Non autorisé' });
   next();
 }
 
 app.use('/api/admin', express.json(), requireAdmin);
 
 // Lister toutes les réservations
-app.get('/api/admin/bookings', (req, res) => {
-  const bookings = readBookings()
+app.get('/api/admin/bookings', async (req, res) => {
+  const bookings = (await readBookings())
     .sort((a, b) => (a.date + a.time) < (b.date + b.time) ? 1 : -1);
   res.json({ bookings });
 });
 
 // Annuler / modifier le statut d'une réservation
-app.patch('/api/admin/booking/:sessionId', (req, res) => {
+app.patch('/api/admin/booking/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
   const { status }    = req.body;
-  const all = readBookings();
-  const idx = all.findIndex(b => b.sessionId === sessionId);
-  if (idx === -1) return res.status(404).json({ error: 'Réservation introuvable' });
-  all[idx].status = status || 'cancelled';
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(BOOKINGS, JSON.stringify(all, null, 2));
-  res.json({ ok: true });
+  try {
+    await setBookingStatus(sessionId, status || 'cancelled');
+    res.json({ ok: true });
+  } catch {
+    res.status(404).json({ error: 'Réservation introuvable' });
+  }
 });
 
 // Lire les blocages
-app.get('/api/admin/blocked', (req, res) => {
-  res.json(readBlocked());
+app.get('/api/admin/blocked', async (req, res) => {
+  res.json(await readBlocked());
 });
 
 // Bloquer une date entière
-app.post('/api/admin/block-date', (req, res) => {
+app.post('/api/admin/block-date', async (req, res) => {
   const { date } = req.body;
   if (!date) return res.status(400).json({ error: 'Date requise' });
-  const blocked = readBlocked();
-  if (!blocked.dates.includes(date)) blocked.dates.push(date);
-  saveBlocked(blocked);
+  await blockDate(date);
   res.json({ ok: true });
 });
 
 // Débloquer une date
-app.delete('/api/admin/block-date', (req, res) => {
+app.delete('/api/admin/block-date', async (req, res) => {
   const { date } = req.body;
   if (!date) return res.status(400).json({ error: 'Date requise' });
-  const blocked = readBlocked();
-  blocked.dates = blocked.dates.filter(d => d !== date);
-  saveBlocked(blocked);
+  await unblockDate(date);
   res.json({ ok: true });
 });
 
 // Bloquer un créneau spécifique
-app.post('/api/admin/block-slot', (req, res) => {
+app.post('/api/admin/block-slot', async (req, res) => {
   const { date, time } = req.body;
   if (!date || !time) return res.status(400).json({ error: 'Date et créneau requis' });
-  const blocked = readBlocked();
-  if (!blocked.slots[date]) blocked.slots[date] = [];
-  if (!blocked.slots[date].includes(time)) blocked.slots[date].push(time);
-  saveBlocked(blocked);
+  await blockSlot(date, time);
   res.json({ ok: true });
 });
 
 // Débloquer un créneau
-app.delete('/api/admin/block-slot', (req, res) => {
+app.delete('/api/admin/block-slot', async (req, res) => {
   const { date, time } = req.body;
   if (!date || !time) return res.status(400).json({ error: 'Date et créneau requis' });
-  const blocked = readBlocked();
-  if (blocked.slots[date]) {
-    blocked.slots[date] = blocked.slots[date].filter(t => t !== time);
-    if (!blocked.slots[date].length) delete blocked.slots[date];
-  }
-  saveBlocked(blocked);
+  await unblockSlot(date, time);
   res.json({ ok: true });
 });
 
 // Email véhicule prêt
 app.post('/api/admin/send-ready', async (req, res) => {
   const { sessionId } = req.body;
-  const booking = readBookings().find(b => b.sessionId === sessionId);
+  const booking = await findBookingBySessionId(sessionId);
   if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
 
   const firstName = booking.client?.firstName || 'Client';
@@ -902,7 +1138,7 @@ app.post('/api/admin/send-ready', async (req, res) => {
 // Email demande d'avis
 app.post('/api/admin/send-review', async (req, res) => {
   const { sessionId } = req.body;
-  const booking = readBookings().find(b => b.sessionId === sessionId);
+  const booking = await findBookingBySessionId(sessionId);
   if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
 
   const firstName = booking.client?.firstName || 'Client';
@@ -956,6 +1192,17 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ error: msg });
   }
   next(err);
+});
+
+// ============================================================
+// Filet de sécurité final — toute erreur non gérée plus haut (ex. base de
+// données injoignable) répond 500 au lieu de laisser la requête sans
+// réponse ou de faire planter le serveur.
+// ============================================================
+app.use((err, req, res, next) => {
+  console.error('[Erreur non gérée]', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Erreur serveur, veuillez réessayer.' });
 });
 
 // ============================================================
