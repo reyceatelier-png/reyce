@@ -937,6 +937,13 @@ app.post('/api/admin/send-review', async (req, res) => {
 });
 
 // ============================================================
+// 404 — page introuvable
+// ============================================================
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, '404.html'));
+});
+
+// ============================================================
 // Erreurs Multer (photos trop lourdes / trop nombreuses)
 // ============================================================
 app.use((err, req, res, next) => {

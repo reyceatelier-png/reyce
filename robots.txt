@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /api/
+Disallow: /cancel.html
+Disallow: /confirmation.html
+
+Sitemap: https://www.reyce.fr/sitemap.xml

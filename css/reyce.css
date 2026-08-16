@@ -80,7 +80,7 @@ img{display:block;max-width:100%}
 .mag{will-change:transform;transition:transform .3s var(--ease)}
 
 /* ---- fil d'ariane ---- */
-.crumb{display:flex;gap:10px;align-items:center;font-family:var(--disp);font-weight:500;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.crumb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-family:var(--disp);font-weight:500;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
 .crumb a:hover{color:#fff}
 .crumb .sep{opacity:.4}
 
@@ -259,8 +259,8 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 .hero .vidwrap{position:absolute;inset:-8% 0;will-change:transform}
 .hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.72) contrast(1.05)}
 .hero .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,.1) 32%,rgba(0,0,0,.35) 64%,rgba(0,0,0,.96) 100%)}
-.hero-inner{position:relative;z-index:3;width:100%;padding:0 var(--pad) clamp(46px,7vh,86px)}
-.hero-eyebrow{display:flex;align-items:center;gap:16px;margin-bottom:28px}
+.hero-inner{position:relative;z-index:3;width:100%;min-width:0;padding:0 var(--pad) clamp(46px,7vh,86px)}
+.hero-eyebrow{display:flex;align-items:center;gap:16px;margin-bottom:28px;flex-wrap:wrap}
 .hero-eyebrow .rule{height:1px;width:52px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.7)}
 .hero h1{font-family:var(--disp);text-transform:uppercase;font-size:clamp(2.7rem,10vw,8.8rem);line-height:.95;letter-spacing:.01em}
 .hero h1 .b{font-weight:700}
@@ -278,7 +278,7 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 .phero{position:relative;min-height:56vh;display:flex;align-items:flex-end;overflow:hidden;padding:0 var(--pad) clamp(40px,6vh,70px)}
 .phero .pbg{position:absolute;inset:-8% 0;background-size:cover;background-position:center;filter:brightness(.6) contrast(1.03);will-change:transform}
 .phero .pscrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.2) 40%,rgba(0,0,0,.95))}
-.phero .pin{position:relative;z-index:3;width:100%}
+.phero .pin{position:relative;z-index:3;width:100%;min-width:0}
 .phero h1{font-family:var(--disp);font-weight:600;text-transform:uppercase;font-size:clamp(2.4rem,7vw,6rem);line-height:.96;letter-spacing:.01em;margin-top:22px;text-wrap:balance}
 .phero p{color:var(--dim);max-width:48ch;margin-top:22px}
 
@@ -815,7 +815,7 @@ footer{border-top:1px solid var(--line);padding-top:clamp(60px,9vh,120px);margin
   .atl{height:min(70vh,560px)}
   .atl .cap ul{display:none}
   .bento{grid-template-columns:1fr}
-  .bento .b3,.bento .b4{grid-column:span 1}
+  .bento a{grid-column:span 1!important;grid-row:span 1!important}
 }
 @media(prefers-reduced-motion:reduce){.marq .row{animation:none}.rail article:hover img{transform:none}}
 
