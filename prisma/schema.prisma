@@ -138,14 +138,14 @@ model Appointment {
 
   logs EventLog[]
 
-  // La protection anti-chevauchement réelle (contrainte EXCLUDE + colonne
-  // générée "timeRange") est ajoutée par une migration SQL manuelle
-  // (prisma/migrations/20260101000001_no_overlap_constraint) car Prisma ne
-  // supporte pas nativement les contraintes EXCLUDE ni les colonnes générées.
-  // Ne PAS lancer `prisma migrate dev` sur une base contenant cette migration
-  // sans s'attendre à un avertissement de "drift" : c'est normal, la colonne
-  // et la contrainte existent en base mais pas dans ce schéma. Utiliser
-  // uniquement `prisma migrate deploy` en production.
+  // TODO : ajouter une contrainte EXCLUDE (date/heure + serviceId) au niveau
+  // base pour une protection anti-chevauchement même en écriture concurrente.
+  // Tentative retirée le 2026-08-16 : la migration a échoué sur la base de
+  // production Railway (Postgres 18) et a bloqué le démarrage du serveur ;
+  // à réessayer avec un accès direct à la base pour diagnostiquer avant de
+  // la remettre en place. En attendant, la vérification applicative
+  // (soft-hold "pending_payment" + contrôle du créneau avant création de la
+  // session Stripe) reste seule en place.
   @@index([date, startTime])
   @@index([status])
   @@index([serviceId, date])
