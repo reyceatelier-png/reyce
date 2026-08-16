@@ -172,17 +172,11 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 /* hero — mots séquentiels façon éditorial */
 .hero-words{display:flex;flex-direction:column;gap:.02em}
 .hero-words .hw-mask{display:block;overflow:hidden;padding-bottom:.04em}
-.hero-words .hw{display:block;font-weight:700;transform:translateY(110%)}
-.hero-words.go .hw{animation:hwReveal 1.5s cubic-bezier(.22,1,.36,1) forwards}
-.hero-words.go .hw-mask:nth-child(1) .hw{animation-delay:.2s}
-.hero-words.go .hw-mask:nth-child(2) .hw{animation-delay:.5s}
-.hero-words .hw-mask:nth-child(3) .hw{font-weight:200}
-.hero-words.go .hw-mask:nth-child(3) .hw{animation-delay:.8s}
+.hero-words .hw{display:block;font-weight:700;transform:translateY(110%);
+  animation:hwReveal 1.5s cubic-bezier(.22,1,.36,1) 2.3s forwards}
+.hero-words .hw-mask:nth-child(2) .hw{animation-delay:2.6s}
+.hero-words .hw-mask:nth-child(3) .hw{font-weight:200;animation-delay:2.9s}
 @keyframes hwReveal{from{transform:translateY(110%)}to{transform:translateY(0)}}
-/* filet sans JS : révèle les mots après 3s même si .go n'arrive jamais */
-.hero-words .hw{animation:hwFail 0s linear 3.2s forwards}
-.hero-words.go .hw{animation:hwReveal 1.5s cubic-bezier(.22,1,.36,1) forwards}
-@keyframes hwFail{to{transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.hero-words .hw{animation:none;transform:none}}
 
 

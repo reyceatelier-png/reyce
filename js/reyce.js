@@ -1,4 +1,4 @@
-(function(){var hidden=false;function fireHero(){var hw=document.querySelector('.hero-words');if(hw)hw.classList.add('go');}function hidePre(){if(hidden)return;hidden=true;var p=document.getElementById('pre');fireHero();if(!p)return;p.classList.add('done');setTimeout(function(){if(p&&p.parentNode)p.style.display='none';},350);}
+(function(){var hidden=false;function hidePre(){if(hidden)return;hidden=true;var p=document.getElementById('pre');if(!p)return;p.classList.add('done');setTimeout(function(){if(p&&p.parentNode)p.style.display='none';},350);}
 window.addEventListener('load',function(){setTimeout(hidePre,2800);});
 setTimeout(hidePre,3850);
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){setTimeout(hidePre,4100);});}else{setTimeout(hidePre,4100);}})();
