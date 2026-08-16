@@ -1,0 +1,206 @@
+// REYCE — schéma de base de données
+// Généré avec Prisma, hébergé sur PostgreSQL (Railway)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Clients
+// ============================================================
+model Client {
+  id         String   @id @default(uuid())
+  firstName  String
+  lastName   String
+  email      String
+  phone      String?
+  notes      String? // notes administrateur
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  vehicles      Vehicle[]
+  appointments  Appointment[]
+
+  @@unique([email])
+  @@index([lastName, firstName])
+}
+
+// ============================================================
+// Véhicules
+// ============================================================
+model Vehicle {
+  id           String   @id @default(uuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  make         String? // marque
+  model        String? // modèle
+  plate        String? // immatriculation
+  category     String? // gabarit : citadine / berline / suv / van / sportive
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  appointments Appointment[]
+
+  @@index([clientId])
+}
+
+// ============================================================
+// Prestations (catalogue)
+// ============================================================
+model Service {
+  id                String   @id // slug stable, ex: "nettoyage-duo-premium"
+  name              String
+  category          String? // nettoyage / ppf / ceramique / vitres-teintees / ...
+  durationMin       Int // durée de l'intervention
+  prepBufferMin     Int      @default(0) // temps de préparation avant
+  postBufferMin     Int      @default(0) // marge après la prestation
+  priceCents        Int
+  depositCents      Int
+  active            Boolean  @default(true)
+  bookableOnline    Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  appointments Appointment[]
+}
+
+// ============================================================
+// Rendez-vous
+// ============================================================
+enum AppointmentStatus {
+  pending_payment // en attente de paiement (créneau tenu temporairement)
+  confirmed // acompte payé, à venir
+  in_progress // véhicule pris en charge, en cours d'intervention
+  ready // véhicule prêt
+  completed // rendez-vous terminé, véhicule restitué
+  cancelled // annulé
+  no_show // client absent
+}
+
+enum CalendarSyncStatus {
+  not_synced
+  synced
+  error
+  pending_retry
+}
+
+model Appointment {
+  id       String @id @default(uuid())
+
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id])
+
+  date       DateTime @db.Date // jour du rendez-vous
+  startTime  String // "HH:MM" (heure locale Europe/Paris)
+  endTime    String // "HH:MM" calculée à partir de la durée + buffers
+  durationMin Int
+
+  status AppointmentStatus @default(pending_payment)
+
+  // Champs "invités" au cas où le client n'existe pas encore en base
+  // au moment de la création (toujours dupliqués sur le RDV pour l'historique/emails)
+  guestFirstName String
+  guestLastName  String
+  guestEmail     String
+  guestPhone     String?
+  vehicleLabel   String? // texte libre marque + modèle tel que saisi au moment du RDV
+
+  totalCents      Int // montant total de la prestation (avec supplément gabarit)
+  depositCents    Int // acompte attendu
+  amountPaidCents Int      @default(0) // montant réellement encaissé (vérifié côté Stripe)
+  paymentType     String   @default("deposit") // "deposit" | "full"
+
+  stripeSessionId     String? @unique
+  stripePaymentStatus String? // "unpaid" | "paid" | "no_payment_required" ...
+  stripePaymentIntentId String?
+
+  googleEventId     String?
+  googleSyncStatus  CalendarSyncStatus @default(not_synced)
+  googleSyncError   String?
+
+  internalNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  logs EventLog[]
+
+  // La protection anti-chevauchement réelle (contrainte EXCLUDE + colonne
+  // générée "timeRange") est ajoutée par une migration SQL manuelle
+  // (prisma/migrations/20260101000001_no_overlap_constraint) car Prisma ne
+  // supporte pas nativement les contraintes EXCLUDE ni les colonnes générées.
+  // Ne PAS lancer `prisma migrate dev` sur une base contenant cette migration
+  // sans s'attendre à un avertissement de "drift" : c'est normal, la colonne
+  // et la contrainte existent en base mais pas dans ce schéma. Utiliser
+  // uniquement `prisma migrate deploy` en production.
+  @@index([date, startTime])
+  @@index([status])
+  @@index([serviceId, date])
+}
+
+// ============================================================
+// Règles de disponibilité récurrentes (horaires habituels)
+// ============================================================
+model AvailabilityRule {
+  id        String  @id @default(uuid())
+  weekday   Int // 0 = dimanche ... 6 = samedi
+  openTime  String // "HH:MM"
+  closeTime String // "HH:MM"
+  active    Boolean @default(true)
+
+  @@index([weekday])
+}
+
+// ============================================================
+// Indisponibilités (blocages manuels + import Google Calendar)
+// ============================================================
+model Unavailability {
+  id        String   @id @default(uuid())
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  startTime String? // null = journée entière
+  endTime   String?
+  reason    String?
+  source    String   @default("manual") // "manual" | "google_calendar"
+  externalId String? // id de l'événement Google Calendar d'origine, si source = google_calendar
+  createdAt DateTime @default(now())
+
+  @@index([startDate, endDate])
+  @@index([source, externalId])
+}
+
+// ============================================================
+// Journal d'événements (traçabilité)
+// ============================================================
+model EventLog {
+  id            String       @id @default(uuid())
+  type          String // "payment", "calendar_sync", "status_change", "email", "sms", "error", ...
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  payload       Json?
+  createdAt     DateTime     @default(now())
+
+  @@index([appointmentId])
+  @@index([type])
+}
+
+// ============================================================
+// Utilisateurs admin (préparé pour le multi-employé — inactif pour l'instant)
+// ============================================================
+model AdminUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("owner") // "owner" | "staff"
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
