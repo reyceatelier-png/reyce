@@ -1,7 +1,6 @@
-(function(){var hidden=false;function hidePre(){if(hidden)return;hidden=true;var p=document.getElementById('pre');if(!p)return;p.classList.add('done');setTimeout(function(){if(p&&p.parentNode)p.style.display='none';},350);}
-window.addEventListener('load',function(){setTimeout(hidePre,2800);});
-setTimeout(hidePre,3850);
-if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){setTimeout(hidePre,4100);});}else{setTimeout(hidePre,4100);}})();
+/* Le masquage de #pre est entièrement géré par js/reyce-preloader.js
+   (chargé en <head>, seule source de vérité — évite deux minuteries
+   concurrentes sur le même élément). */
 
 /* ---- curseur personnalisé + magnétique ---- */
 (function(){

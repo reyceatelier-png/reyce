@@ -37,7 +37,7 @@ img{display:block;max-width:100%}
 }
 
 /* ---- loader signature : rideau (une seule animation, geste unique) ---- */
-#pre{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#pre{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
 #pre.done{opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s}
 .cur{position:absolute;top:0;bottom:0;width:50%;background:#000;z-index:1;will-change:transform;pointer-events:auto;
   animation-duration:1.7s;animation-timing-function:var(--ease-open);animation-delay:2.1s;animation-fill-mode:forwards}
@@ -53,6 +53,18 @@ img{display:block;max-width:100%}
 .sig-logo img{width:100%;display:block}
 .sig-logo .scan{display:none}
 @keyframes sigFade{to{opacity:0;transform:scale(.94)}}
+
+/* barre de chargement — se remplit pendant l'apparition du logo, puis
+   disparaît avec lui au moment précis où le rideau commence à s'ouvrir */
+.pre-bar{position:relative;z-index:2;width:clamp(120px,42vw,200px);height:1px;margin-top:28px;
+  background:rgba(255,255,255,.16);overflow:hidden;
+  animation:sigFade 1.7s var(--ease-open) 2.1s forwards}
+.pre-bar__fill{position:absolute;inset:0;transform:scaleX(0);transform-origin:left;background:#fff;
+  box-shadow:0 0 8px rgba(255,255,255,.6);animation:preFill 2.1s var(--ease-io) forwards}
+@keyframes preFill{to{transform:scaleX(1)}}
+
+/* navigation interne : l'intro ne se rejoue pas dans la même session */
+html.intro-seen #pre{display:none}
 
 /* ---- transition de page (fondu au noir) ---- */
 #veil{position:fixed;inset:0;z-index:900;background:#000;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .55s var(--ease),visibility .55s}
