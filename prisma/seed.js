@@ -14,8 +14,8 @@ const SERVICES = [
   { id: 'nettoyage-ext-premium',    name: 'Nettoyage Extérieur — Premium',                 category: 'nettoyage', durationMin: 75,  priceCents:  8900, depositCents: 4000 },
   { id: 'nettoyage-ext-experience', name: 'Nettoyage Extérieur — Expérience',              category: 'nettoyage', durationMin: 180, priceCents: 14900, depositCents: 4000 },
   { id: 'nettoyage-duo-confort',    name: 'Nettoyage Intérieur + Extérieur — Confort',     category: 'nettoyage', durationMin: 90,  priceCents:  9900, depositCents: 4000 },
-  { id: 'nettoyage-duo-premium',    name: 'Nettoyage Intérieur + Extérieur — Premium',     category: 'nettoyage', durationMin: 150, priceCents: 19900, depositCents: 4000 },
-  { id: 'nettoyage-duo-experience', name: 'Nettoyage Intérieur + Extérieur — Expérience',  category: 'nettoyage', durationMin: 480, priceCents: 34900, depositCents: 4000 },
+  { id: 'nettoyage-duo-premium',    name: 'Nettoyage Intérieur + Extérieur — Premium',     category: 'nettoyage', durationMin: 150, priceCents: 16900, depositCents: 4000 },
+  { id: 'nettoyage-duo-experience', name: 'Nettoyage Intérieur + Extérieur — Expérience',  category: 'nettoyage', durationMin: 480, priceCents: 29900, depositCents: 4000 },
 ];
 
 // 7j/7 — horaires standards (alignés sur les créneaux déjà utilisés côté site)

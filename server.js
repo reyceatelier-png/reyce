@@ -42,8 +42,8 @@ const SERVICES = {
   'nettoyage-ext-premium':      { name: 'Nettoyage Extérieur — Premium',      priceCents:  8900, depositCents: 4000, durationMin: 75,  slots: ['09:00', '11:30', '14:00'] },
   'nettoyage-ext-experience':   { name: 'Nettoyage Extérieur — Expérience',   priceCents: 14900, depositCents: 4000, durationMin: 180, slots: ['09:00'] },
   'nettoyage-duo-confort':      { name: 'Nettoyage Intérieur + Extérieur — Confort',    priceCents:  9900, depositCents: 4000, durationMin: 90,  slots: ['09:00', '11:00', '14:00', '16:00'] },
-  'nettoyage-duo-premium':      { name: 'Nettoyage Intérieur + Extérieur — Premium',    priceCents: 19900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
-  'nettoyage-duo-experience':   { name: 'Nettoyage Intérieur + Extérieur — Expérience', priceCents: 34900, depositCents: 4000, durationMin: 480, slots: ['09:00'] }
+  'nettoyage-duo-premium':      { name: 'Nettoyage Intérieur + Extérieur — Premium',    priceCents: 16900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-duo-experience':   { name: 'Nettoyage Intérieur + Extérieur — Expérience', priceCents: 29900, depositCents: 4000, durationMin: 480, slots: ['09:00'] }
 };
 
 // Catalogue "vivant" des prestations : les créneaux horaires (slots) restent

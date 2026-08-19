@@ -117,8 +117,8 @@ var CLEAN={
   ]},
   duo:{label:'Intérieur + Extérieur', svc:'duo', formules:[
     {k:'Confort', nom:'Confort', prix:99, feat:['Tout l\'Intérieur Confort','Tout l\'Extérieur Confort','Le véhicule repris dedans comme dehors','La solution complète au meilleur prix']},
-    {k:'Premium', nom:'Premium', prix:199, reco:true, feat:['Tout l\'Intérieur Premium','Tout l\'Extérieur Premium','La remise à neuf complète du véhicule','Plastiques & cuirs protégés','Le choix de la plupart de nos clients']},
-    {k:'Expérience', nom:'Expérience', prix:349, top:true, deep:true, feat:['Deep cleaning complet intérieur + extérieur','Tout l\'Intérieur Expérience (extraction, ozone, cuirs, ciel de toit)','Tout l\'Extérieur Expérience (décontamination clay, jantes détaillées)','Le soin ultime, sans le moindre compromis','Traitement ozone & cire hydrophobe 6 mois inclus','Chaque surface, chaque recoin, repris à la perfection','L\'expérience REYCE dans son intégralité — pour les plus exigeants']}
+    {k:'Premium', nom:'Premium', prix:169, reco:true, feat:['Tout l\'Intérieur Premium','Tout l\'Extérieur Premium','La remise à neuf complète du véhicule','Plastiques & cuirs protégés','Le choix de la plupart de nos clients']},
+    {k:'Expérience', nom:'Expérience', prix:299, top:true, deep:true, feat:['Deep cleaning complet intérieur + extérieur','Tout l\'Intérieur Expérience (extraction, ozone, cuirs, ciel de toit)','Tout l\'Extérieur Expérience (décontamination clay, jantes détaillées)','Le soin ultime, sans le moindre compromis','Traitement ozone & cire hydrophobe 6 mois inclus','Chaque surface, chaque recoin, repris à la perfection','L\'expérience REYCE dans son intégralité — pour les plus exigeants']}
   ]}
 };
 
