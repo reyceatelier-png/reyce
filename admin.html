@@ -47,6 +47,9 @@
       max-width: 360px;
     }
     .login__logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       font-size: 16px;
       font-weight: 600;
       letter-spacing: .38em;
@@ -54,6 +57,7 @@
       color: var(--white);
       margin-bottom: 40px;
     }
+    .login__logo img { height: 28px; width: auto; display: block; }
     .login__title {
       font-size: 22px;
       font-weight: 300;
@@ -80,6 +84,9 @@
       height: 56px;
     }
     .header__logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       font-size: 13px;
       font-weight: 600;
       letter-spacing: .3em;
@@ -87,6 +94,7 @@
       color: var(--white);
       margin-right: 16px;
     }
+    .header__logo img { height: 22px; width: auto; display: block; }
     .header__badge {
       font-size: 9px;
       letter-spacing: .2em;
@@ -282,6 +290,23 @@
     .stat-card__val  { font-size: 28px; font-weight: 300; color: var(--white); }
     .stat-card__label { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--grey3); margin-top: 4px; }
 
+    /* ── Dashboard : accueil personnalisé ── */
+    .dash-greeting {
+      margin-bottom: 28px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dash-greeting__title {
+      font-size: 26px;
+      font-weight: 300;
+      color: var(--white);
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+    .dash-greeting__text { font-size: 13px; color: var(--grey2); line-height: 1.6; max-width: 640px; }
+    .dash-trend-up   { color: var(--green); }
+    .dash-trend-down { color: var(--red); }
+
     /* ── Dashboard sections ── */
     .dash-section { margin-bottom: 40px; }
     .dash-section__head {
@@ -440,7 +465,7 @@
   <!-- Login -->
   <div class="login" id="loginScreen">
     <div class="login__box">
-      <div class="login__logo">REYCE</div>
+      <div class="login__logo"><img src="/assets/images/logo.png" alt=""><span>REYCE</span></div>
       <h1 class="login__title">Espace administration</h1>
       <p class="login__sub">Accès restreint — identifiez-vous pour continuer.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
@@ -455,7 +480,7 @@
   <div class="app" id="app">
 
     <div class="header">
-      <span class="header__logo">REYCE</span>
+      <span class="header__logo"><img src="/assets/images/logo.png" alt=""><span>REYCE</span></span>
       <span class="header__badge">Administration</span>
       <button class="header__logout" onclick="logout()">Déconnexion</button>
     </div>
@@ -473,11 +498,23 @@
       <!-- ── Panel : Tableau de bord ── -->
       <div class="panel is-active" id="panel-dashboard">
 
+        <div class="dash-greeting">
+          <p class="dash-greeting__title" id="dashGreetingTitle">Bonjour.</p>
+          <p class="dash-greeting__text" id="dashGreetingText">Chargement de votre journée…</p>
+        </div>
+
         <div class="stats-row">
           <div class="stat-card"><div class="stat-card__val" id="dashToday">—</div><div class="stat-card__label">Aujourd'hui</div></div>
           <div class="stat-card"><div class="stat-card__val" id="dashTomorrow">—</div><div class="stat-card__label">Demain</div></div>
           <div class="stat-card"><div class="stat-card__val" id="dashUpcoming">—</div><div class="stat-card__label">7 prochains jours</div></div>
           <div class="stat-card"><div class="stat-card__val" id="dashRevenue">—</div><div class="stat-card__label">Encaissé (actif)</div></div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-card__val" id="dashMonth">—</div><div class="stat-card__label">Encaissé ce mois</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="dashTrend">—</div><div class="stat-card__label">Semaine vs préc.</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="dashTopService">—</div><div class="stat-card__label">Prestation la + demandée</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="dashCancelRate">—</div><div class="stat-card__label">Taux d'annulation</div></div>
         </div>
 
         <div class="dash-section">
@@ -687,12 +724,44 @@
     const NEXT_LABEL  = { confirmed: 'Marquer en cours', in_progress: 'Marquer prêt', ready: 'Marquer véhicule livré' };
 
     // ── Dashboard ─────────────────────────────────────────────
+    function greetingWord() {
+      const h = new Date().getHours();
+      if (h < 12) return 'Bonjour';
+      if (h < 18) return 'Bon après-midi';
+      return 'Bonsoir';
+    }
+
     function renderDashboard() {
       if (!dashboard) return;
       document.getElementById('dashToday').textContent    = dashboard.todayCount;
       document.getElementById('dashTomorrow').textContent = dashboard.tomorrowCount;
       document.getElementById('dashUpcoming').textContent = dashboard.upcomingCount;
       document.getElementById('dashRevenue').textContent  = `${(dashboard.revenueCents / 100).toFixed(0)} €`;
+
+      document.getElementById('dashMonth').textContent = `${(dashboard.monthRevenueCents / 100).toFixed(0)} €`;
+      document.getElementById('dashTopService').textContent = dashboard.topService ? dashboard.topService.name : '—';
+      document.getElementById('dashCancelRate').textContent = `${dashboard.cancelRate}%`;
+
+      const trendEl = document.getElementById('dashTrend');
+      const diff = dashboard.weekRevenueCents - dashboard.prevWeekRevenueCents;
+      if (dashboard.prevWeekRevenueCents === 0 && dashboard.weekRevenueCents === 0) {
+        trendEl.textContent = '—';
+        trendEl.className = 'stat-card__val';
+      } else {
+        const pct = dashboard.prevWeekRevenueCents ? Math.round((diff / dashboard.prevWeekRevenueCents) * 100) : 100;
+        trendEl.textContent = `${diff >= 0 ? '+' : ''}${pct}%`;
+        trendEl.className = 'stat-card__val ' + (diff >= 0 ? 'dash-trend-up' : 'dash-trend-down');
+      }
+
+      document.getElementById('dashGreetingTitle').textContent = `${greetingWord()}.`;
+      const parts = [];
+      parts.push(dashboard.todayCount
+        ? `${dashboard.todayCount} rendez-vous aujourd'hui`
+        : 'Aucun rendez-vous aujourd\'hui');
+      if (dashboard.tomorrowCount) parts.push(`${dashboard.tomorrowCount} demain`);
+      parts.push(`${(dashboard.weekRevenueCents / 100).toFixed(0)} € encaissés cette semaine`);
+      if (dashboard.topService) parts.push(`la prestation la plus demandée est "${dashboard.topService.name}"`);
+      document.getElementById('dashGreetingText').textContent = 'Voici votre journée : ' + parts.join(', ') + '.';
 
       document.getElementById('dashTodayCount').textContent    = `${dashboard.today.length} RDV`;
       document.getElementById('dashTomorrowCount').textContent = `${dashboard.tomorrow.length} RDV`;

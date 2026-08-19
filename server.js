@@ -379,7 +379,7 @@ function buildClientEmail(data, svc) {
 <body>
 <div class="wrap">
 
-  <div class="logo">REYCE</div>
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
 
   <div class="check">
     <svg width="16" height="13" viewBox="0 0 16 13" fill="none"><path d="M1 6.5l4.5 4.5L15 1" stroke="#bfc8d0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -472,7 +472,7 @@ function buildOwnerEmail(data, svc) {
 <body>
 <div class="wrap">
 
-  <div class="logo">REYCE</div>
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
   <div class="badge">Nouvelle réservation</div>
 
   <p class="title">Nouveau rendez-vous confirmé.</p>
@@ -860,7 +860,7 @@ app.post('/api/contact', async (req, res) => {
   .foot{font-size:11px;color:#444;text-align:center;margin-top:32px;}
 </style></head><body>
 <div class="wrap">
-  <div class="logo">REYCE</div>
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
   <div class="badge">${isDevis ? 'Demande de devis' : 'Message de contact'}</div>
   <table>
     <tr><td class="lbl">Nom</td><td>${firstName} ${lastName}</td></tr>
@@ -921,7 +921,7 @@ app.post('/api/devis-photos', upload.array('photos', 3), async (req, res) => {
   .foot{font-size:11px;color:#444;text-align:center;margin-top:32px;}
 </style></head><body>
 <div class="wrap">
-  <div class="logo">REYCE</div>
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
   <div class="badge">Demande de devis — projet</div>
   <table>
     <tr><td class="lbl">Nom</td><td>${firstName} ${lastName || ''}</td></tr>
@@ -1164,6 +1164,37 @@ app.get('/api/admin/dashboard', async (req, res) => {
   const byStatus = {};
   for (const s of ADMIN_SETTABLE_STATUSES) byStatus[s] = bookings.filter(b => b.status === s).length;
 
+  // Semaine courante (lundi → dimanche) vs semaine précédente
+  const day0 = now.getDay();
+  const mondayOffset = (day0 === 0 ? -6 : 1) - day0;
+  const weekStart = dateToStr(new Date(now.getTime() + mondayOffset * 86400000));
+  const weekEnd   = dateToStr(new Date(now.getTime() + (mondayOffset + 6) * 86400000));
+  const prevWeekStart = dateToStr(new Date(now.getTime() + (mondayOffset - 7) * 86400000));
+  const prevWeekEnd   = dateToStr(new Date(now.getTime() + (mondayOffset - 1) * 86400000));
+
+  const weekRevenueCents = active.filter(b => b.date >= weekStart && b.date <= weekEnd)
+    .reduce((s, b) => s + (b.amountPaid || 0), 0);
+  const prevWeekRevenueCents = active.filter(b => b.date >= prevWeekStart && b.date <= prevWeekEnd)
+    .reduce((s, b) => s + (b.amountPaid || 0), 0);
+
+  // Mois calendaire courant
+  const monthPrefix = todayStr.slice(0, 7); // "YYYY-MM"
+  const monthRevenueCents = active.filter(b => b.date.startsWith(monthPrefix))
+    .reduce((s, b) => s + (b.amountPaid || 0), 0);
+  const monthCount = bookings.filter(b => b.date.startsWith(monthPrefix)).length;
+
+  // Taux d'annulation / absence (sur l'ensemble des réservations)
+  const cancelledCount = bookings.filter(b => b.status === 'cancelled' || b.status === 'no_show').length;
+  const cancelRate = bookings.length ? Math.round((cancelledCount / bookings.length) * 100) : 0;
+
+  // Prestation la plus demandée (sur les réservations actives)
+  const serviceCounts = {};
+  for (const b of active) serviceCounts[b.service] = (serviceCounts[b.service] || 0) + 1;
+  let topService = null;
+  for (const [id, count] of Object.entries(serviceCounts)) {
+    if (!topService || count > topService.count) topService = { id, name: SERVICES[id]?.name || id, count };
+  }
+
   res.json({
     todayCount: todayList.length,
     tomorrowCount: tomorrowList.length,
@@ -1171,6 +1202,12 @@ app.get('/api/admin/dashboard', async (req, res) => {
     totalCount: bookings.length,
     revenueCents,
     pendingCents,
+    weekRevenueCents,
+    prevWeekRevenueCents,
+    monthRevenueCents,
+    monthCount,
+    cancelRate,
+    topService,
     byStatus,
     today: todayList,
     tomorrow: tomorrowList,
@@ -1376,7 +1413,7 @@ app.post('/api/admin/send-reminder', async (req, res) => {
   .foot{font-size:11px;color:#333;margin-top:40px;}
 </style></head><body>
 <div class="wrap">
-  <div class="logo">REYCE</div>
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
   <p class="title">À demain,<br>${firstName}.</p>
   <p class="body">Petit rappel : votre rendez-vous approche. Nous avons hâte de prendre soin de votre véhicule.</p>
   <div class="box">
@@ -1421,7 +1458,7 @@ app.post('/api/admin/send-ready', async (req, res) => {
   .foot{font-size:11px;color:#333;margin-top:40px;}
 </style></head><body>
 <div class="wrap">
-  <div class="logo">REYCE</div>
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
   <p class="title">Votre véhicule<br>est prêt.</p>
   <p class="body">Bonjour ${firstName},<br><br>Chaque détail a été traité avec précision. Votre véhicule vous attend à l'atelier.</p>
   <hr class="divider">
@@ -1461,7 +1498,7 @@ app.post('/api/admin/send-review', async (req, res) => {
   .foot{font-size:11px;color:#333;margin-top:32px;}
 </style></head><body>
 <div class="wrap">
-  <div class="logo">REYCE</div>
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
   <p class="title">Merci pour<br>votre confiance.</p>
   <p class="body">Bonjour ${firstName},<br><br>Nous espérons que votre expérience REYCE a été à la hauteur de vos attentes. Votre avis compte énormément pour nous et aide d'autres passionnés à nous découvrir.</p>
   <a href="https://www.google.com/search?q=REYCE+Lyon+avis" class="cta">Laisser un avis Google</a>
