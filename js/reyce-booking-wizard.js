@@ -138,7 +138,7 @@ var OPTIONS=[
 /* Code promo — réservé aux formules Premium & Expérience */
 var PROMO={active:true, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', formules:['Premium','Expérience']};
 
-function euro(n){return n>0?(n+'<span class="cur">€</span>'):'___<span class="cur">€</span>';}
+function euro(n){return n>0?(n+'<span class="eur">€</span>'):'___<span class="eur">€</span>';}
 function euroTxt(n){return n>0?(n+' €'):'___ €';}
 function duoSave(idx){
   var s=gabSupp();
