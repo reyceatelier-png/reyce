@@ -113,6 +113,8 @@ function toBooking(row) {
     tintOption:   row.tintOption,
     date:         dateToStr(row.date),
     time:         row.startTime,
+    endTime:      row.endTime,
+    durationMin:  row.durationMin,
     paymentType:  row.paymentType,
     internalNotes: row.internalNotes,
     client: {

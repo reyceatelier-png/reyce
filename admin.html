@@ -297,37 +297,51 @@
       display: flex;
       align-items: center;
       gap: 16px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .planning-nav__label { font-size: 13px; color: var(--white); min-width: 220px; }
-    .planning-day { margin-bottom: 24px; }
-    .planning-day__head {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 10px;
+
+    .cal-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); }
+    .cal-grid { display: flex; min-width: 760px; }
+
+    .cal-hours { flex: none; width: 52px; padding-top: 40px; }
+    .cal-hour-label {
+      font-size: 10px; color: var(--grey3); text-align: right; padding-right: 8px;
+      transform: translateY(-6px); user-select: none;
     }
-    .planning-day__name { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--white); }
-    .planning-day__date { font-size: 11px; color: var(--grey3); }
-    .planning-day__today { color: var(--amber); }
-    .planning-row {
-      display: grid;
-      grid-template-columns: 64px 1fr auto auto;
-      align-items: center;
-      gap: 14px;
-      padding: 10px 14px;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      margin-bottom: 1px;
-      cursor: pointer;
+
+    .cal-daycols { display: flex; flex: 1; }
+    .cal-daycol { flex: 1; min-width: 96px; border-left: 1px solid var(--border); }
+    .cal-daycol__head {
+      height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg2); z-index: 2;
     }
-    .planning-row:hover { border-color: var(--border2); }
-    .planning-row__time { font-size: 12px; color: var(--white); }
-    .planning-row__main { min-width: 0; }
-    .planning-row__svc  { font-size: 12px; color: var(--grey1); }
-    .planning-row__client { font-size: 11px; color: var(--grey3); }
+    .cal-daycol__name { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--grey3); }
+    .cal-daycol__date { font-size: 13px; color: var(--white); margin-top: 1px; }
+    .cal-daycol.is-today .cal-daycol__head { background: rgba(240,192,64,0.06); }
+    .cal-daycol.is-today .cal-daycol__name,
+    .cal-daycol.is-today .cal-daycol__date { color: var(--amber); }
+
+    .cal-daycol__body { position: relative; }
+    .cal-hourline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); }
+    .cal-daycol.is-today .cal-daycol__body { background: rgba(240,192,64,0.03); }
+
+    .cal-event {
+      position: absolute; left: 4px; right: 4px; border-radius: 7px;
+      padding: 5px 8px; font-size: 11px; line-height: 1.35; overflow: hidden;
+      background: var(--bg3); border: 1px solid var(--border2); border-left: 3px solid var(--grey3);
+      cursor: pointer; transition: transform .15s, box-shadow .15s;
+    }
+    .cal-event:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.35); z-index: 3; }
+    .cal-event__time { font-size: 10px; color: var(--grey3); }
+    .cal-event__svc { color: var(--white); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cal-event__client { color: var(--grey3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cal-event--confirmed   { border-left-color: var(--green); }
+    .cal-event--in_progress { border-left-color: var(--blue); }
+    .cal-event--ready       { border-left-color: var(--amber); }
+    .cal-event--completed   { border-left-color: var(--accent); }
+    .cal-event--no_show     { border-left-color: var(--red); opacity: .55; }
+
     .planning-empty { font-size: 11px; color: var(--grey3); padding: 10px 0; }
 
     /* ── Clients ── */
@@ -415,7 +429,6 @@
       .avail-grid    { grid-template-columns: 1fr; }
       .stats-row     { grid-template-columns: 1fr 1fr; }
       .client-card__row { grid-template-columns: 1fr; }
-      .planning-row  { grid-template-columns: 48px 1fr; }
       .header        { padding: 0 16px; }
       .tabs          { padding: 0 16px; }
       .content       { padding: 20px 16px; }
@@ -521,7 +534,9 @@
           <button class="btn btn--ghost btn--sm" onclick="planningToday()">Aujourd'hui</button>
         </div>
 
-        <div id="planningDays"></div>
+        <div class="cal-scroll">
+          <div class="cal-grid" id="planningGrid"></div>
+        </div>
 
       </div>
 
@@ -738,9 +753,9 @@
           </div>
           <div class="action-col">
             ${nextStatus ? `<button class="btn btn--ghost btn--sm" onclick="setStatus('${b.sessionId}','${nextStatus}')">${NEXT_LABEL[status]}</button>` : ''}
-            ${status === 'confirmed' || status === 'in_progress' ? `<button class="btn btn--ghost btn--sm" onclick="sendReminder('${b.sessionId}')">Envoyer rappel</button>` : ''}
-            ${status === 'ready' || status === 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Email véhicule prêt</button>` : ''}
-            ${status === 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="sendReview('${b.sessionId}')">Demande avis</button>` : ''}
+            ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReminder('${b.sessionId}')">Envoyer rappel</button>` : ''}
+            ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Email véhicule prêt</button>` : ''}
+            ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReview('${b.sessionId}')">Demande avis</button>` : ''}
             ${!isCancelled && status !== 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="setStatus('${b.sessionId}','no_show')">Absent</button>` : ''}
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="cancelBooking('${b.sessionId}')">Annuler</button>` : ''}
           </div>
@@ -827,6 +842,18 @@
       renderPlanning();
     }
 
+    // Grille horaire type "Apple Calendar" : les RDV sont positionnés
+    // verticalement selon leur heure et dimensionnés selon leur durée réelle.
+    const CAL_START_HOUR = 8;
+    const CAL_END_HOUR   = 19;
+    const CAL_PX_PER_MIN = 1.1;
+    const CAL_HEIGHT     = (CAL_END_HOUR - CAL_START_HOUR) * 60 * CAL_PX_PER_MIN;
+
+    function timeToMinutes(t) {
+      const [h, m] = (t || '0:0').split(':').map(Number);
+      return h * 60 + m;
+    }
+
     function renderPlanning() {
       const start = planningWeekStart;
       const end   = new Date(start.getTime() + 6 * 86400000);
@@ -834,36 +861,59 @@
         `${start.getDate()} ${MONTHS[start.getMonth()]} — ${end.getDate()} ${MONTHS[end.getMonth()]} ${end.getFullYear()}`;
 
       const todayStr = new Date().toISOString().split('T')[0];
-      const container = document.getElementById('planningDays');
-      let html = '';
 
+      // Colonne des heures
+      let hoursHTML = '';
+      for (let h = CAL_START_HOUR; h <= CAL_END_HOUR; h++) {
+        hoursHTML += `<div class="cal-hour-label" style="height:${60 * CAL_PX_PER_MIN}px;">${h}:00</div>`;
+      }
+
+      // Colonnes des 7 jours
+      let daysHTML = '';
       for (let i = 0; i < 7; i++) {
         const d = new Date(start.getTime() + i * 86400000);
         const dStr = toISODate(d);
-        const dayBookings = bookings
-          .filter(b => b.date === dStr && b.status !== 'cancelled')
-          .sort((a, b) => a.time < b.time ? -1 : 1);
+        const isToday = dStr === todayStr;
+        const dayBookings = bookings.filter(b => b.date === dStr && b.status !== 'cancelled');
 
-        html += `
-          <div class="planning-day">
-            <div class="planning-day__head">
-              <span class="planning-day__name${dStr === todayStr ? ' planning-day__today' : ''}">${DAYS_FULL[d.getDay()]}</span>
-              <span class="planning-day__date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
+        let hourlines = '';
+        for (let h = CAL_START_HOUR; h <= CAL_END_HOUR; h++) {
+          hourlines += `<div class="cal-hourline" style="top:${(h - CAL_START_HOUR) * 60 * CAL_PX_PER_MIN}px;"></div>`;
+        }
+
+        const eventsHTML = dayBookings.map(b => {
+          const startMin = Math.max(0, timeToMinutes(b.time) - CAL_START_HOUR * 60);
+          const dur      = b.durationMin || 60;
+          const top      = startMin * CAL_PX_PER_MIN;
+          const height   = Math.max(dur * CAL_PX_PER_MIN, 24);
+          const clientName = `${b.client?.firstName || ''} ${b.client?.lastName || ''}`.trim();
+          return `
+            <div class="cal-event cal-event--${b.status}" style="top:${top}px;height:${height}px;" onclick="focusBooking('${b.sessionId}')">
+              <div class="cal-event__time">${b.time}</div>
+              <div class="cal-event__svc">${b.serviceName || b.service}</div>
+              ${height > 40 ? `<div class="cal-event__client">${clientName}</div>` : ''}
             </div>
-            ${dayBookings.length ? dayBookings.map(b => `
-              <div class="planning-row" onclick="focusBooking('${b.sessionId}')">
-                <div class="planning-row__time">${b.time}</div>
-                <div class="planning-row__main">
-                  <div class="planning-row__svc">${b.serviceName || b.service}</div>
-                  <div class="planning-row__client">${(b.client?.firstName || '') + ' ' + (b.client?.lastName || '')}</div>
-                </div>
-                <span class="status-badge status-badge--${b.status}">${STATUS_LABEL[b.status] || b.status}</span>
-              </div>
-            `).join('') : '<div class="planning-empty">Aucun rendez-vous</div>'}
+          `;
+        }).join('');
+
+        daysHTML += `
+          <div class="cal-daycol${isToday ? ' is-today' : ''}">
+            <div class="cal-daycol__head">
+              <span class="cal-daycol__name">${DAYS[d.getDay()]}</span>
+              <span class="cal-daycol__date">${d.getDate()}</span>
+            </div>
+            <div class="cal-daycol__body" style="height:${CAL_HEIGHT}px;">
+              ${hourlines}
+              ${eventsHTML}
+            </div>
           </div>
         `;
       }
-      container.innerHTML = html;
+
+      document.getElementById('planningGrid').innerHTML = `
+        <div class="cal-hours">${hoursHTML}</div>
+        <div class="cal-daycols">${daysHTML}</div>
+      `;
     }
 
     function focusBooking(sessionId) {
