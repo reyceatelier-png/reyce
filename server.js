@@ -1125,23 +1125,80 @@ app.get('/api/admin/clients', async (req, res) => {
   res.json({ clients });
 });
 
-// Enregistrer une note interne sur un client (crée la fiche client si besoin)
-app.patch('/api/admin/clients/:email', async (req, res) => {
-  const email = decodeURIComponent(req.params.email);
-  const { notes } = req.body;
+// Crée la fiche client (table Client) si elle n'existe pas encore, à
+// partir de la dernière réservation connue pour cet email.
+async function ensureClient(email) {
+  const existing = await prisma.client.findUnique({ where: { email } });
+  if (existing) return existing;
 
   const latest = await prisma.appointment.findFirst({
     where: { guestEmail: email },
     orderBy: { createdAt: 'desc' }
   });
-  if (!latest) return res.status(404).json({ error: 'Client introuvable' });
+  if (!latest) return null;
 
-  await prisma.client.upsert({
-    where:  { email },
-    update: { notes },
-    create: { email, firstName: latest.guestFirstName, lastName: latest.guestLastName, phone: latest.guestPhone, notes }
+  return prisma.client.create({
+    data: { email, firstName: latest.guestFirstName, lastName: latest.guestLastName, phone: latest.guestPhone }
   });
+}
+
+// Enregistrer une note interne sur un client (crée la fiche client si besoin)
+app.patch('/api/admin/clients/:email', async (req, res) => {
+  const email = decodeURIComponent(req.params.email);
+  const { notes } = req.body;
+
+  const client = await ensureClient(email);
+  if (!client) return res.status(404).json({ error: 'Client introuvable' });
+
+  await prisma.client.update({ where: { email }, data: { notes } });
   res.json({ ok: true });
+});
+
+// Détail d'un client : coordonnées, véhicules enregistrés, historique complet
+app.get('/api/admin/clients/:email', async (req, res) => {
+  const email = decodeURIComponent(req.params.email);
+
+  const client = await ensureClient(email);
+  if (!client) return res.status(404).json({ error: 'Client introuvable' });
+
+  const [vehicles, appointments] = await Promise.all([
+    prisma.vehicle.findMany({ where: { clientId: client.id }, orderBy: { createdAt: 'desc' } }),
+    prisma.appointment.findMany({
+      where: { guestEmail: email, status: { not: 'pending_payment' } },
+      orderBy: [{ date: 'desc' }, { startTime: 'desc' }]
+    })
+  ]);
+
+  res.json({
+    client: { email: client.email, firstName: client.firstName, lastName: client.lastName, phone: client.phone, notes: client.notes },
+    vehicles,
+    appointments: appointments.map(toBooking)
+  });
+});
+
+// Ajouter un véhicule à la fiche client
+app.post('/api/admin/clients/:email/vehicles', async (req, res) => {
+  const email = decodeURIComponent(req.params.email);
+  const { make, model, plate, category, notes } = req.body;
+
+  const client = await ensureClient(email);
+  if (!client) return res.status(404).json({ error: 'Client introuvable' });
+  if (!make && !model && !plate) return res.status(400).json({ error: 'Renseignez au moins la marque, le modèle ou l\'immatriculation' });
+
+  const vehicle = await prisma.vehicle.create({
+    data: { clientId: client.id, make: make || null, model: model || null, plate: plate || null, category: category || null, notes: notes || null }
+  });
+  res.json({ ok: true, vehicle });
+});
+
+// Retirer un véhicule d'une fiche client
+app.delete('/api/admin/vehicles/:vehicleId', async (req, res) => {
+  try {
+    await prisma.vehicle.delete({ where: { id: req.params.vehicleId } });
+    res.json({ ok: true });
+  } catch {
+    res.status(404).json({ error: 'Véhicule introuvable' });
+  }
 });
 
 // Annuler / modifier le statut d'une réservation
@@ -1200,6 +1257,54 @@ app.delete('/api/admin/block-slot', async (req, res) => {
   if (!date || !time) return res.status(400).json({ error: 'Date et créneau requis' });
   await unblockSlot(date, time);
   res.json({ ok: true });
+});
+
+// Email + SMS de rappel de rendez-vous (envoi manuel, typiquement la veille)
+app.post('/api/admin/send-reminder', async (req, res) => {
+  const { sessionId } = req.body;
+  const booking = await findBookingBySessionId(sessionId);
+  if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
+
+  const firstName = booking.client?.firstName || 'Client';
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{background:#070707;margin:0;padding:48px 20px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;}
+  .wrap{max-width:520px;margin:0 auto;padding:0;}
+  .logo{font-size:16px;font-weight:600;letter-spacing:.38em;text-transform:uppercase;color:#fff;margin-bottom:48px;}
+  .title{font-size:28px;font-weight:300;color:#fff;line-height:1.2;font-style:italic;margin-bottom:16px;}
+  .body{font-size:14px;color:#888;line-height:1.8;margin-bottom:32px;}
+  .box{background:#0f0f0f;border:1px solid #1c1c1c;padding:20px 24px;margin-bottom:32px;}
+  .box .lbl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#555;margin-bottom:4px;}
+  .box .val{font-size:15px;color:#e0e0e0;margin-bottom:14px;}
+  .divider{border:none;border-top:1px solid #1a1a1a;margin:32px 0;}
+  .addr{font-size:12px;color:#555;line-height:1.9;}
+  .foot{font-size:11px;color:#333;margin-top:40px;}
+</style></head><body>
+<div class="wrap">
+  <div class="logo">REYCE</div>
+  <p class="title">À demain,<br>${firstName}.</p>
+  <p class="body">Petit rappel : votre rendez-vous approche. Nous avons hâte de prendre soin de votre véhicule.</p>
+  <div class="box">
+    <div class="lbl">Prestation</div><div class="val">${booking.serviceName || booking.service}</div>
+    <div class="lbl">Date</div><div class="val">${formatDate(booking.date)}</div>
+    <div class="lbl">Heure</div><div class="val">${booking.time}</div>
+  </div>
+  <hr class="divider">
+  <p class="addr">47 chemin du Pras · La Mulatière, Lyon<br>07 63 00 43 85</p>
+  <p class="foot">REYCE · Atelier automobile premium · Lyon</p>
+</div></body></html>`;
+
+  try {
+    await sendEmail(booking.client.email, `Rappel — Votre rendez-vous REYCE du ${formatDate(booking.date)}`, html);
+    if (booking.client?.phone) {
+      await sendSMS(booking.client.phone, `REYCE — Rappel : rendez-vous ${formatDate(booking.date)} à ${booking.time}. 47 chemin du Pras, La Mulatière. À demain !`).catch(() => {});
+    }
+    console.log(`[Admin] ✓ Email "rappel" → ${booking.client.email}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Admin] ✗ send-reminder :', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Email véhicule prêt

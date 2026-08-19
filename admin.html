@@ -335,14 +335,51 @@
     .client-card {
       background: var(--bg2);
       border: 1px solid var(--border);
+    }
+    .client-card__row {
       padding: 20px 24px;
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr auto;
       gap: 20px;
+      align-items: center;
+      cursor: pointer;
     }
+    .client-card__row:hover { background: var(--bg3); }
     .client-card__name { font-size: 14px; color: var(--white); }
     .client-card__sub  { font-size: 11px; color: var(--grey3); margin-top: 2px; }
     .client-card__notes { display: flex; flex-direction: column; gap: 8px; }
+    .client-card__chevron { font-size: 11px; color: var(--grey3); transition: transform .2s; }
+    .client-card__row.is-open .client-card__chevron { transform: rotate(90deg); }
+
+    .client-detail {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding: 24px;
+      background: var(--bg3);
+    }
+    .client-detail.is-open { display: block; }
+    .client-detail__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .client-detail__block-title { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--grey3); margin-bottom: 14px; }
+
+    .vehicle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+    .vehicle-row__label { font-size: 12px; color: var(--grey1); }
+    .vehicle-row__sub   { font-size: 11px; color: var(--grey3); margin-top: 2px; }
+    .vehicle-form { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+    .vehicle-form__row { display: flex; gap: 8px; }
+
+    .history-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+    }
+    .history-row__meta { color: var(--grey3); font-size: 11px; }
+
+    @media (max-width: 700px) {
+      .client-detail__grid { grid-template-columns: 1fr; }
+    }
 
     /* ── Empty state ── */
     .empty {
@@ -377,7 +414,7 @@
       .booking-card  { grid-template-columns: 1fr; }
       .avail-grid    { grid-template-columns: 1fr; }
       .stats-row     { grid-template-columns: 1fr 1fr; }
-      .client-card   { grid-template-columns: 1fr; }
+      .client-card__row { grid-template-columns: 1fr; }
       .planning-row  { grid-template-columns: 48px 1fr; }
       .header        { padding: 0 16px; }
       .tabs          { padding: 0 16px; }
@@ -625,14 +662,14 @@
       confirmed:   'Confirmé',
       in_progress: 'En cours',
       ready:       'Véhicule prêt',
-      completed:   'Terminé',
+      completed:   'Livré',
       cancelled:   'Annulée',
       no_show:     'Absent'
     };
     const STATUS_ORDER = { confirmed: 0, in_progress: 1, ready: 2, completed: 3, no_show: 4, cancelled: 5 };
     // Statut suivant proposé en un clic, dans le flux normal d'un rendez-vous
     const NEXT_STATUS = { confirmed: 'in_progress', in_progress: 'ready', ready: 'completed' };
-    const NEXT_LABEL  = { confirmed: 'Marquer en cours', in_progress: 'Marquer prêt', ready: 'Marquer terminé' };
+    const NEXT_LABEL  = { confirmed: 'Marquer en cours', in_progress: 'Marquer prêt', ready: 'Marquer véhicule livré' };
 
     // ── Dashboard ─────────────────────────────────────────────
     function renderDashboard() {
@@ -701,7 +738,8 @@
           </div>
           <div class="action-col">
             ${nextStatus ? `<button class="btn btn--ghost btn--sm" onclick="setStatus('${b.sessionId}','${nextStatus}')">${NEXT_LABEL[status]}</button>` : ''}
-            ${status === 'ready' || status === 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Email prêt</button>` : ''}
+            ${status === 'confirmed' || status === 'in_progress' ? `<button class="btn btn--ghost btn--sm" onclick="sendReminder('${b.sessionId}')">Envoyer rappel</button>` : ''}
+            ${status === 'ready' || status === 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Email véhicule prêt</button>` : ''}
             ${status === 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="sendReview('${b.sessionId}')">Demande avis</button>` : ''}
             ${!isCancelled && status !== 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="setStatus('${b.sessionId}','no_show')">Absent</button>` : ''}
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="cancelBooking('${b.sessionId}')">Annuler</button>` : ''}
@@ -735,6 +773,13 @@
     async function cancelBooking(sessionId) {
       if (!confirm('Annuler cette réservation ?')) return;
       await setStatus(sessionId, 'cancelled');
+    }
+
+    async function sendReminder(sessionId) {
+      try {
+        await api('POST', '/api/admin/send-reminder', { sessionId });
+        showToast('Rappel envoyé');
+      } catch { showToast('Erreur', true); }
     }
 
     async function sendReady(sessionId) {
@@ -833,6 +878,9 @@
     }
 
     // ── Clients ───────────────────────────────────────────────
+let openClientEmail = null;
+    const clientDetailCache = {};
+
     function renderClients() {
       const list = document.getElementById('clientList');
       if (!clients.length) {
@@ -840,28 +888,137 @@
         return;
       }
       const sorted = [...clients].sort((a, z) => (a.lastDate < z.lastDate ? 1 : -1));
-      list.innerHTML = sorted.map(c => `
+      list.innerHTML = sorted.map(c => {
+        const id = cssId(c.email);
+        const isOpen = openClientEmail === c.email;
+        return `
         <div class="client-card">
-          <div>
-            <div class="client-card__name">${c.firstName || ''} ${c.lastName || ''}</div>
-            <div class="client-card__sub">${c.email}</div>
-            <div class="client-card__sub">${c.phone || '—'}</div>
+          <div class="client-card__row${isOpen ? ' is-open' : ''}" onclick="toggleClientDetail('${c.email}')">
+            <div>
+              <div class="client-card__name">${c.firstName || ''} ${c.lastName || ''}</div>
+              <div class="client-card__sub">${c.email}</div>
+              <div class="client-card__sub">${c.phone || '—'}</div>
+            </div>
+            <div>
+              <div class="booking-card__label">Historique</div>
+              <div class="booking-card__val">${c.appointmentCount} rendez-vous — ${(c.totalSpentCents / 100).toFixed(0)} €</div>
+              <div class="client-card__sub">${c.vehicles.length ? c.vehicles.join(', ') : 'Véhicule non renseigné'}</div>
+            </div>
+            <div>
+              <div class="client-card__sub">Dernier RDV</div>
+              <div class="client-card__val">${fmtDate(c.lastDate)}</div>
+            </div>
+            <span class="client-card__chevron">▸</span>
           </div>
-          <div>
-            <div class="booking-card__label">Historique</div>
-            <div class="booking-card__val">${c.appointmentCount} rendez-vous — ${(c.totalSpentCents / 100).toFixed(0)} €</div>
-            <div class="client-card__sub">${c.vehicles.length ? c.vehicles.join(', ') : 'Véhicule non renseigné'}</div>
-            <div class="client-card__sub">Dernier RDV : ${fmtDate(c.lastDate)}</div>
-          </div>
-          <div class="client-card__notes">
-            <textarea id="notes-${cssId(c.email)}" placeholder="Notes internes...">${c.notes || ''}</textarea>
-            <button class="btn btn--ghost btn--sm" style="align-self:flex-end;" onclick="saveClientNotes('${c.email}')">Enregistrer</button>
+          <div class="client-detail${isOpen ? ' is-open' : ''}" id="detail-${id}">
+            ${isOpen ? '<div class="empty">Chargement…</div>' : ''}
           </div>
         </div>
-      `).join('');
+      `; }).join('');
+
+      if (openClientEmail) loadClientDetail(openClientEmail);
     }
 
     function cssId(email) { return email.replace(/[^a-z0-9]/gi, '_'); }
+
+    async function toggleClientDetail(email) {
+      openClientEmail = openClientEmail === email ? null : email;
+      renderClients();
+    }
+
+    async function loadClientDetail(email) {
+      try {
+        const data = clientDetailCache[email] || await api('GET', `/api/admin/clients/${encodeURIComponent(email)}`);
+        clientDetailCache[email] = data;
+        renderClientDetail(email, data);
+      } catch { showToast('Erreur de chargement', true); }
+    }
+
+    function renderClientDetail(email, data) {
+      const el = document.getElementById(`detail-${cssId(email)}`);
+      if (!el) return;
+
+      const vehiclesHTML = data.vehicles.length
+        ? data.vehicles.map(v => `
+            <div class="vehicle-row">
+              <div>
+                <div class="vehicle-row__label">${[v.make, v.model].filter(Boolean).join(' ') || 'Véhicule'}</div>
+                <div class="vehicle-row__sub">${[v.plate, v.category].filter(Boolean).join(' · ') || '—'}</div>
+              </div>
+              <button class="btn btn--ghost btn--sm" onclick="removeVehicle('${email}','${v.id}')">Retirer</button>
+            </div>
+          `).join('')
+        : '<p class="client-card__sub">Aucun véhicule enregistré.</p>';
+
+      const historyHTML = data.appointments.length
+        ? data.appointments.map(b => `
+            <div class="history-row">
+              <span>${b.serviceName || b.service}</span>
+              <span class="history-row__meta">${fmtDate(b.date)} · ${b.time} · ${STATUS_LABEL[b.status] || b.status}</span>
+            </div>
+          `).join('')
+        : '<p class="client-card__sub">Aucun historique.</p>';
+
+      el.innerHTML = `
+        <div class="client-detail__grid">
+          <div>
+            <p class="client-detail__block-title">Véhicules</p>
+            ${vehiclesHTML}
+            <div class="vehicle-form">
+              <div class="vehicle-form__row">
+                <input id="veh-make-${cssId(email)}" placeholder="Marque">
+                <input id="veh-model-${cssId(email)}" placeholder="Modèle">
+              </div>
+              <div class="vehicle-form__row">
+                <input id="veh-plate-${cssId(email)}" placeholder="Immatriculation">
+                <select id="veh-cat-${cssId(email)}">
+                  <option value="">Gabarit</option>
+                  <option value="citadine">Citadine</option>
+                  <option value="berline">Berline</option>
+                  <option value="suv">SUV</option>
+                  <option value="van">Van</option>
+                  <option value="sportive">Sportive</option>
+                </select>
+              </div>
+              <button class="btn btn--ghost btn--sm" style="align-self:flex-start;" onclick="addVehicle('${email}')">Ajouter le véhicule</button>
+            </div>
+
+            <p class="client-detail__block-title" style="margin-top:24px;">Notes internes</p>
+            <textarea id="notes-${cssId(email)}" placeholder="Notes internes...">${data.client.notes || ''}</textarea>
+            <button class="btn btn--ghost btn--sm" style="margin-top:8px;" onclick="saveClientNotes('${email}')">Enregistrer les notes</button>
+          </div>
+          <div>
+            <p class="client-detail__block-title">Historique des rendez-vous</p>
+            ${historyHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    async function addVehicle(email) {
+      const id = cssId(email);
+      const make     = document.getElementById(`veh-make-${id}`).value.trim();
+      const model    = document.getElementById(`veh-model-${id}`).value.trim();
+      const plate    = document.getElementById(`veh-plate-${id}`).value.trim();
+      const category = document.getElementById(`veh-cat-${id}`).value;
+      if (!make && !model && !plate) return showToast('Renseignez au moins une information sur le véhicule', true);
+      try {
+        await api('POST', `/api/admin/clients/${encodeURIComponent(email)}/vehicles`, { make, model, plate, category });
+        delete clientDetailCache[email];
+        await loadClientDetail(email);
+        showToast('Véhicule ajouté');
+      } catch { showToast('Erreur', true); }
+    }
+
+    async function removeVehicle(email, vehicleId) {
+      if (!confirm('Retirer ce véhicule ?')) return;
+      try {
+        await api('DELETE', `/api/admin/vehicles/${vehicleId}`);
+        delete clientDetailCache[email];
+        await loadClientDetail(email);
+        showToast('Véhicule retiré');
+      } catch { showToast('Erreur', true); }
+    }
 
     async function saveClientNotes(email) {
       const notes = document.getElementById(`notes-${cssId(email)}`).value;
@@ -869,6 +1026,7 @@
         await api('PATCH', `/api/admin/clients/${encodeURIComponent(email)}`, { notes });
         const c = clients.find(x => x.email === email);
         if (c) c.notes = notes;
+        if (clientDetailCache[email]) clientDetailCache[email].client.notes = notes;
         showToast('Notes enregistrées');
       } catch { showToast('Erreur', true); }
     }
