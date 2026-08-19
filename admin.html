@@ -420,6 +420,30 @@
       .client-detail__grid { grid-template-columns: 1fr; }
     }
 
+    /* ── Marketing ── */
+    .mkt-recipients { display: flex; flex-direction: column; gap: 1px; }
+    .mkt-recipient {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border);
+    }
+    .mkt-recipient input[type="checkbox"] { width: auto; }
+    .mkt-recipient__name { font-size: 12px; color: var(--grey1); }
+    .mkt-recipient__email { font-size: 11px; color: var(--grey3); }
+
+    /* ── Prestations ── */
+    .service-list { display: flex; flex-direction: column; gap: 1px; }
+    .service-card {
+      background: var(--bg2); border: 1px solid var(--border); padding: 18px 24px;
+      display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr auto auto; gap: 14px; align-items: end;
+    }
+    .service-card.is-inactive { opacity: .5; }
+    .service-card label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--grey3); display: block; margin-bottom: 6px; }
+    .service-card__active { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--grey2); }
+    .service-card__active input { width: auto; }
+    @media (max-width: 900px) {
+      .service-card { grid-template-columns: 1fr 1fr; }
+    }
+
     /* ── Empty state ── */
     .empty {
       padding: 48px 0;
@@ -490,6 +514,8 @@
       <button class="tab"           data-tab="bookings"      onclick="switchTab('bookings')">Réservations</button>
       <button class="tab"           data-tab="planning"      onclick="switchTab('planning')">Planning</button>
       <button class="tab"           data-tab="clients"       onclick="switchTab('clients')">Clients</button>
+      <button class="tab"           data-tab="marketing"     onclick="switchTab('marketing')">Marketing</button>
+      <button class="tab"           data-tab="services"      onclick="switchTab('services')">Prestations</button>
       <button class="tab"           data-tab="availability"  onclick="switchTab('availability')">Disponibilités</button>
     </div>
 
@@ -545,17 +571,57 @@
           <div class="stat-card"><div class="stat-card__val" id="statRevenue">—</div><div class="stat-card__label">Encaissé</div></div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap;">
           <p class="section-title" style="margin:0;">Toutes les réservations</p>
-          <select id="filterStatus" onchange="renderBookings()" style="width:200px;">
-            <option value="all">Tous les statuts</option>
-            <option value="confirmed">Confirmé</option>
-            <option value="in_progress">En cours</option>
-            <option value="ready">Véhicule prêt</option>
-            <option value="completed">Terminé</option>
-            <option value="no_show">Absent</option>
-            <option value="cancelled">Annulée</option>
-          </select>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <select id="filterStatus" onchange="renderBookings()" style="width:200px;">
+              <option value="all">Tous les statuts</option>
+              <option value="confirmed">Confirmé</option>
+              <option value="in_progress">En cours</option>
+              <option value="ready">Véhicule prêt</option>
+              <option value="completed">Terminé</option>
+              <option value="no_show">Absent</option>
+              <option value="cancelled">Annulée</option>
+            </select>
+            <button class="btn btn--primary btn--sm" onclick="toggleNewBookingForm()">+ Nouveau rendez-vous</button>
+          </div>
+        </div>
+
+        <div class="avail-box" id="newBookingForm" style="display:none;margin-bottom:24px;">
+          <p class="avail-box__title">Créer un rendez-vous manuellement</p>
+          <div class="avail-form">
+            <div class="avail-row">
+              <select id="nbService" onchange="nbLoadSlots()"></select>
+              <select id="nbVehicleType">
+                <option value="citadine">Citadine</option>
+                <option value="berline">Berline</option>
+                <option value="suv">SUV</option>
+                <option value="van">Van</option>
+                <option value="sportive">Sportive</option>
+              </select>
+            </div>
+            <div class="avail-row">
+              <input type="date" id="nbDate" onchange="nbLoadSlots()">
+              <select id="nbTime"><option value="">Sélectionner un créneau</option></select>
+            </div>
+            <input id="nbVehicleModel" placeholder="Modèle du véhicule (ex : Peugeot 308)">
+            <div class="avail-row">
+              <input id="nbFirstName" placeholder="Prénom du client">
+              <input id="nbLastName" placeholder="Nom du client">
+            </div>
+            <div class="avail-row">
+              <input id="nbPhone" placeholder="Téléphone">
+              <input id="nbEmail" placeholder="Email" type="email">
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--grey2);">
+              <input type="checkbox" id="nbNotify" checked style="width:auto;">
+              Envoyer la confirmation par email/SMS au client
+            </label>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn--primary" onclick="createManualBooking()">Créer le rendez-vous</button>
+              <button class="btn btn--ghost" onclick="toggleNewBookingForm()">Annuler</button>
+            </div>
+          </div>
         </div>
 
         <div class="booking-list" id="bookingList"></div>
@@ -582,6 +648,38 @@
 
         <p class="section-title">Clients (d'après l'historique des réservations)</p>
         <div class="client-list" id="clientList"></div>
+
+      </div>
+
+      <!-- ── Panel : Marketing ── -->
+      <div class="panel" id="panel-marketing">
+
+        <p class="section-title">Envoyer un email (promo, actualité...) à votre liste de clients</p>
+
+        <div class="avail-box" style="margin-bottom:24px;">
+          <div class="avail-form">
+            <input id="mktSubject" placeholder="Objet de l'email">
+            <textarea id="mktMessage" placeholder="Votre message... (les sauts de ligne sont conservés)" style="min-height:140px;"></textarea>
+            <button class="btn btn--primary" onclick="sendMarketingEmail()" style="align-self:flex-start;">Envoyer aux destinataires sélectionnés</button>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <p class="section-title" style="margin:0;">Destinataires</p>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn--ghost btn--sm" onclick="mktSelectAll(true)">Tout cocher</button>
+            <button class="btn btn--ghost btn--sm" onclick="mktSelectAll(false)">Tout décocher</button>
+          </div>
+        </div>
+        <div class="mkt-recipients" id="mktRecipients"></div>
+
+      </div>
+
+      <!-- ── Panel : Prestations ── -->
+      <div class="panel" id="panel-services">
+
+        <p class="section-title">Prestations, tarifs et durées</p>
+        <div class="service-list" id="serviceList"></div>
 
       </div>
 
@@ -636,8 +734,10 @@
     let bookings  = [];
     let blocked   = { dates: [], slots: {} };
     let clients   = [];
+    let services  = [];
     let dashboard = null;
     let planningWeekStart = mondayOf(new Date());
+    let mktSelected = new Set();
 
     // ── Auth ──────────────────────────────────────────────────
     function login() {
@@ -677,16 +777,18 @@
 
     async function loadAll() {
       try {
-        const [b, bl, dash, cl] = await Promise.all([
+        const [b, bl, dash, cl, sv] = await Promise.all([
           api('GET', '/api/admin/bookings'),
           api('GET', '/api/admin/blocked'),
           api('GET', '/api/admin/dashboard'),
-          api('GET', '/api/admin/clients')
+          api('GET', '/api/admin/clients'),
+          api('GET', '/api/admin/services')
         ]);
         bookings  = b.bookings || [];
         blocked   = bl;
         dashboard = dash;
         clients   = cl.clients || [];
+        services  = sv.services || [];
 
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('app').classList.add('is-visible');
@@ -698,6 +800,9 @@
         renderBlocked();
         renderPlanning();
         renderClients();
+        renderServices();
+        renderMarketingRecipients();
+        populateServiceSelect();
       } catch (e) {
         if (e.message !== 'Non autorisé') showToast('Erreur de connexion', true);
       }
@@ -1148,6 +1253,177 @@ let openClientEmail = null;
         if (clientDetailCache[email]) clientDetailCache[email].client.notes = notes;
         showToast('Notes enregistrées');
       } catch { showToast('Erreur', true); }
+    }
+
+    // ── Marketing ─────────────────────────────────────────────
+    function renderMarketingRecipients() {
+      const el = document.getElementById('mktRecipients');
+      if (!clients.length) {
+        el.innerHTML = '<div class="empty">Aucun client</div>';
+        return;
+      }
+      // Par défaut, tout le monde est sélectionné la première fois seulement.
+      if (!mktSelected.size) clients.forEach(c => mktSelected.add(c.email));
+
+      const sorted = [...clients].sort((a, z) => (a.lastName || '').localeCompare(z.lastName || ''));
+      el.innerHTML = sorted.map(c => `
+        <label class="mkt-recipient">
+          <input type="checkbox" data-email="${c.email}" ${mktSelected.has(c.email) ? 'checked' : ''} onchange="mktToggle('${c.email}', this.checked)">
+          <div>
+            <div class="mkt-recipient__name">${c.firstName || ''} ${c.lastName || ''}</div>
+            <div class="mkt-recipient__email">${c.email}</div>
+          </div>
+        </label>
+      `).join('');
+    }
+
+    function mktToggle(email, checked) {
+      if (checked) mktSelected.add(email); else mktSelected.delete(email);
+    }
+
+    function mktSelectAll(checked) {
+      mktSelected = new Set(checked ? clients.map(c => c.email) : []);
+      renderMarketingRecipients();
+    }
+
+    async function sendMarketingEmail() {
+      const subject = document.getElementById('mktSubject').value.trim();
+      const message = document.getElementById('mktMessage').value.trim();
+      const emails  = [...mktSelected];
+
+      if (!subject || !message) return showToast('Objet et message requis', true);
+      if (!emails.length) return showToast('Sélectionnez au moins un destinataire', true);
+      if (!confirm(`Envoyer cet email à ${emails.length} client(s) ?`)) return;
+
+      try {
+        const res = await api('POST', '/api/admin/marketing/send', { subject, message, emails });
+        if (res.error) return showToast(res.error, true);
+        showToast(`${res.sent} email(s) envoyé(s)${res.failed ? `, ${res.failed} échec(s)` : ''}`);
+      } catch { showToast('Erreur lors de l\'envoi', true); }
+    }
+
+    // ── Prestations ───────────────────────────────────────────
+    function renderServices() {
+      const el = document.getElementById('serviceList');
+      if (!services.length) { el.innerHTML = '<div class="empty">Aucune prestation</div>'; return; }
+
+      el.innerHTML = services.map(s => `
+        <div class="service-card${s.active === false ? ' is-inactive' : ''}">
+          <div>
+            <label>Nom</label>
+            <input id="svc-name-${s.id}" value="${s.name}">
+          </div>
+          <div>
+            <label>Prix (€)</label>
+            <input id="svc-price-${s.id}" type="number" min="0" value="${(s.priceCents / 100).toFixed(0)}">
+          </div>
+          <div>
+            <label>Acompte (€)</label>
+            <input id="svc-deposit-${s.id}" type="number" min="0" value="${(s.depositCents / 100).toFixed(0)}">
+          </div>
+          <div>
+            <label>Durée (min)</label>
+            <input id="svc-duration-${s.id}" type="number" min="1" value="${s.durationMin}">
+          </div>
+          <label class="service-card__active">
+            <input type="checkbox" id="svc-active-${s.id}" ${s.active !== false ? 'checked' : ''}>
+            Réservable
+          </label>
+          <button class="btn btn--ghost btn--sm" onclick="saveService('${s.id}')">Enregistrer</button>
+        </div>
+      `).join('');
+    }
+
+    async function saveService(id) {
+      const name         = document.getElementById(`svc-name-${id}`).value.trim();
+      const priceCents   = Math.round(parseFloat(document.getElementById(`svc-price-${id}`).value) * 100);
+      const depositCents = Math.round(parseFloat(document.getElementById(`svc-deposit-${id}`).value) * 100);
+      const durationMin  = parseInt(document.getElementById(`svc-duration-${id}`).value, 10);
+      const active       = document.getElementById(`svc-active-${id}`).checked;
+
+      if (!name || !Number.isFinite(priceCents) || !Number.isFinite(depositCents) || !Number.isFinite(durationMin)) {
+        return showToast('Valeurs invalides', true);
+      }
+
+      try {
+        const result = await api('PATCH', `/api/admin/services/${id}`, { name, priceCents, depositCents, durationMin, active });
+        if (result.error) return showToast(result.error, true);
+        const s = services.find(x => x.id === id);
+        if (s) Object.assign(s, { name, priceCents, depositCents, durationMin, active });
+        renderServices();
+        populateServiceSelect();
+        showToast('Prestation mise à jour');
+      } catch { showToast('Erreur', true); }
+    }
+
+    // ── Réservation manuelle ──────────────────────────────────
+    function populateServiceSelect() {
+      const sel = document.getElementById('nbService');
+      if (!sel) return;
+      sel.innerHTML = services.filter(s => s.active !== false).map(s =>
+        `<option value="${s.id}">${s.name} — ${(s.priceCents / 100).toFixed(0)} €</option>`
+      ).join('');
+    }
+
+    function toggleNewBookingForm() {
+      const form = document.getElementById('newBookingForm');
+      const opening = form.style.display === 'none';
+      form.style.display = opening ? 'block' : 'none';
+      if (opening) {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('nbDate').min = today;
+        if (!document.getElementById('nbDate').value) document.getElementById('nbDate').value = today;
+        nbLoadSlots();
+      }
+    }
+
+    async function nbLoadSlots() {
+      const service = document.getElementById('nbService').value;
+      const date    = document.getElementById('nbDate').value;
+      const timeSel = document.getElementById('nbTime');
+      if (!service || !date) return;
+      try {
+        const res = await fetch(`/api/slots?service=${encodeURIComponent(service)}&date=${encodeURIComponent(date)}`);
+        const data = await res.json();
+        timeSel.innerHTML = (data.slots || []).map(t => `<option value="${t}">${t}</option>`).join('')
+          || '<option value="">Aucun créneau disponible</option>';
+      } catch { timeSel.innerHTML = '<option value="">Erreur de chargement</option>'; }
+    }
+
+    async function createManualBooking() {
+      const service      = document.getElementById('nbService').value;
+      const time          = document.getElementById('nbTime').value;
+      const date          = document.getElementById('nbDate').value;
+      const vehicleType   = document.getElementById('nbVehicleType').value;
+      const vehicleModel  = document.getElementById('nbVehicleModel').value.trim();
+      const firstName     = document.getElementById('nbFirstName').value.trim();
+      const lastName      = document.getElementById('nbLastName').value.trim();
+      const phone         = document.getElementById('nbPhone').value.trim();
+      const email         = document.getElementById('nbEmail').value.trim();
+      const notifyClient  = document.getElementById('nbNotify').checked;
+
+      if (!service || !date || !time) return showToast('Sélectionnez une prestation, une date et un créneau', true);
+      if (!firstName || !lastName || !phone || !email) return showToast('Coordonnées client incomplètes', true);
+
+      try {
+        const result = await api('POST', '/api/admin/bookings', {
+          service, vehicleType, vehicleModel, date, time,
+          client: { firstName, lastName, phone, email },
+          notifyClient
+        });
+        if (result.error) return showToast(result.error, true);
+        showToast('Rendez-vous créé');
+        toggleNewBookingForm();
+        const [b, dash, cl] = await Promise.all([
+          api('GET', '/api/admin/bookings'),
+          api('GET', '/api/admin/dashboard'),
+          api('GET', '/api/admin/clients')
+        ]);
+        bookings = b.bookings || [];
+        dashboard = dash;
+        clients = cl.clients || [];
+        renderStats(); renderBookings(); renderPlanning(); renderDashboard(); renderClients(); renderMarketingRecipients();
+      } catch { showToast('Erreur de connexion', true); }
     }
 
     // ── Blocked ───────────────────────────────────────────────

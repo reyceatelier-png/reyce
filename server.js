@@ -46,6 +46,34 @@ const SERVICES = {
   'nettoyage-duo-experience':   { name: 'Nettoyage Intérieur + Extérieur — Expérience', priceCents: 34900, depositCents: 4000, durationMin: 480, slots: ['09:00'] }
 };
 
+// Catalogue "vivant" des prestations : les créneaux horaires (slots) restent
+// définis en dur ici, mais nom/prix/acompte/durée/actif sont pilotables
+// depuis l'admin (table Service) et prévalent sur les valeurs ci-dessus.
+// Petit cache mémoire (30s) pour éviter une requête DB à chaque appel.
+let serviceCatalogCache   = null;
+let serviceCatalogCacheAt = 0;
+async function getServiceCatalog(forceRefresh) {
+  if (!forceRefresh && serviceCatalogCache && Date.now() - serviceCatalogCacheAt < 30000) {
+    return serviceCatalogCache;
+  }
+  const rows = await prisma.service.findMany();
+  const merged = {};
+  for (const id of Object.keys(SERVICES)) {
+    const dbRow = rows.find(r => r.id === id);
+    merged[id] = {
+      ...SERVICES[id],
+      name:         dbRow?.name ?? SERVICES[id].name,
+      priceCents:   dbRow?.priceCents ?? SERVICES[id].priceCents,
+      depositCents: dbRow?.depositCents ?? SERVICES[id].depositCents,
+      durationMin:  dbRow?.durationMin ?? SERVICES[id].durationMin,
+      active:       dbRow ? dbRow.active : true
+    };
+  }
+  serviceCatalogCache = merged;
+  serviceCatalogCacheAt = Date.now();
+  return merged;
+}
+
 // Supplément (en centimes) ajouté au prix de base selon le gabarit détecté du véhicule.
 const GABARIT_SUPP_CENTS = {
   citadine: 0,
@@ -505,6 +533,48 @@ function buildOwnerEmail(data, svc) {
   };
 }
 
+// ── Email marketing (promos, actualités...) — envoi manuel depuis l'admin ──
+function buildMarketingEmail(firstName, subject, bodyText) {
+  const paragraphs = String(bodyText || '')
+    .split(/\n{2,}/)
+    .map(p => `<p style="margin:0 0 20px;">${p.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#070707; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#e0e0e0; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:560px; margin:0 auto; padding:56px 32px; }
+  .logo { font-size:18px; font-weight:600; letter-spacing:0.38em; text-transform:uppercase; color:#fff; margin-bottom:48px; }
+  .title { font-size:26px; font-weight:300; color:#fff; line-height:1.25; margin-bottom:28px; font-style:italic; }
+  .body { font-size:14px; color:#aaa; line-height:1.8; margin-bottom:8px; }
+  .divider { border:none; border-top:1px solid #181818; margin:40px 0 32px; }
+  .addr-title { font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#555; margin-bottom:12px; }
+  .addr-val { font-size:13px; color:#888; line-height:1.9; }
+  .footer { border-top:1px solid #141414; padding-top:24px; margin-top:40px; }
+  .footer p { font-size:11px; color:#444; line-height:1.8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
+  <p class="title">Bonjour ${firstName || ''},</p>
+  <div class="body">${paragraphs}</div>
+  <hr class="divider">
+  <p class="addr-title">Où nous trouver</p>
+  <p class="addr-val">47 chemin du Pras · La Mulatière, Lyon<br>07 63 00 43 85<br>reyceatelier@gmail.com</p>
+  <div class="footer"><p>REYCE · Atelier automobile premium · Lyon<br>www.reyce.fr · @reyce.lyon</p></div>
+</div>
+</body>
+</html>`;
+
+  return { subject, html };
+}
+
 // ── Gmail OAuth2 : obtenir un access token ────────────────────
 async function getAccessToken() {
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -776,6 +846,7 @@ app.post('/api/webhook',
           const svc  = SERVICES[data.service];
 
           await confirmPayment(session.id, session);
+          upsertClientFromGuest(data.client).catch(() => {});
 
           console.log(`[Webhook] ✓ Réservation confirmée : ${session.id}`);
 
@@ -957,6 +1028,9 @@ app.get('/api/slots', async (req, res) => {
     return res.status(400).json({ error: 'Paramètres invalides' });
   }
 
+  const catalog = await getServiceCatalog();
+  if (!catalog[service].active) return res.json({ slots: [] });
+
   const today = new Date().toISOString().split('T')[0];
   if (date < today) return res.json({ slots: [] });
 
@@ -989,7 +1063,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
     return res.status(400).json({ error: 'Coordonnées incomplètes' });
 
-  const svc         = SERVICES[service];
+  const catalog = await getServiceCatalog();
+  if (!catalog[service].active)
+    return res.status(400).json({ error: 'Cette prestation n\'est plus disponible à la réservation en ligne' });
+
+  const svc         = catalog[service];
   const isFull      = paymentType === 'full';
   const suppCents   = GABARIT_SUPP_CENTS[vehicleType] || 0;
   const amountCents = isFull ? (svc.priceCents + suppCents) : svc.depositCents;
@@ -1062,7 +1140,11 @@ app.post('/api/create-booking', async (req, res) => {
   if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
     return res.status(400).json({ error: 'Coordonnées incomplètes' });
 
-  const svc         = SERVICES[service];
+  const catalog = await getServiceCatalog();
+  if (!catalog[service].active)
+    return res.status(400).json({ error: 'Cette prestation n\'est plus disponible à la réservation en ligne' });
+
+  const svc         = catalog[service];
   const suppCents   = GABARIT_SUPP_CENTS[vehicleType] || 0;
   const totalCents  = svc.priceCents + suppCents;
 
@@ -1076,6 +1158,7 @@ app.post('/api/create-booking', async (req, res) => {
 
   const data = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: 'on_site', totalCents };
 
+  upsertClientFromGuest(client).catch(() => {});
   sendConfirmationEmails(data, svc).catch(err => console.error('[Email] Erreur post-réservation :', err.message));
   syncCalendarForBooking(booking.stripeSessionId, data, svc).catch(err => console.error('[Calendar] Erreur post-réservation :', err.message));
   if (client.phone) {
@@ -1141,6 +1224,77 @@ app.get('/api/admin/bookings', async (req, res) => {
   const bookings = (await readBookings())
     .sort((a, b) => (a.date + a.time) < (b.date + b.time) ? 1 : -1);
   res.json({ bookings });
+});
+
+// Création manuelle d'un rendez-vous (client au téléphone, walk-in...)
+app.post('/api/admin/bookings', async (req, res) => {
+  const { service, vehicleType, vehicleModel, tintOption, date, time, client, notifyClient } = req.body;
+
+  if (!SERVICES[service])
+    return res.status(400).json({ error: 'Prestation invalide' });
+  if (!date || !time)
+    return res.status(400).json({ error: 'Date et créneau obligatoires' });
+  if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
+    return res.status(400).json({ error: 'Coordonnées incomplètes' });
+
+  const catalog     = await getServiceCatalog();
+  const svc         = catalog[service];
+  const suppCents   = GABARIT_SUPP_CENTS[vehicleType] || 0;
+  const totalCents  = svc.priceCents + suppCents;
+
+  let booking;
+  try {
+    booking = await createDirectBooking({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, totalCents });
+  } catch (err) {
+    console.error('[Admin] Conflit de réservation manuelle :', err.message);
+    return res.status(409).json({ error: 'Ce créneau est déjà pris.' });
+  }
+
+  const data = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: 'on_site', totalCents };
+
+  upsertClientFromGuest(client).catch(() => {});
+  syncCalendarForBooking(booking.stripeSessionId, data, svc).catch(err => console.error('[Calendar] Erreur post-réservation :', err.message));
+
+  if (notifyClient !== false) {
+    sendConfirmationEmails(data, svc).catch(err => console.error('[Email] Erreur post-réservation :', err.message));
+    if (client.phone) {
+      const smsBody = `REYCE — Votre réservation est confirmée.\n${svc.name} · ${formatDate(date)} à ${time}\nAtelier : 47 chemin du Pras, La Mulatière`;
+      sendSMS(client.phone, smsBody).catch(err => console.error('[SMS] Erreur post-réservation :', err.message));
+    }
+  }
+
+  res.json({ ok: true, sessionId: booking.stripeSessionId });
+});
+
+// Catalogue des prestations (prix/durée/acompte/actif éditables)
+app.get('/api/admin/services', async (req, res) => {
+  const catalog = await getServiceCatalog(true);
+  res.json({ services: Object.entries(catalog).map(([id, s]) => ({ id, ...s })) });
+});
+
+app.patch('/api/admin/services/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!SERVICES[id]) return res.status(404).json({ error: 'Prestation introuvable' });
+
+  const { name, priceCents, depositCents, durationMin, active } = req.body;
+  const data = {};
+  if (name !== undefined) data.name = name;
+  if (priceCents !== undefined) data.priceCents = Number(priceCents);
+  if (depositCents !== undefined) data.depositCents = Number(depositCents);
+  if (durationMin !== undefined) data.durationMin = Number(durationMin);
+  if (active !== undefined) data.active = !!active;
+
+  if (Object.values(data).some(v => typeof v === 'number' && (!Number.isFinite(v) || v < 0))) {
+    return res.status(400).json({ error: 'Valeurs invalides' });
+  }
+
+  await prisma.service.upsert({
+    where:  { id },
+    update: data,
+    create: { id, name: SERVICES[id].name, category: 'nettoyage', durationMin: SERVICES[id].durationMin, priceCents: SERVICES[id].priceCents, depositCents: SERVICES[id].depositCents, ...data }
+  });
+  await getServiceCatalog(true); // rafraîchit le cache immédiatement
+  res.json({ ok: true });
 });
 
 // Vue d'ensemble : compteurs, chiffre d'affaires, RDV du jour/lendemain
@@ -1257,6 +1411,37 @@ app.get('/api/admin/clients', async (req, res) => {
   res.json({ clients });
 });
 
+// Envoi d'un email marketing (promo, actualité...) à une liste de clients.
+// Envoi séquentiel avec un léger délai entre chaque envoi (limite d'API Gmail).
+app.post('/api/admin/marketing/send', async (req, res) => {
+  const { subject, message, emails } = req.body;
+  if (!subject?.trim() || !message?.trim())
+    return res.status(400).json({ error: 'Objet et message requis' });
+
+  const list = Array.isArray(emails) ? [...new Set(emails.filter(Boolean))] : [];
+  if (!list.length) return res.status(400).json({ error: 'Aucun destinataire sélectionné' });
+  if (list.length > 300) return res.status(400).json({ error: 'Trop de destinataires (limite 300 par envoi)' });
+
+  const clientsRows = await prisma.client.findMany({ where: { email: { in: list } } });
+  const nameByEmail = Object.fromEntries(clientsRows.map(c => [c.email, c.firstName]));
+
+  let sent = 0, failed = 0;
+  for (const email of list) {
+    try {
+      const built = buildMarketingEmail(nameByEmail[email] || '', subject, message);
+      await sendEmail(email, built.subject, built.html);
+      sent++;
+    } catch (err) {
+      failed++;
+      console.error(`[Marketing] ✗ ${email} :`, err.message);
+    }
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  console.log(`[Marketing] Campagne "${subject}" — ${sent} envoyé(s), ${failed} échec(s)`);
+  res.json({ ok: true, sent, failed, total: list.length });
+});
+
 // Crée la fiche client (table Client) si elle n'existe pas encore, à
 // partir de la dernière réservation connue pour cet email.
 async function ensureClient(email) {
@@ -1272,6 +1457,22 @@ async function ensureClient(email) {
   return prisma.client.create({
     data: { email, firstName: latest.guestFirstName, lastName: latest.guestLastName, phone: latest.guestPhone }
   });
+}
+
+// Garde une fiche client à jour dès qu'un rendez-vous est confirmé — la
+// base de données clients ne dépend plus d'une action manuelle de l'admin
+// (notes/véhicule) pour exister.
+async function upsertClientFromGuest(client) {
+  if (!client?.email) return;
+  try {
+    await prisma.client.upsert({
+      where:  { email: client.email },
+      update: { firstName: client.firstName, lastName: client.lastName, phone: client.phone },
+      create: { email: client.email, firstName: client.firstName, lastName: client.lastName, phone: client.phone }
+    });
+  } catch (err) {
+    console.error('[Client] Erreur upsert :', err.message);
+  }
 }
 
 // Enregistrer une note interne sur un client (crée la fiche client si besoin)
