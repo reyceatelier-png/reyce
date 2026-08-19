@@ -180,6 +180,38 @@ async function releaseHold(appointmentId) {
   await prisma.appointment.delete({ where: { id: appointmentId } }).catch(() => {});
 }
 
+// Réservation directe, sans paiement en ligne (acompte/Stripe désactivés
+// pour l'instant) : confirmée immédiatement, bloque le créneau tout de
+// suite via la même contrainte que le flux Stripe.
+async function createDirectBooking({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, totalCents }) {
+  const localId = `local_${crypto.randomUUID()}`;
+  const row = await prisma.appointment.create({
+    data: {
+      serviceId:       service,
+      date:            strToDate(date),
+      startTime:       time,
+      endTime:         addMinutes(time, svc.durationMin),
+      durationMin:     svc.durationMin,
+      status:          'confirmed',
+      guestFirstName:  client.firstName,
+      guestLastName:   client.lastName,
+      guestEmail:      client.email,
+      guestPhone:      client.phone,
+      guestNotes:      client.notes || null,
+      vehicleLabel:    vehicleModel || null,
+      vehicleCategory: vehicleType || null,
+      tintOption:      tintOption || null,
+      totalCents,
+      depositCents:    0,
+      amountPaidCents: 0,
+      paymentType:     'on_site',
+      paidAt:          null,
+      stripeSessionId: localId
+    }
+  });
+  return row;
+}
+
 async function confirmPayment(sessionId, session) {
   const existing = await prisma.appointment.findUnique({ where: { stripeSessionId: sessionId } });
   if (existing) {
@@ -303,6 +335,13 @@ function buildClientEmail(data, svc) {
   const notesLine = data.client.notes?.trim()
     ? `<tr><td class="label">Notes</td><td>${data.client.notes}</td></tr>`
     : '';
+  const onSite = data.paymentType === 'on_site';
+  const paymentRow = onSite
+    ? `<tr><td class="lbl">Montant estimé</td><td class="val"><span class="accent">${((data.totalCents ?? svc.priceCents) / 100)}&thinsp;€</span> — à régler sur place</td></tr>`
+    : `<tr><td class="lbl">Acompte payé</td><td class="val"><span class="accent">${svc.depositCents / 100}&thinsp;€</span> — déduit du montant final</td></tr>`;
+  const cancelBoxText = onSite
+    ? `<strong>Annulation :</strong> merci de nous prévenir le plus tôt possible en cas d'empêchement, idéalement plus de 24h à l'avance.`
+    : `<strong>Annulation :</strong> toute annulation moins de 24h avant le rendez-vous ou absence non signalée pourra entraîner la conservation de l'acompte.<br><br>Pour modifier ou annuler, contactez-nous le plus tôt possible.`;
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -347,7 +386,7 @@ function buildClientEmail(data, svc) {
   <p class="title">Votre rendez-vous<br>est confirmé.</p>
   <p class="sub">
     Bonjour ${data.client.firstName},<br>
-    votre acompte a bien été encaissé. Nous avons hâte de prendre soin de votre véhicule.
+    ${onSite ? 'votre créneau est réservé.' : 'votre acompte a bien été encaissé.'} Nous avons hâte de prendre soin de votre véhicule.
   </p>
 
   <div class="badge">Récapitulatif de réservation</div>
@@ -359,14 +398,11 @@ function buildClientEmail(data, svc) {
     <tr><td class="lbl">Véhicule</td><td class="val">${vehicleLine}</td></tr>
     ${tintLine}
     ${notesLine}
-    <tr><td class="lbl">Acompte payé</td><td class="val"><span class="accent">${svc.depositCents / 100}&thinsp;€</span> — déduit du montant final</td></tr>
+    ${paymentRow}
   </table>
 
   <div class="box">
-    <p>
-      <strong>Annulation :</strong> toute annulation moins de 24h avant le rendez-vous ou absence non signalée pourra entraîner la conservation de l'acompte.<br><br>
-      Pour modifier ou annuler, contactez-nous le plus tôt possible.
-    </p>
+    <p>${cancelBoxText}</p>
   </div>
 
   <hr class="divider">
@@ -404,6 +440,10 @@ function buildOwnerEmail(data, svc) {
   const notesLine = data.client.notes?.trim()
     ? `<tr><td class="label">Notes client</td><td>${data.client.notes}</td></tr>`
     : '';
+  const onSite = data.paymentType === 'on_site';
+  const paymentRow = onSite
+    ? `<tr><td class="label">Montant estimé</td><td><span class="amount">${((data.totalCents ?? svc.priceCents) / 100)}&thinsp;€</span> — à régler sur place</td></tr>`
+    : `<tr><td class="label">Acompte reçu</td><td><span class="amount">${svc.depositCents / 100}&thinsp;€</span></td></tr>`;
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -434,7 +474,7 @@ function buildOwnerEmail(data, svc) {
   <div class="badge">Nouvelle réservation</div>
 
   <p class="title">Nouveau rendez-vous confirmé.</p>
-  <p class="sub">Un client vient de réserver et de payer son acompte avec succès.</p>
+  <p class="sub">${onSite ? 'Un client vient de réserver un créneau (règlement sur place).' : 'Un client vient de réserver et de payer son acompte avec succès.'}</p>
 
   <table class="table">
     <tr><td class="label">Prestation</td><td>${svc.name}</td></tr>
@@ -446,7 +486,7 @@ function buildOwnerEmail(data, svc) {
     <tr><td class="label">Téléphone</td><td>${data.client.phone}</td></tr>
     <tr><td class="label">Email</td><td>${data.client.email}</td></tr>
     ${notesLine}
-    <tr><td class="label">Acompte reçu</td><td><span class="amount">${svc.depositCents / 100}&thinsp;€</span></td></tr>
+    ${paymentRow}
   </table>
 
   <div class="footer">
@@ -651,7 +691,9 @@ async function createCalendarEvent(data, svc) {
         `Téléphone : ${data.client.phone}`,
         `Email : ${data.client.email}`,
         `Véhicule : ${vehicleStr}`,
-        `Acompte payé : ${svc.depositCents / 100} €`,
+        data.paymentType === 'on_site'
+          ? `Règlement : sur place — ${((data.totalCents ?? svc.priceCents) / 100)} €`
+          : `Acompte payé : ${svc.depositCents / 100} €`,
         data.client.notes?.trim() ? `Notes : ${data.client.notes}` : null
       ].filter(Boolean).join('\n'),
       start: { dateTime: fmt(start), timeZone: 'Europe/Paris' },
@@ -1004,9 +1046,60 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 });
 
-app.get('/api/booking/:sessionId', async (req, res) => {
+// Réservation directe sans paiement en ligne (acompte/Stripe désactivés) :
+// le créneau est bloqué et confirmé immédiatement, comme le ferait le
+// webhook Stripe, mais sans étape de paiement.
+app.use('/api/create-booking', express.json());
+app.post('/api/create-booking', async (req, res) => {
+  const { service, vehicleType, vehicleModel, tintOption, date, time, client } = req.body;
+
+  if (!SERVICES[service])
+    return res.status(400).json({ error: 'Prestation invalide' });
+  if (!date || !time)
+    return res.status(400).json({ error: 'Date et créneau obligatoires' });
+  if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
+    return res.status(400).json({ error: 'Coordonnées incomplètes' });
+
+  const svc         = SERVICES[service];
+  const suppCents   = GABARIT_SUPP_CENTS[vehicleType] || 0;
+  const totalCents  = svc.priceCents + suppCents;
+
+  let booking;
   try {
-    const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+    booking = await createDirectBooking({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, totalCents });
+  } catch (err) {
+    console.error('[Booking] Conflit de réservation :', err.message);
+    return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
+  }
+
+  const data = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: 'on_site', totalCents };
+
+  sendConfirmationEmails(data, svc).catch(err => console.error('[Email] Erreur post-réservation :', err.message));
+  syncCalendarForBooking(booking.stripeSessionId, data, svc).catch(err => console.error('[Calendar] Erreur post-réservation :', err.message));
+  if (client.phone) {
+    const smsBody = `REYCE — Votre réservation est confirmée.\n${svc.name} · ${formatDate(date)} à ${time}\nAtelier : 47 chemin du Pras, La Mulatière`;
+    sendSMS(client.phone, smsBody).catch(err => console.error('[SMS] Erreur post-réservation :', err.message));
+  }
+
+  res.json({ ok: true, sessionId: booking.stripeSessionId });
+});
+
+app.get('/api/booking/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+
+  // Réservation directe (sans Stripe) : les infos sont en base, pas côté Stripe.
+  if (sessionId.startsWith('local_')) {
+    const booking = await findBookingBySessionId(sessionId);
+    if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
+    return res.json({
+      ...booking,
+      paymentStatus: 'on_site',
+      depositAmount: 0
+    });
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (!session || session.metadata?.bookingType !== 'reyce')
       return res.status(404).json({ error: 'Réservation introuvable' });

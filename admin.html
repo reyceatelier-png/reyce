@@ -712,7 +712,7 @@
       const vehicle      = [b.vehicleType, b.vehicleModel].filter(Boolean).join(' — ') || '—';
       const status       = b.status;
       const isCancelled  = status === 'cancelled' || status === 'no_show';
-      const payment      = b.paymentType === 'full' ? 'Complet' : 'Acompte';
+      const payment      = b.paymentType === 'full' ? 'Complet' : b.paymentType === 'on_site' ? 'Sur place' : 'Acompte';
       const nextStatus   = NEXT_STATUS[status];
 
       return `

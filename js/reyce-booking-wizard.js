@@ -404,11 +404,12 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
       h+='</span></div>';
       if(state.promo&&promoEligible()){h+='<p style="color:var(--dim);margin-top:8px;font-size:.8rem">Remise BIENVENUE10 : −'+(st-gt)+' €.</p>';}
       else if(optsTotal()>0){h+='<p style="color:var(--dim);margin-top:8px;font-size:.8rem">Dont formule '+basePrice()+' € + options '+optsTotal()+' €.</p>';}
-      h+='<p style="color:var(--dim-2);margin-top:10px;font-size:.78rem">Un acompte de 40&nbsp;€ confirme votre créneau ; il est déduit du montant final réglé sur place selon l\'état réel du véhicule.</p>';
+      h+='<p style="color:var(--dim-2);margin-top:10px;font-size:.78rem">'+(STRIPE_ENABLED?'Un acompte de 40&nbsp;€ confirme votre créneau ; il est déduit du montant final réglé sur place selon l\'état réel du véhicule.':'Votre créneau est confirmé immédiatement ; le règlement se fait sur place selon l\'état réel du véhicule.')+'</p>';
     }
     var last=L.length-1;
+    var lastLabel=STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer le rendez-vous';
     h+='<div class="pnav"><button type="button" class="btn ghost" id="back" '+(step===0?'style="visibility:hidden"':'')+'>← Retour</button>'+
-       '<button type="button" class="btn" id="next">'+(step===last?'Payer l\'acompte et confirmer':'Continuer →')+'</button></div>';
+       '<button type="button" class="btn" id="next">'+(step===last?lastLabel:'Continuer →')+'</button></div>';
     setPanel(h);bindP(last);animateAmt();return;
   }
 
@@ -495,21 +496,22 @@ function done(){
       return;
     }
 
-    // ---- paiement en pause : on enregistre la demande sans passer par Stripe ----
-    if(next){next.disabled=true;next.textContent='Envoi…';}
-    fetch('/api/contact',{
+    // ---- paiement en pause : réservation directe, confirmée sans Stripe ----
+    if(next){next.disabled=true;next.textContent='Confirmation…';}
+    fetch('/api/create-booking',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        type:'devis',
-        firstName: nm.firstName, lastName: nm.lastName,
-        email: state.email, phone: state.tel,
-        subject: 'Réservation nettoyage — '+CLEAN[state.clean].label+' '+f.k,
-        vehicleInfo: ((state.marque+' '+state.modele).trim())+(state.gab?(' — '+GABARITS[state.gab].label):''),
-        message: 'Créneau souhaité : '+(state.jourLabel||'—')+' · '+(state.heure||'—')+'. Total estimé : '+(grandTotal()||'sur devis')+' €.'
+        service: serviceId(),
+        vehicleType: state.gab,
+        vehicleModel: (state.marque+' '+state.modele).trim(),
+        date: state.jourISO,
+        time: state.heure,
+        client: {firstName: nm.firstName, lastName: nm.lastName, phone: state.tel, email: state.email}
       })
-    }).catch(function(){}).then(function(){
-      showDoneScreen('Demande enregistrée', 'Merci '+(state.nom.split(' ')[0]||'')+'. Votre créneau est en attente de confirmation — nous revenons vers vous très vite pour finaliser (le paiement en ligne de l\'acompte sera bientôt disponible).');
-    });
+    }).then(function(r){return r.json();}).then(function(data){
+      if(data.error){showError(data.error,'Confirmer le rendez-vous');return;}
+      if(data.sessionId){window.location.href='/confirmation.html?session_id='+encodeURIComponent(data.sessionId);}
+    }).catch(function(){showError('Erreur de connexion. Vérifiez votre réseau et réessayez.','Confirmer le rendez-vous');});
     return;
   }
 

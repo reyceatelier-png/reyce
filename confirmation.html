@@ -329,6 +329,11 @@
           const tintStr    = data.tintOption === 'legal' ? 'Homologuée' : data.tintOption === 'dark' ? 'Très sombre' : null;
           const clientName = `${data.client?.firstName || ''} ${data.client?.lastName || ''}`.trim();
 
+          const onSite = data.paymentType === 'on_site';
+          const paymentRow = onSite
+            ? ['Règlement', 'Sur place', true]
+            : ['Acompte', `${data.depositAmount || 40}\u202f€`, true];
+
           const rows = [
             ['Prestation', data.serviceName],
             ['Date',       fmt(data.date)],
@@ -336,7 +341,7 @@
             ['Véhicule',   vehicleStr],
             tintStr ? ['Film teinté', tintStr] : null,
             ['Client',     clientName],
-            ['Acompte',    '40\u202f€', true]
+            paymentRow
           ].filter(Boolean);
 
           recap.innerHTML = rows.map(([label, val, accent]) => `
