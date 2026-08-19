@@ -20,6 +20,8 @@
       --accent:   #bfc8d0;
       --red:      #e05252;
       --green:    #52b788;
+      --amber:    #f0c040;
+      --blue:     #5b9bd5;
       --font:     'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
 
@@ -110,6 +112,7 @@
       display: flex;
       border-bottom: 1px solid var(--border);
       padding: 0 32px;
+      overflow-x: auto;
     }
     .tab {
       padding: 14px 0;
@@ -126,6 +129,7 @@
       border-left: none;
       border-right: none;
       transition: color .2s;
+      white-space: nowrap;
     }
     .tab:hover { color: var(--grey1); }
     .tab.is-active { color: var(--white); border-bottom-color: var(--white); }
@@ -133,7 +137,7 @@
     /* ── Content ── */
     .content {
       padding: 32px;
-      max-width: 1000px;
+      max-width: 1100px;
     }
     .panel { display: none; }
     .panel.is-active { display: block; }
@@ -148,7 +152,7 @@
     }
 
     /* ── Input / Button ── */
-    input, select {
+    input, select, textarea {
       background: var(--bg2);
       border: 1px solid var(--border2);
       color: var(--white);
@@ -158,8 +162,9 @@
       outline: none;
       width: 100%;
     }
-    input:focus, select:focus { border-color: var(--accent); }
-    input::placeholder { color: var(--grey3); }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: var(--grey3); }
+    textarea { resize: vertical; min-height: 60px; }
 
     .btn {
       display: inline-flex;
@@ -188,9 +193,9 @@
       border: 1px solid var(--border);
       padding: 20px 24px;
       display: grid;
-      grid-template-columns: 120px 1fr 1fr 1fr auto;
+      grid-template-columns: 110px 1fr 1fr 1fr auto;
       align-items: center;
-      gap: 24px;
+      gap: 20px;
     }
     .booking-card--cancelled { opacity: .4; }
     .booking-card__date {
@@ -216,11 +221,16 @@
       text-transform: uppercase;
       padding: 3px 8px;
       border: 1px solid;
+      display: inline-block;
     }
-    .status-badge--confirmed { color: var(--green);  border-color: var(--green); }
-    .status-badge--today     { color: #f0c040;       border-color: #f0c040; }
-    .status-badge--done      { color: var(--accent); border-color: var(--accent); }
-    .status-badge--cancelled { color: var(--grey3);  border-color: var(--border2); }
+    .status-badge--confirmed   { color: var(--green);  border-color: var(--green); }
+    .status-badge--in_progress { color: var(--blue);   border-color: var(--blue); }
+    .status-badge--ready       { color: var(--amber);  border-color: var(--amber); }
+    .status-badge--completed   { color: var(--accent); border-color: var(--accent); }
+    .status-badge--cancelled   { color: var(--grey3);  border-color: var(--border2); }
+    .status-badge--no_show     { color: var(--red);    border-color: var(--red); }
+
+    .action-col { display: flex; gap: 6px; flex-direction: column; align-items: flex-end; }
 
     /* ── Availability ── */
     .avail-grid {
@@ -272,6 +282,68 @@
     .stat-card__val  { font-size: 28px; font-weight: 300; color: var(--white); }
     .stat-card__label { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--grey3); margin-top: 4px; }
 
+    /* ── Dashboard sections ── */
+    .dash-section { margin-bottom: 40px; }
+    .dash-section__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .dash-section__count { font-size: 11px; color: var(--grey3); }
+
+    /* ── Planning ── */
+    .planning-nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .planning-nav__label { font-size: 13px; color: var(--white); min-width: 220px; }
+    .planning-day { margin-bottom: 24px; }
+    .planning-day__head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+    .planning-day__name { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--white); }
+    .planning-day__date { font-size: 11px; color: var(--grey3); }
+    .planning-day__today { color: var(--amber); }
+    .planning-row {
+      display: grid;
+      grid-template-columns: 64px 1fr auto auto;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      margin-bottom: 1px;
+      cursor: pointer;
+    }
+    .planning-row:hover { border-color: var(--border2); }
+    .planning-row__time { font-size: 12px; color: var(--white); }
+    .planning-row__main { min-width: 0; }
+    .planning-row__svc  { font-size: 12px; color: var(--grey1); }
+    .planning-row__client { font-size: 11px; color: var(--grey3); }
+    .planning-empty { font-size: 11px; color: var(--grey3); padding: 10px 0; }
+
+    /* ── Clients ── */
+    .client-list { display: flex; flex-direction: column; gap: 1px; }
+    .client-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+    }
+    .client-card__name { font-size: 14px; color: var(--white); }
+    .client-card__sub  { font-size: 11px; color: var(--grey3); margin-top: 2px; }
+    .client-card__notes { display: flex; flex-direction: column; gap: 8px; }
+
     /* ── Empty state ── */
     .empty {
       padding: 48px 0;
@@ -302,12 +374,14 @@
     .toast.is-error   { border-color: var(--red); color: var(--red); }
 
     @media (max-width: 700px) {
-      .booking-card { grid-template-columns: 1fr; }
-      .avail-grid   { grid-template-columns: 1fr; }
-      .stats-row    { grid-template-columns: 1fr 1fr; }
-      .header       { padding: 0 16px; }
-      .tabs         { padding: 0 16px; }
-      .content      { padding: 20px 16px; }
+      .booking-card  { grid-template-columns: 1fr; }
+      .avail-grid    { grid-template-columns: 1fr; }
+      .stats-row     { grid-template-columns: 1fr 1fr; }
+      .client-card   { grid-template-columns: 1fr; }
+      .planning-row  { grid-template-columns: 48px 1fr; }
+      .header        { padding: 0 16px; }
+      .tabs          { padding: 0 16px; }
+      .content       { padding: 20px 16px; }
     }
   </style>
 </head>
@@ -337,33 +411,89 @@
     </div>
 
     <div class="tabs">
-      <button class="tab is-active" data-tab="bookings"       onclick="switchTab('bookings')">Réservations</button>
-      <button class="tab"           data-tab="availability"   onclick="switchTab('availability')">Disponibilités</button>
+      <button class="tab is-active" data-tab="dashboard"     onclick="switchTab('dashboard')">Tableau de bord</button>
+      <button class="tab"           data-tab="bookings"      onclick="switchTab('bookings')">Réservations</button>
+      <button class="tab"           data-tab="planning"      onclick="switchTab('planning')">Planning</button>
+      <button class="tab"           data-tab="clients"       onclick="switchTab('clients')">Clients</button>
+      <button class="tab"           data-tab="availability"  onclick="switchTab('availability')">Disponibilités</button>
     </div>
 
     <div class="content">
 
+      <!-- ── Panel : Tableau de bord ── -->
+      <div class="panel is-active" id="panel-dashboard">
+
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-card__val" id="dashToday">—</div><div class="stat-card__label">Aujourd'hui</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="dashTomorrow">—</div><div class="stat-card__label">Demain</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="dashUpcoming">—</div><div class="stat-card__label">7 prochains jours</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="dashRevenue">—</div><div class="stat-card__label">Encaissé (actif)</div></div>
+        </div>
+
+        <div class="dash-section">
+          <div class="dash-section__head">
+            <p class="section-title" style="margin:0;">Aujourd'hui</p>
+            <span class="dash-section__count" id="dashTodayCount"></span>
+          </div>
+          <div class="booking-list" id="dashTodayList"></div>
+        </div>
+
+        <div class="dash-section">
+          <div class="dash-section__head">
+            <p class="section-title" style="margin:0;">Demain</p>
+            <span class="dash-section__count" id="dashTomorrowCount"></span>
+          </div>
+          <div class="booking-list" id="dashTomorrowList"></div>
+        </div>
+
+      </div>
+
       <!-- ── Panel : Réservations ── -->
-      <div class="panel is-active" id="panel-bookings">
+      <div class="panel" id="panel-bookings">
 
         <div class="stats-row" id="statsRow">
           <div class="stat-card"><div class="stat-card__val" id="statTotal">—</div><div class="stat-card__label">Total réservations</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="statConfirmed">—</div><div class="stat-card__label">Confirmées</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="statConfirmed">—</div><div class="stat-card__label">Actives</div></div>
           <div class="stat-card"><div class="stat-card__val" id="statUpcoming">—</div><div class="stat-card__label">À venir</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="statRevenue">—</div><div class="stat-card__label">Acomptes encaissés</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="statRevenue">—</div><div class="stat-card__label">Encaissé</div></div>
         </div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
           <p class="section-title" style="margin:0;">Toutes les réservations</p>
-          <select id="filterStatus" onchange="renderBookings()" style="width:160px;">
+          <select id="filterStatus" onchange="renderBookings()" style="width:200px;">
             <option value="all">Tous les statuts</option>
-            <option value="upcoming">À venir</option>
-            <option value="done">Terminées</option>
-            <option value="cancelled">Annulées</option>
+            <option value="confirmed">Confirmé</option>
+            <option value="in_progress">En cours</option>
+            <option value="ready">Véhicule prêt</option>
+            <option value="completed">Terminé</option>
+            <option value="no_show">Absent</option>
+            <option value="cancelled">Annulée</option>
           </select>
         </div>
 
         <div class="booking-list" id="bookingList"></div>
+      </div>
+
+      <!-- ── Panel : Planning ── -->
+      <div class="panel" id="panel-planning">
+
+        <div class="planning-nav">
+          <button class="btn btn--ghost btn--sm" onclick="planningShiftWeek(-1)">← Semaine préc.</button>
+          <span class="planning-nav__label" id="planningLabel"></span>
+          <button class="btn btn--ghost btn--sm" onclick="planningShiftWeek(1)">Semaine suiv. →</button>
+          <button class="btn btn--ghost btn--sm" onclick="planningToday()">Aujourd'hui</button>
+        </div>
+
+        <div id="planningDays"></div>
+
+      </div>
+
+      <!-- ── Panel : Clients ── -->
+      <div class="panel" id="panel-clients">
+
+        <p class="section-title">Clients (d'après l'historique des réservations)</p>
+        <div class="client-list" id="clientList"></div>
+
       </div>
 
       <!-- ── Panel : Disponibilités ── -->
@@ -411,10 +541,14 @@
 
     const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
     const DAYS   = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+    const DAYS_FULL = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 
     let token     = sessionStorage.getItem('adminToken') || '';
     let bookings  = [];
     let blocked   = { dates: [], slots: {} };
+    let clients   = [];
+    let dashboard = null;
+    let planningWeekStart = mondayOf(new Date());
 
     // ── Auth ──────────────────────────────────────────────────
     function login() {
@@ -454,20 +588,27 @@
 
     async function loadAll() {
       try {
-        const [b, bl] = await Promise.all([
+        const [b, bl, dash, cl] = await Promise.all([
           api('GET', '/api/admin/bookings'),
-          api('GET', '/api/admin/blocked')
+          api('GET', '/api/admin/blocked'),
+          api('GET', '/api/admin/dashboard'),
+          api('GET', '/api/admin/clients')
         ]);
-        bookings = b.bookings || [];
-        blocked  = bl;
+        bookings  = b.bookings || [];
+        blocked   = bl;
+        dashboard = dash;
+        clients   = cl.clients || [];
 
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('app').classList.add('is-visible');
         document.getElementById('loginError').style.display = 'none';
 
+        renderDashboard();
         renderStats();
         renderBookings();
         renderBlocked();
+        renderPlanning();
+        renderClients();
       } catch (e) {
         if (e.message !== 'Non autorisé') showToast('Erreur de connexion', true);
       }
@@ -479,96 +620,121 @@
       document.querySelectorAll('.panel').forEach(p => p.classList.toggle('is-active', p.id === `panel-${name}`));
     }
 
-    // ── Stats ─────────────────────────────────────────────────
+    // ── Statuts ───────────────────────────────────────────────
+    const STATUS_LABEL = {
+      confirmed:   'Confirmé',
+      in_progress: 'En cours',
+      ready:       'Véhicule prêt',
+      completed:   'Terminé',
+      cancelled:   'Annulée',
+      no_show:     'Absent'
+    };
+    const STATUS_ORDER = { confirmed: 0, in_progress: 1, ready: 2, completed: 3, no_show: 4, cancelled: 5 };
+    // Statut suivant proposé en un clic, dans le flux normal d'un rendez-vous
+    const NEXT_STATUS = { confirmed: 'in_progress', in_progress: 'ready', ready: 'completed' };
+    const NEXT_LABEL  = { confirmed: 'Marquer en cours', in_progress: 'Marquer prêt', ready: 'Marquer terminé' };
+
+    // ── Dashboard ─────────────────────────────────────────────
+    function renderDashboard() {
+      if (!dashboard) return;
+      document.getElementById('dashToday').textContent    = dashboard.todayCount;
+      document.getElementById('dashTomorrow').textContent = dashboard.tomorrowCount;
+      document.getElementById('dashUpcoming').textContent = dashboard.upcomingCount;
+      document.getElementById('dashRevenue').textContent  = `${(dashboard.revenueCents / 100).toFixed(0)} €`;
+
+      document.getElementById('dashTodayCount').textContent    = `${dashboard.today.length} RDV`;
+      document.getElementById('dashTomorrowCount').textContent = `${dashboard.tomorrow.length} RDV`;
+
+      const todayEl = document.getElementById('dashTodayList');
+      todayEl.innerHTML = dashboard.today.length
+        ? dashboard.today.map(b => bookingCardHTML(b)).join('')
+        : '<div class="empty">Aucun rendez-vous aujourd\'hui</div>';
+
+      const tomorrowEl = document.getElementById('dashTomorrowList');
+      tomorrowEl.innerHTML = dashboard.tomorrow.length
+        ? dashboard.tomorrow.map(b => bookingCardHTML(b)).join('')
+        : '<div class="empty">Aucun rendez-vous demain</div>';
+    }
+
+    // ── Stats (onglet Réservations) ──────────────────────────
     function renderStats() {
-      const confirmed = bookings.filter(b => b.status !== 'cancelled');
-      const upcoming  = bookings.filter(b => ['upcoming','today'].includes(getStatus(b)));
-      const revenue   = confirmed.reduce((s, b) => s + (b.amountPaid || 0), 0);
+      const active   = bookings.filter(b => !['cancelled', 'no_show'].includes(b.status));
+      const today    = new Date().toISOString().split('T')[0];
+      const upcoming = active.filter(b => b.date >= today);
+      const revenue  = active.reduce((s, b) => s + (b.amountPaid || 0), 0);
 
       document.getElementById('statTotal').textContent     = bookings.length;
-      document.getElementById('statConfirmed').textContent = confirmed.length;
+      document.getElementById('statConfirmed').textContent = active.length;
       document.getElementById('statUpcoming').textContent  = upcoming.length;
       document.getElementById('statRevenue').textContent   = `${(revenue / 100).toFixed(0)} €`;
     }
 
-    // ── Statut automatique ────────────────────────────────────
-    function getStatus(b) {
-      if (b.status === 'cancelled') return 'cancelled';
-      const today = new Date().toISOString().split('T')[0];
-      if (b.date < today) return 'done';
-      if (b.date === today) return 'today';
-      return 'upcoming';
-    }
+    // ── Carte de réservation (réutilisée : dashboard + réservations + planning) ──
+    function bookingCardHTML(b) {
+      const dateStr      = fmtDate(b.date);
+      const vehicle      = [b.vehicleType, b.vehicleModel].filter(Boolean).join(' — ') || '—';
+      const status       = b.status;
+      const isCancelled  = status === 'cancelled' || status === 'no_show';
+      const payment      = b.paymentType === 'full' ? 'Complet' : 'Acompte';
+      const nextStatus   = NEXT_STATUS[status];
 
-    const STATUS_LABEL = { confirmed: 'Confirmé', upcoming: 'À venir', today: 'Aujourd\'hui', done: 'Terminé', cancelled: 'Annulée' };
-    const STATUS_CLASS = { confirmed: 'confirmed', upcoming: 'confirmed', today: 'today', done: 'done', cancelled: 'cancelled' };
+      return `
+        <div class="booking-card${isCancelled ? ' booking-card--cancelled' : ''}">
+          <div>
+            <div class="booking-card__date">${dateStr}</div>
+            <div class="booking-card__time">${b.time || '—'}</div>
+          </div>
+          <div>
+            <div class="booking-card__label">Prestation</div>
+            <div class="booking-card__val">${b.serviceName || b.service || '—'}</div>
+            <div style="font-size:11px;color:var(--grey3);margin-top:2px;">${payment} — ${((b.amountPaid || 0) / 100)} €${b.remainingCents ? ` · reste ${(b.remainingCents/100)} €` : ''}</div>
+          </div>
+          <div>
+            <div class="booking-card__label">Client</div>
+            <div class="booking-card__val">${(b.client?.firstName || '') + ' ' + (b.client?.lastName || '')}</div>
+            <div style="font-size:11px;color:var(--grey3);">${b.client?.phone || ''}</div>
+          </div>
+          <div>
+            <div class="booking-card__label">Véhicule</div>
+            <div class="booking-card__val">${vehicle}</div>
+            <div style="margin-top:6px;"><span class="status-badge status-badge--${status}">${STATUS_LABEL[status] || status}</span></div>
+          </div>
+          <div class="action-col">
+            ${nextStatus ? `<button class="btn btn--ghost btn--sm" onclick="setStatus('${b.sessionId}','${nextStatus}')">${NEXT_LABEL[status]}</button>` : ''}
+            ${status === 'ready' || status === 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Email prêt</button>` : ''}
+            ${status === 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="sendReview('${b.sessionId}')">Demande avis</button>` : ''}
+            ${!isCancelled && status !== 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="setStatus('${b.sessionId}','no_show')">Absent</button>` : ''}
+            ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="cancelBooking('${b.sessionId}')">Annuler</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
 
     // ── Bookings ──────────────────────────────────────────────
     function renderBookings() {
       const filter = document.getElementById('filterStatus').value;
       const list   = document.getElementById('bookingList');
 
-      let filtered = bookings;
-      if (filter === 'confirmed') filtered = bookings.filter(b => b.status !== 'cancelled');
-      if (filter === 'cancelled') filtered = bookings.filter(b => b.status === 'cancelled');
-      if (filter === 'done')      filtered = bookings.filter(b => getStatus(b) === 'done');
-      if (filter === 'upcoming')  filtered = bookings.filter(b => ['upcoming','today'].includes(getStatus(b)));
+      const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter);
 
-      if (!filtered.length) {
-        list.innerHTML = '<div class="empty">Aucune réservation</div>';
-        return;
-      }
+      list.innerHTML = filtered.length
+        ? filtered.map(b => bookingCardHTML(b)).join('')
+        : '<div class="empty">Aucune réservation</div>';
+    }
 
-      list.innerHTML = filtered.map(b => {
-        const dateStr   = fmtDate(b.date);
-        const vehicle   = [b.vehicleType, b.vehicleModel].filter(Boolean).join(' — ') || '—';
-        const status    = getStatus(b);
-        const isDone    = status === 'done';
-        const isCancelled = status === 'cancelled';
-        const payment   = b.paymentType === 'full' ? 'Complet' : 'Acompte';
-        return `
-          <div class="booking-card${isCancelled ? ' booking-card--cancelled' : ''}">
-            <div>
-              <div class="booking-card__date">${dateStr}</div>
-              <div class="booking-card__time">${b.time || '—'}</div>
-            </div>
-            <div>
-              <div class="booking-card__label">Prestation</div>
-              <div class="booking-card__val">${b.serviceName || b.service || '—'}</div>
-              <div style="font-size:11px;color:var(--grey3);margin-top:2px;">${payment} — ${(b.amountPaid / 100) || 0} €</div>
-            </div>
-            <div>
-              <div class="booking-card__label">Client</div>
-              <div class="booking-card__val">${(b.client?.firstName || '') + ' ' + (b.client?.lastName || '')}</div>
-              <div style="font-size:11px;color:var(--grey3);">${b.client?.phone || ''}</div>
-            </div>
-            <div>
-              <div class="booking-card__label">Véhicule</div>
-              <div class="booking-card__val">${vehicle}</div>
-              <div style="margin-top:6px;"><span class="status-badge status-badge--${STATUS_CLASS[status] || 'confirmed'}">${STATUS_LABEL[status] || status}</span></div>
-            </div>
-            <div style="display:flex;gap:6px;flex-direction:column;align-items:flex-end;">
-              ${isDone ? `
-                <button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Véhicule prêt</button>
-                <button class="btn btn--ghost btn--sm" onclick="sendReview('${b.sessionId}')">Demande avis</button>
-              ` : ''}
-              ${!isCancelled && !isDone ? `<button class="btn btn--ghost btn--sm" onclick="cancelBooking('${b.sessionId}')">Annuler</button>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
+    async function setStatus(sessionId, status) {
+      try {
+        await api('PATCH', `/api/admin/booking/${sessionId}`, { status });
+        const b = bookings.find(x => x.sessionId === sessionId);
+        if (b) b.status = status;
+        refreshAllViews();
+        showToast('Statut mis à jour');
+      } catch { showToast('Erreur', true); }
     }
 
     async function cancelBooking(sessionId) {
       if (!confirm('Annuler cette réservation ?')) return;
-      try {
-        await api('PATCH', `/api/admin/booking/${sessionId}`, { status: 'cancelled' });
-        const idx = bookings.findIndex(b => b.sessionId === sessionId);
-        if (idx !== -1) bookings[idx].status = 'cancelled';
-        renderStats();
-        renderBookings();
-        showToast('Réservation annulée');
-      } catch { showToast('Erreur', true); }
+      await setStatus(sessionId, 'cancelled');
     }
 
     async function sendReady(sessionId) {
@@ -582,6 +748,128 @@
       try {
         await api('POST', '/api/admin/send-review', { sessionId });
         showToast('Demande d\'avis envoyée');
+      } catch { showToast('Erreur', true); }
+    }
+
+    function refreshAllViews() {
+      renderStats();
+      renderBookings();
+      renderPlanning();
+      // dashboard et clients dépendent de calculs serveur (revenus, agrégats) —
+      // on les resynchronise depuis l'API pour rester exacts après un changement de statut.
+      Promise.all([api('GET', '/api/admin/dashboard'), api('GET', '/api/admin/clients')])
+        .then(([dash, cl]) => { dashboard = dash; clients = cl.clients || []; renderDashboard(); renderClients(); })
+        .catch(() => {});
+    }
+
+    // ── Planning (vue semaine) ────────────────────────────────
+    function mondayOf(d) {
+      const date = new Date(d);
+      const day = date.getDay();
+      const diff = (day === 0 ? -6 : 1) - day;
+      date.setDate(date.getDate() + diff);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    function planningShiftWeek(n) {
+      planningWeekStart = new Date(planningWeekStart.getTime() + n * 7 * 86400000);
+      renderPlanning();
+    }
+
+    function planningToday() {
+      planningWeekStart = mondayOf(new Date());
+      renderPlanning();
+    }
+
+    function renderPlanning() {
+      const start = planningWeekStart;
+      const end   = new Date(start.getTime() + 6 * 86400000);
+      document.getElementById('planningLabel').textContent =
+        `${start.getDate()} ${MONTHS[start.getMonth()]} — ${end.getDate()} ${MONTHS[end.getMonth()]} ${end.getFullYear()}`;
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const container = document.getElementById('planningDays');
+      let html = '';
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(start.getTime() + i * 86400000);
+        const dStr = toISODate(d);
+        const dayBookings = bookings
+          .filter(b => b.date === dStr && b.status !== 'cancelled')
+          .sort((a, b) => a.time < b.time ? -1 : 1);
+
+        html += `
+          <div class="planning-day">
+            <div class="planning-day__head">
+              <span class="planning-day__name${dStr === todayStr ? ' planning-day__today' : ''}">${DAYS_FULL[d.getDay()]}</span>
+              <span class="planning-day__date">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
+            </div>
+            ${dayBookings.length ? dayBookings.map(b => `
+              <div class="planning-row" onclick="focusBooking('${b.sessionId}')">
+                <div class="planning-row__time">${b.time}</div>
+                <div class="planning-row__main">
+                  <div class="planning-row__svc">${b.serviceName || b.service}</div>
+                  <div class="planning-row__client">${(b.client?.firstName || '') + ' ' + (b.client?.lastName || '')}</div>
+                </div>
+                <span class="status-badge status-badge--${b.status}">${STATUS_LABEL[b.status] || b.status}</span>
+              </div>
+            `).join('') : '<div class="planning-empty">Aucun rendez-vous</div>'}
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    function focusBooking(sessionId) {
+      switchTab('bookings');
+      document.getElementById('filterStatus').value = 'all';
+      renderBookings();
+      showToast('Réservation affichée dans l\'onglet Réservations');
+    }
+
+    function toISODate(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // ── Clients ───────────────────────────────────────────────
+    function renderClients() {
+      const list = document.getElementById('clientList');
+      if (!clients.length) {
+        list.innerHTML = '<div class="empty">Aucun client</div>';
+        return;
+      }
+      const sorted = [...clients].sort((a, z) => (a.lastDate < z.lastDate ? 1 : -1));
+      list.innerHTML = sorted.map(c => `
+        <div class="client-card">
+          <div>
+            <div class="client-card__name">${c.firstName || ''} ${c.lastName || ''}</div>
+            <div class="client-card__sub">${c.email}</div>
+            <div class="client-card__sub">${c.phone || '—'}</div>
+          </div>
+          <div>
+            <div class="booking-card__label">Historique</div>
+            <div class="booking-card__val">${c.appointmentCount} rendez-vous — ${(c.totalSpentCents / 100).toFixed(0)} €</div>
+            <div class="client-card__sub">${c.vehicles.length ? c.vehicles.join(', ') : 'Véhicule non renseigné'}</div>
+            <div class="client-card__sub">Dernier RDV : ${fmtDate(c.lastDate)}</div>
+          </div>
+          <div class="client-card__notes">
+            <textarea id="notes-${cssId(c.email)}" placeholder="Notes internes...">${c.notes || ''}</textarea>
+            <button class="btn btn--ghost btn--sm" style="align-self:flex-end;" onclick="saveClientNotes('${c.email}')">Enregistrer</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function cssId(email) { return email.replace(/[^a-z0-9]/gi, '_'); }
+
+    async function saveClientNotes(email) {
+      const notes = document.getElementById(`notes-${cssId(email)}`).value;
+      try {
+        await api('PATCH', `/api/admin/clients/${encodeURIComponent(email)}`, { notes });
+        const c = clients.find(x => x.email === email);
+        if (c) c.notes = notes;
+        showToast('Notes enregistrées');
       } catch { showToast('Erreur', true); }
     }
 

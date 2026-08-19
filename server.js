@@ -93,19 +93,28 @@ function addMinutes(time, minutes) {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
+// Statuts pilotables par l'admin (le statut "pending_payment" est interne,
+// jamais exposé/settable depuis le dashboard : un rendez-vous n'existe pour
+// l'admin qu'une fois le paiement confirmé par Stripe côté serveur).
+const ADMIN_SETTABLE_STATUSES = ['confirmed', 'in_progress', 'ready', 'completed', 'cancelled', 'no_show'];
+
 function toBooking(row) {
   return {
-    sessionId:   row.stripeSessionId,
-    status:      row.status === 'cancelled' ? 'cancelled' : 'confirmed',
-    paidAt:      row.paidAt ? row.paidAt.toISOString() : null,
-    amountPaid:  row.amountPaidCents,
-    service:     row.serviceId,
-    vehicleType: row.vehicleCategory,
+    sessionId:    row.stripeSessionId,
+    status:       row.status,
+    paidAt:       row.paidAt ? row.paidAt.toISOString() : null,
+    amountPaid:   row.amountPaidCents,
+    totalCents:   row.totalCents,
+    remainingCents: Math.max(0, row.totalCents - row.amountPaidCents),
+    service:      row.serviceId,
+    serviceName:  SERVICES[row.serviceId]?.name || row.serviceId,
+    vehicleType:  row.vehicleCategory,
     vehicleModel: row.vehicleLabel,
-    tintOption:  row.tintOption,
-    date:        dateToStr(row.date),
-    time:        row.startTime,
-    paymentType: row.paymentType,
+    tintOption:   row.tintOption,
+    date:         dateToStr(row.date),
+    time:         row.startTime,
+    paymentType:  row.paymentType,
+    internalNotes: row.internalNotes,
     client: {
       firstName: row.guestFirstName,
       lastName:  row.guestLastName,
@@ -213,13 +222,6 @@ async function confirmPayment(sessionId, session) {
       stripeSessionId:     sessionId,
       stripePaymentStatus: session.payment_status
     }
-  });
-}
-
-async function setBookingStatus(sessionId, status) {
-  await prisma.appointment.update({
-    where: { stripeSessionId: sessionId },
-    data:  { status }
   });
 }
 
@@ -1046,12 +1048,117 @@ app.get('/api/admin/bookings', async (req, res) => {
   res.json({ bookings });
 });
 
+// Vue d'ensemble : compteurs, chiffre d'affaires, RDV du jour/lendemain
+app.get('/api/admin/dashboard', async (req, res) => {
+  const bookings = await readBookings();
+  const active   = bookings.filter(b => !['cancelled', 'no_show'].includes(b.status));
+
+  const now       = new Date();
+  const todayStr  = dateToStr(now);
+  const tomorrow  = new Date(now.getTime() + 86400000);
+  const tomorrowStr = dateToStr(tomorrow);
+  const in7Str    = dateToStr(new Date(now.getTime() + 7 * 86400000));
+
+  const todayList    = active.filter(b => b.date === todayStr).sort((a, b) => a.time < b.time ? -1 : 1);
+  const tomorrowList = active.filter(b => b.date === tomorrowStr).sort((a, b) => a.time < b.time ? -1 : 1);
+  const upcomingList = active.filter(b => b.date > tomorrowStr && b.date <= in7Str).sort((a, b) => (a.date + a.time) < (b.date + b.time) ? -1 : 1);
+
+  const revenueCents  = active.reduce((s, b) => s + (b.amountPaid || 0), 0);
+  const pendingCents  = active.reduce((s, b) => s + (b.remainingCents || 0), 0);
+
+  const byStatus = {};
+  for (const s of ADMIN_SETTABLE_STATUSES) byStatus[s] = bookings.filter(b => b.status === s).length;
+
+  res.json({
+    todayCount: todayList.length,
+    tomorrowCount: tomorrowList.length,
+    upcomingCount: upcomingList.length,
+    totalCount: bookings.length,
+    revenueCents,
+    pendingCents,
+    byStatus,
+    today: todayList,
+    tomorrow: tomorrowList,
+    upcoming: upcomingList
+  });
+});
+
+// Liste des clients agrégée à partir des réservations (pas de compte
+// client — regroupement par email, avec notes internes éditables)
+app.get('/api/admin/clients', async (req, res) => {
+  const bookings = await readBookings();
+  const byEmail = new Map();
+
+  for (const b of bookings.sort((a, z) => (a.date + a.time) < (z.date + z.time) ? -1 : 1)) {
+    const email = b.client.email;
+    if (!email) continue;
+    if (!byEmail.has(email)) {
+      byEmail.set(email, {
+        email,
+        firstName: b.client.firstName,
+        lastName:  b.client.lastName,
+        phone:     b.client.phone,
+        vehicles:  new Set(),
+        appointmentCount: 0,
+        totalSpentCents: 0,
+        lastDate: null,
+        notes: null
+      });
+    }
+    const c = byEmail.get(email);
+    c.firstName = b.client.firstName;
+    c.lastName  = b.client.lastName;
+    c.phone     = b.client.phone;
+    if (b.vehicleModel) c.vehicles.add(b.vehicleModel);
+    c.appointmentCount += 1;
+    if (b.status !== 'cancelled') c.totalSpentCents += (b.amountPaid || 0);
+    c.lastDate = b.date;
+  }
+
+  const notesRows = await prisma.client.findMany({ where: { email: { in: [...byEmail.keys()] } } });
+  for (const row of notesRows) {
+    const c = byEmail.get(row.email);
+    if (c) c.notes = row.notes;
+  }
+
+  const clients = [...byEmail.values()].map(c => ({ ...c, vehicles: [...c.vehicles] }));
+  res.json({ clients });
+});
+
+// Enregistrer une note interne sur un client (crée la fiche client si besoin)
+app.patch('/api/admin/clients/:email', async (req, res) => {
+  const email = decodeURIComponent(req.params.email);
+  const { notes } = req.body;
+
+  const latest = await prisma.appointment.findFirst({
+    where: { guestEmail: email },
+    orderBy: { createdAt: 'desc' }
+  });
+  if (!latest) return res.status(404).json({ error: 'Client introuvable' });
+
+  await prisma.client.upsert({
+    where:  { email },
+    update: { notes },
+    create: { email, firstName: latest.guestFirstName, lastName: latest.guestLastName, phone: latest.guestPhone, notes }
+  });
+  res.json({ ok: true });
+});
+
 // Annuler / modifier le statut d'une réservation
 app.patch('/api/admin/booking/:sessionId', async (req, res) => {
-  const { sessionId } = req.params;
-  const { status }    = req.body;
+  const { sessionId }        = req.params;
+  const { status, internalNotes } = req.body;
+
+  if (status && !ADMIN_SETTABLE_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Statut invalide' });
+  }
+
   try {
-    await setBookingStatus(sessionId, status || 'cancelled');
+    const data = {};
+    if (status !== undefined) data.status = status;
+    if (internalNotes !== undefined) data.internalNotes = internalNotes;
+    if (!Object.keys(data).length) data.status = 'cancelled';
+    await prisma.appointment.update({ where: { stripeSessionId: sessionId }, data });
     res.json({ ok: true });
   } catch {
     res.status(404).json({ error: 'Réservation introuvable' });
