@@ -124,7 +124,7 @@ function addMinutes(time, minutes) {
 // Statuts pilotables par l'admin (le statut "pending_payment" est interne,
 // jamais exposé/settable depuis le dashboard : un rendez-vous n'existe pour
 // l'admin qu'une fois le paiement confirmé par Stripe côté serveur).
-const ADMIN_SETTABLE_STATUSES = ['confirmed', 'in_progress', 'ready', 'completed', 'cancelled', 'no_show'];
+const ADMIN_SETTABLE_STATUSES = ['confirmed', 'dropped_off', 'in_progress', 'final_check', 'ready', 'completed', 'cancelled', 'no_show'];
 
 function toBooking(row) {
   return {

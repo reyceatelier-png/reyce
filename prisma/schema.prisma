@@ -75,7 +75,9 @@ model Service {
 enum AppointmentStatus {
   pending_payment // en attente de paiement (créneau tenu temporairement)
   confirmed // acompte payé, à venir
-  in_progress // véhicule pris en charge, en cours d'intervention
+  dropped_off // véhicule déposé à l'atelier
+  in_progress // intervention en cours
+  final_check // contrôle final avant restitution
   ready // véhicule prêt
   completed // rendez-vous terminé, véhicule restitué
   cancelled // annulé

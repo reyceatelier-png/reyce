@@ -22,6 +22,8 @@
       --green:    #52b788;
       --amber:    #f0c040;
       --blue:     #5b9bd5;
+      --teal:     #4fb8a8;
+      --violet:   #9b8cd9;
       --font:     'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
 
@@ -232,7 +234,9 @@
       display: inline-block;
     }
     .status-badge--confirmed   { color: var(--green);  border-color: var(--green); }
+    .status-badge--dropped_off { color: var(--teal);   border-color: var(--teal); }
     .status-badge--in_progress { color: var(--blue);   border-color: var(--blue); }
+    .status-badge--final_check { color: var(--violet); border-color: var(--violet); }
     .status-badge--ready       { color: var(--amber);  border-color: var(--amber); }
     .status-badge--completed   { color: var(--accent); border-color: var(--accent); }
     .status-badge--cancelled   { color: var(--grey3);  border-color: var(--border2); }
@@ -321,10 +325,52 @@
     .planning-nav {
       display: flex;
       align-items: center;
-      gap: 16px;
+      flex-wrap: wrap;
+      gap: 10px 16px;
       margin-bottom: 20px;
     }
+    @media (max-width: 700px) {
+      .planning-nav { gap: 8px 10px; }
+      .planning-nav__label { min-width: 0; }
+      .planning-view-toggle { margin-left: 0; width: 100%; }
+    }
     .planning-nav__label { font-size: 13px; color: var(--white); min-width: 220px; }
+    .planning-view-toggle { display: flex; gap: 1px; margin-left: auto; }
+    .planning-view-toggle .btn { border-radius: 0; }
+    .planning-view-toggle .btn.is-active { background: var(--white); color: #080808; border-color: var(--white); }
+
+    /* ── Planning : vue mois ── */
+    .month-grid { border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); overflow: hidden; }
+    .month-heads { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .month-head { padding: 10px 0; text-align: center; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--grey3); border-bottom: 1px solid var(--border); }
+    .month-cells { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .month-cell {
+      min-height: 96px; padding: 8px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background .15s;
+    }
+    .month-cell:hover { background: var(--bg3); }
+    .month-cell.is-out { opacity: .35; }
+    .month-cell.is-today { background: rgba(240,192,64,0.06); }
+    .month-cell__num { font-size: 11px; color: var(--grey2); display: block; margin-bottom: 6px; }
+    .month-cell.is-today .month-cell__num { color: var(--amber); font-weight: 600; }
+    .month-event {
+      font-size: 10px; padding: 2px 5px; margin-bottom: 2px; border-radius: 3px; background: var(--bg3);
+      border-left: 2px solid var(--grey3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+    }
+    .month-event--confirmed   { border-left-color: var(--green); }
+    .month-event--dropped_off { border-left-color: var(--teal); }
+    .month-event--in_progress { border-left-color: var(--blue); }
+    .month-event--final_check { border-left-color: var(--violet); }
+    .month-event--ready       { border-left-color: var(--amber); }
+    .month-event--completed   { border-left-color: var(--accent); }
+    .month-event--no_show     { border-left-color: var(--red); opacity: .55; }
+    .month-more { font-size: 10px; color: var(--grey3); padding: 2px 5px; }
+    @media (max-width: 700px) {
+      .month-cell { min-height: 64px; padding: 6px; }
+      .month-event { display: none; }
+      .month-more { display: none; }
+      .month-cell__num { margin-bottom: 0; }
+    }
 
     .cal-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); }
     .cal-grid { display: flex; min-width: 760px; }
@@ -362,7 +408,9 @@
     .cal-event__svc { color: var(--white); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cal-event__client { color: var(--grey3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cal-event--confirmed   { border-left-color: var(--green); }
+    .cal-event--dropped_off { border-left-color: var(--teal); }
     .cal-event--in_progress { border-left-color: var(--blue); }
+    .cal-event--final_check { border-left-color: var(--violet); }
     .cal-event--ready       { border-left-color: var(--amber); }
     .cal-event--completed   { border-left-color: var(--accent); }
     .cal-event--no_show     { border-left-color: var(--red); opacity: .55; }
@@ -577,7 +625,9 @@
             <select id="filterStatus" onchange="renderBookings()" style="width:200px;">
               <option value="all">Tous les statuts</option>
               <option value="confirmed">Confirmé</option>
+              <option value="dropped_off">Véhicule déposé</option>
               <option value="in_progress">En cours</option>
+              <option value="final_check">Contrôle final</option>
               <option value="ready">Véhicule prêt</option>
               <option value="completed">Terminé</option>
               <option value="no_show">Absent</option>
@@ -631,15 +681,20 @@
       <div class="panel" id="panel-planning">
 
         <div class="planning-nav">
-          <button class="btn btn--ghost btn--sm" onclick="planningShiftWeek(-1)">← Semaine préc.</button>
+          <button class="btn btn--ghost btn--sm" id="planningPrev" onclick="planningShift(-1)">← Préc.</button>
           <span class="planning-nav__label" id="planningLabel"></span>
-          <button class="btn btn--ghost btn--sm" onclick="planningShiftWeek(1)">Semaine suiv. →</button>
+          <button class="btn btn--ghost btn--sm" id="planningNext" onclick="planningShift(1)">Suiv. →</button>
           <button class="btn btn--ghost btn--sm" onclick="planningToday()">Aujourd'hui</button>
+          <div class="planning-view-toggle">
+            <button class="btn btn--ghost btn--sm is-active" id="viewWeekBtn" onclick="setPlanningView('week')">Semaine</button>
+            <button class="btn btn--ghost btn--sm" id="viewMonthBtn" onclick="setPlanningView('month')">Mois</button>
+          </div>
         </div>
 
-        <div class="cal-scroll">
+        <div class="cal-scroll" id="calScroll">
           <div class="cal-grid" id="planningGrid"></div>
         </div>
+        <div class="month-grid" id="planningMonthGrid" style="display:none;"></div>
 
       </div>
 
@@ -727,8 +782,10 @@
     'use strict';
 
     const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+    const MONTHS_FULL = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
     const DAYS   = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
     const DAYS_FULL = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+    const DAYS_MON_FIRST = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
     let token     = sessionStorage.getItem('adminToken') || '';
     let bookings  = [];
@@ -817,16 +874,18 @@
     // ── Statuts ───────────────────────────────────────────────
     const STATUS_LABEL = {
       confirmed:   'Confirmé',
+      dropped_off: 'Véhicule déposé',
       in_progress: 'En cours',
+      final_check: 'Contrôle final',
       ready:       'Véhicule prêt',
       completed:   'Livré',
       cancelled:   'Annulée',
       no_show:     'Absent'
     };
-    const STATUS_ORDER = { confirmed: 0, in_progress: 1, ready: 2, completed: 3, no_show: 4, cancelled: 5 };
+    const STATUS_ORDER = { confirmed: 0, dropped_off: 1, in_progress: 2, final_check: 3, ready: 4, completed: 5, no_show: 6, cancelled: 7 };
     // Statut suivant proposé en un clic, dans le flux normal d'un rendez-vous
-    const NEXT_STATUS = { confirmed: 'in_progress', in_progress: 'ready', ready: 'completed' };
-    const NEXT_LABEL  = { confirmed: 'Marquer en cours', in_progress: 'Marquer prêt', ready: 'Marquer véhicule livré' };
+    const NEXT_STATUS = { confirmed: 'dropped_off', dropped_off: 'in_progress', in_progress: 'final_check', final_check: 'ready', ready: 'completed' };
+    const NEXT_LABEL  = { confirmed: 'Marquer véhicule déposé', dropped_off: 'Marquer en cours', in_progress: 'Marquer contrôle final', final_check: 'Marquer prêt', ready: 'Marquer véhicule livré' };
 
     // ── Dashboard ─────────────────────────────────────────────
     function greetingWord() {
@@ -1006,8 +1065,23 @@
       return date;
     }
 
-    function planningShiftWeek(n) {
-      planningWeekStart = new Date(planningWeekStart.getTime() + n * 7 * 86400000);
+    let planningView = 'week';
+
+    function setPlanningView(v) {
+      planningView = v;
+      document.getElementById('viewWeekBtn').classList.toggle('is-active', v === 'week');
+      document.getElementById('viewMonthBtn').classList.toggle('is-active', v === 'month');
+      document.getElementById('calScroll').style.display = v === 'week' ? 'block' : 'none';
+      document.getElementById('planningMonthGrid').style.display = v === 'month' ? 'block' : 'none';
+      renderPlanning();
+    }
+
+    function planningShift(n) {
+      if (planningView === 'month') {
+        planningWeekStart = new Date(planningWeekStart.getFullYear(), planningWeekStart.getMonth() + n, 1);
+      } else {
+        planningWeekStart = new Date(planningWeekStart.getTime() + n * 7 * 86400000);
+      }
       renderPlanning();
     }
 
@@ -1029,6 +1103,11 @@
     }
 
     function renderPlanning() {
+      if (planningView === 'month') { renderPlanningMonth(); return; }
+      renderPlanningWeek();
+    }
+
+    function renderPlanningWeek() {
       const start = planningWeekStart;
       const end   = new Date(start.getTime() + 6 * 86400000);
       document.getElementById('planningLabel').textContent =
@@ -1088,6 +1167,49 @@
         <div class="cal-hours">${hoursHTML}</div>
         <div class="cal-daycols">${daysHTML}</div>
       `;
+    }
+
+    function renderPlanningMonth() {
+      const year  = planningWeekStart.getFullYear();
+      const month = planningWeekStart.getMonth();
+      document.getElementById('planningLabel').textContent = `${MONTHS_FULL[month]} ${year}`;
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const firstOfMonth = new Date(year, month, 1);
+      const startOffset = (firstOfMonth.getDay() + 6) % 7; // lundi = 0
+      const gridStart = new Date(year, month, 1 - startOffset);
+      const daysInGrid = 42; // 6 semaines pleines, affichage stable
+
+      let cellsHTML = '';
+      for (let i = 0; i < daysInGrid; i++) {
+        const d = new Date(gridStart.getTime() + i * 86400000);
+        const dStr = toISODate(d);
+        const inMonth = d.getMonth() === month;
+        const isToday = dStr === todayStr;
+        const dayBookings = bookings.filter(b => b.date === dStr && b.status !== 'cancelled')
+          .sort((a, b) => a.time < b.time ? -1 : 1);
+
+        const items = dayBookings.slice(0, 3).map(b => `
+          <div class="month-event month-event--${b.status}" onclick="event.stopPropagation();focusBooking('${b.sessionId}')">${b.time} ${b.serviceName || b.service}</div>
+        `).join('');
+        const more = dayBookings.length > 3 ? `<div class="month-more">+${dayBookings.length - 3} autre(s)</div>` : '';
+
+        cellsHTML += `
+          <div class="month-cell${inMonth ? '' : ' is-out'}${isToday ? ' is-today' : ''}" onclick="planningJumpToDay('${dStr}')">
+            <span class="month-cell__num">${d.getDate()}</span>
+            ${items}${more}
+          </div>
+        `;
+      }
+
+      const headHTML = DAYS_MON_FIRST.map(d => `<div class="month-head">${d}</div>`).join('');
+      document.getElementById('planningMonthGrid').innerHTML = `<div class="month-heads">${headHTML}</div><div class="month-cells">${cellsHTML}</div>`;
+    }
+
+    function planningJumpToDay(dStr) {
+      const d = new Date(dStr + 'T00:00:00');
+      planningWeekStart = mondayOf(d);
+      setPlanningView('week');
     }
 
     function focusBooking(sessionId) {
