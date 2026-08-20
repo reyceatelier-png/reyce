@@ -396,6 +396,20 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 .resa .aside{padding:clamp(30px,4vw,52px);border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:space-between;gap:40px}
 .resa .aside h3{font-family:var(--disp);font-weight:600;text-transform:uppercase;font-size:clamp(1.6rem,3vw,2.4rem);line-height:1.02;letter-spacing:.01em}
 .resa .aside p{color:var(--dim);font-size:.92rem;margin-top:18px;max-width:34ch}
+
+/* visuel d'étape — fondu croisé, hauteur maîtrisée (compacte sur mobile) */
+.wiz-media{position:relative;overflow:hidden;height:220px;border:1px solid var(--line)}
+.wiz-media .wm{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .7s var(--ease)}
+.wiz-media .wm.active{opacity:1}
+
+/* récapitulatif de réservation — prestation, véhicule, créneau, tarif indicatif (aucune info de paiement) */
+.wiz-summary{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line-soft);padding-top:18px;margin-top:2px}
+.wiz-summary .ws-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  font-family:var(--disp);font-weight:400;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--dim-2);padding:7px 0}
+.wiz-summary .ws-row b{color:#fff;font-weight:600;text-align:right;letter-spacing:.01em}
+.wiz-summary .ws-total{border-top:1px solid var(--line-soft);margin-top:4px;padding-top:14px}
+.wiz-summary .ws-total b{font-size:.98rem}
+
 .steps{display:flex;flex-direction:column;gap:2px}
 .steps .s{display:flex;gap:16px;align-items:center;padding:13px 0;border-top:1px solid var(--line-soft);color:var(--dim-2);font-family:var(--disp);font-weight:500;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;transition:color .4s}
 .steps .s.active{color:#fff}
@@ -586,6 +600,10 @@ footer{border-top:1px solid var(--line);padding-top:clamp(60px,9vh,120px);margin
   .ba-handle{width:44px;height:44px}
   .rating{gap:16px;padding:22px}
   .resa .panel,.resa .aside{padding:26px 22px}
+  .resa .aside{gap:22px}
+  .wiz-media{height:140px}
+  .wiz-summary{padding-top:14px}
+  .wiz-summary .ws-row{padding:5px 0;font-size:.64rem}
   .cal{gap:4px}
   .cal .d{font-size:.72rem}
   .btn{padding:14px 22px;font-size:.68rem}

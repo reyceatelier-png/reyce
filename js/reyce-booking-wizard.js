@@ -267,9 +267,15 @@ function updateAsideSummary(){
 
   if(state.type==='prestation'){
     var f=CLEAN[state.clean].formules[state.form];
-    var rows='<div class="ws-row"><span>Nettoyage</span><b>'+CLEAN[state.clean].label+'</b></div>';
-    if(step>=2){rows+='<div class="ws-row"><span>Formule</span><b>'+f.k+'</b></div>';
-      var gt=grandTotal();
+    var rows='';
+    if(state.marque||state.modele||state.gab){
+      var vehLabel=(state.marque+' '+state.modele).trim()||(state.gab?GABARITS[state.gab].label:'');
+      if(vehLabel) rows+='<div class="ws-row"><span>Véhicule</span><b>'+vehLabel+'</b></div>';
+    }
+    rows+='<div class="ws-row"><span>Nettoyage</span><b>'+CLEAN[state.clean].label+'</b></div>';
+    if(step>=2){rows+='<div class="ws-row"><span>Formule</span><b>'+f.k+'</b></div>';}
+    if(state.jourLabel&&state.heure){rows+='<div class="ws-row"><span>Créneau</span><b>'+state.jourLabel+' · '+state.heure+'</b></div>';}
+    if(step>=2){var gt=grandTotal();
       rows+='<div class="ws-row ws-total"><span>Total estimé</span><b>'+(gt>0?(gt+' €'):(f.prix>0?((f.prix+gabSupp())+' €'):'sur devis'))+'</b></div>';}
     el.innerHTML=rows;
     el.style.display='block';
