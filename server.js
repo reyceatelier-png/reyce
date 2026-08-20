@@ -16,12 +16,12 @@ const PORT     = process.env.PORT || 3000;
 // Toute route async qui rejette (ex. base de données injoignable) doit
 // répondre 500 au client au lieu de crasher tout le process Node (rejet de
 // promesse non capturé). On enveloppe automatiquement chaque handler async
-// enregistré via app.get/post/patch/delete — aucune route à modifier une
-// par une, aucun risque d'en oublier une nouvelle à l'avenir.
+// enregistré via app.get/post/put/patch/delete — aucune route à modifier
+// une par une, aucun risque d'en oublier une nouvelle à l'avenir.
 function ah(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
-['get', 'post', 'patch', 'delete'].forEach(method => {
+['get', 'post', 'put', 'patch', 'delete'].forEach(method => {
   const original = app[method].bind(app);
   app[method] = (routePath, ...handlers) => original(
     routePath,
@@ -1217,6 +1217,10 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// Limite de taille relevée pour les photos du Care Report (data URLs) —
+// doit être déclarée avant le express.json() générique de /api/admin.
+app.use('/api/admin/care-report', express.json({ limit: '12mb' }));
+
 app.use('/api/admin', express.json(), requireAdmin);
 
 // Lister toutes les réservations
@@ -1553,6 +1557,121 @@ app.patch('/api/admin/booking/:sessionId', async (req, res) => {
   } catch {
     res.status(404).json({ error: 'Réservation introuvable' });
   }
+});
+
+// ============================================================
+// REYCE Care Report — prototype : un rapport par rendez-vous, consultable
+// via un lien privé (token non devinable), sans compte client.
+// ============================================================
+
+// Récupérer (ou état vide) le Care Report d'un rendez-vous
+app.get('/api/admin/care-report/:sessionId', async (req, res) => {
+  const appt = await prisma.appointment.findUnique({
+    where: { stripeSessionId: req.params.sessionId },
+    include: { careReport: true }
+  });
+  if (!appt) return res.status(404).json({ error: 'Réservation introuvable' });
+
+  res.json(appt.careReport || {
+    photosBefore: [], photosAfter: [], intervention: '', protections: '',
+    observations: '', careAdvice: '', nextService: '', published: false, token: null
+  });
+});
+
+// Créer / mettre à jour le Care Report d'un rendez-vous
+app.put('/api/admin/care-report/:sessionId', async (req, res) => {
+  const appt = await prisma.appointment.findUnique({ where: { stripeSessionId: req.params.sessionId } });
+  if (!appt) return res.status(404).json({ error: 'Réservation introuvable' });
+
+  const { photosBefore, photosAfter, intervention, protections, observations, careAdvice, nextService, published } = req.body;
+  const MAX_PHOTOS = 8;
+  const clampPhotos = (arr) => (Array.isArray(arr) ? arr.filter(x => typeof x === 'string').slice(0, MAX_PHOTOS) : []);
+
+  const data = {
+    photosBefore: clampPhotos(photosBefore),
+    photosAfter:  clampPhotos(photosAfter),
+    intervention: intervention || null,
+    protections:  protections || null,
+    observations: observations || null,
+    careAdvice:   careAdvice || null,
+    nextService:  nextService || null,
+    published:    !!published
+  };
+
+  const report = await prisma.careReport.upsert({
+    where:  { appointmentId: appt.id },
+    update: data,
+    create: { appointmentId: appt.id, ...data }
+  });
+  res.json({ ok: true, token: report.token, published: report.published });
+});
+
+// Envoyer le lien du Care Report par email au client (uniquement si publié)
+app.post('/api/admin/care-report/:sessionId/send', async (req, res) => {
+  const appt = await prisma.appointment.findUnique({
+    where: { stripeSessionId: req.params.sessionId },
+    include: { careReport: true }
+  });
+  if (!appt) return res.status(404).json({ error: 'Réservation introuvable' });
+  if (!appt.careReport || !appt.careReport.published) {
+    return res.status(400).json({ error: 'Publiez le Care Report avant de l\'envoyer' });
+  }
+
+  const link = `${process.env.BASE_URL}/care-report.html?token=${appt.careReport.token}`;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#070707; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#e0e0e0; }
+  .wrap { max-width:520px; margin:0 auto; padding:56px 32px; }
+  .logo { font-size:18px; font-weight:600; letter-spacing:.38em; text-transform:uppercase; color:#fff; margin-bottom:48px; }
+  .title { font-size:26px; font-weight:300; color:#fff; line-height:1.25; margin-bottom:20px; font-style:italic; }
+  .body { font-size:14px; color:#aaa; line-height:1.8; margin-bottom:32px; }
+  .cta { display:inline-block; padding:14px 30px; background:#fff; color:#080808; font-size:11px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; text-decoration:none; }
+  .footer { border-top:1px solid #141414; padding-top:24px; margin-top:48px; }
+  .footer p { font-size:11px; color:#444; line-height:1.8; }
+</style></head><body>
+<div class="wrap">
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
+  <p class="title">Votre véhicule,<br>suivi de près.</p>
+  <p class="body">Bonjour ${appt.guestFirstName},<br><br>Retrouvez le compte-rendu personnalisé de l'intervention réalisée sur votre véhicule : photos, soins appliqués et conseils d'entretien.</p>
+  <a href="${link}" class="cta">Consulter mon Care Report</a>
+  <div class="footer"><p>REYCE · Atelier automobile premium · Lyon</p></div>
+</div>
+</body></html>`;
+
+  try {
+    await sendEmail(appt.guestEmail, 'Votre REYCE Care Report', html);
+    await prisma.careReport.update({ where: { id: appt.careReport.id }, data: { sentAt: new Date() } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[CareReport] ✗ Envoi :', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Lecture publique d'un Care Report (aucune authentification — sécurité par
+// token non devinable, comme convenu pour ce prototype sans compte client)
+app.get('/api/care/:token', async (req, res) => {
+  const report = await prisma.careReport.findUnique({
+    where: { token: req.params.token },
+    include: { appointment: true }
+  });
+  if (!report || !report.published) return res.status(404).json({ error: 'Rapport introuvable' });
+
+  const appt = report.appointment;
+  res.json({
+    serviceName: SERVICES[appt.serviceId]?.name || appt.serviceId,
+    date: dateToStr(appt.date),
+    vehicleLabel: [appt.vehicleCategory, appt.vehicleLabel].filter(Boolean).join(' — ') || null,
+    clientFirstName: appt.guestFirstName,
+    photosBefore: report.photosBefore,
+    photosAfter: report.photosAfter,
+    intervention: report.intervention,
+    protections: report.protections,
+    observations: report.observations,
+    careAdvice: report.careAdvice,
+    nextService: report.nextService
+  });
 });
 
 // Lire les blocages

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Votre Care Report — REYCE</title>
+<meta name="description" content="Le compte-rendu personnalisé de l'intervention réalisée sur votre véhicule chez REYCE.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/reyce.css">
+<style>
+  body{overflow-x:hidden}
+  .care-wrap{max-width:640px;margin:0 auto;padding:clamp(48px,8vh,90px) clamp(20px,5vw,32px) 100px}
+  .care-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:clamp(48px,8vh,80px)}
+  .care-logo img{height:26px;width:auto}
+  .care-logo span{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.35em;text-transform:uppercase;color:#fff}
+
+  .care-hello{font-family:var(--disp);font-weight:300;font-style:italic;font-size:clamp(1.8rem,5vw,2.6rem);color:#fff;line-height:1.15;margin-bottom:16px}
+  .care-sub{color:var(--dim);font-size:.95rem;line-height:1.7;max-width:48ch;margin-bottom:36px}
+
+  .care-facts{border-top:1px solid var(--line);margin-bottom:56px}
+  .care-facts div{display:flex;justify-content:space-between;gap:20px;padding:14px 0;border-bottom:1px solid var(--line-soft);
+    font-family:var(--disp);font-weight:400;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+  .care-facts div span:last-child{color:#fff;font-weight:600;text-align:right}
+
+  .care-section{margin-bottom:56px}
+  .care-section__label{font-family:var(--disp);font-weight:500;font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);margin-bottom:16px}
+  .care-section p{color:rgba(255,255,255,.85);font-size:.96rem;line-height:1.75;white-space:pre-line}
+
+  .care-gallery-heads{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-bottom:2px}
+  .care-gallery-heads span{font-family:var(--disp);font-weight:500;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-align:center;padding:10px 0;background:var(--card)}
+  .care-gallery{display:grid;grid-template-columns:1fr 1fr;gap:2px}
+  .care-gallery-col{display:flex;flex-direction:column;gap:2px}
+  .care-gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line);display:block}
+  .care-gallery-empty{aspect-ratio:4/3;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--dim-2);font-size:.7rem;text-transform:uppercase;letter-spacing:.1em}
+
+  .care-footer{border-top:1px solid var(--line);padding-top:32px;text-align:center}
+  .care-footer p{color:var(--dim-2);font-size:.78rem;line-height:1.8}
+  .care-footer .mono{margin-top:14px}
+
+  .care-loading,.care-error{min-height:60vh;display:flex;align-items:center;justify-content:center;color:var(--dim);font-family:var(--disp);letter-spacing:.1em;text-transform:uppercase;font-size:.8rem;text-align:center;padding:24px}
+</style>
+</head>
+<body>
+
+<div id="loadingState" class="care-loading">Chargement de votre Care Report…</div>
+<div id="errorState" class="care-error" style="display:none">Ce lien n'est plus valide ou n'existe pas.<br>Contactez-nous si vous pensez qu'il s'agit d'une erreur.</div>
+
+<main id="content" class="care-wrap" style="display:none">
+  <div class="care-logo"><img src="assets/images/logo.png" alt="REYCE"><span>REYCE</span></div>
+
+  <p class="care-hello">Bonjour <span id="cFirstName"></span>.</p>
+  <p class="care-sub">Voici le compte-rendu personnalisé de l'intervention réalisée sur votre véhicule. Nous avons pris soin de chaque détail.</p>
+
+  <div class="care-facts" id="cFacts"></div>
+
+  <div class="care-section" id="cGallerySection" style="display:none">
+    <p class="care-section__label">Avant / Après</p>
+    <div class="care-gallery-heads"><span>Avant</span><span>Après</span></div>
+    <div class="care-gallery">
+      <div class="care-gallery-col" id="cPhotosBefore"></div>
+      <div class="care-gallery-col" id="cPhotosAfter"></div>
+    </div>
+  </div>
+
+  <div class="care-section" id="cInterventionSection" style="display:none">
+    <p class="care-section__label">Intervention réalisée</p>
+    <p id="cIntervention"></p>
+  </div>
+
+  <div class="care-section" id="cProtectionsSection" style="display:none">
+    <p class="care-section__label">Protections appliquées</p>
+    <p id="cProtections"></p>
+  </div>
+
+  <div class="care-section" id="cObservationsSection" style="display:none">
+    <p class="care-section__label">Observations</p>
+    <p id="cObservations"></p>
+  </div>
+
+  <div class="care-section" id="cAdviceSection" style="display:none">
+    <p class="care-section__label">Conseils d'entretien</p>
+    <p id="cAdvice"></p>
+  </div>
+
+  <div class="care-section" id="cNextSection" style="display:none">
+    <p class="care-section__label">Prochaine intervention conseillée</p>
+    <p id="cNext"></p>
+  </div>
+
+  <div class="care-footer">
+    <p>REYCE · Atelier automobile premium · Lyon<br>47 chemin du Pras, La Mulatière · 07 63 00 43 85</p>
+    <p class="mono">Merci de votre confiance.</p>
+  </div>
+</main>
+
+<script>
+(function(){
+  const token = new URLSearchParams(window.location.search).get('token');
+  const loadingEl = document.getElementById('loadingState');
+  const errorEl   = document.getElementById('errorState');
+  const contentEl = document.getElementById('content');
+
+  function show(el){ el.style.display = ''; }
+  function hide(el){ el.style.display = 'none'; }
+
+  function fail(){
+    hide(loadingEl);
+    show(errorEl);
+  }
+
+  if (!token) { fail(); return; }
+
+  fetch('/api/care/' + encodeURIComponent(token))
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(data => {
+      document.getElementById('cFirstName').textContent = data.clientFirstName || '';
+
+      const facts = [
+        ['Prestation', data.serviceName],
+        ['Date', fmtDate(data.date)],
+        data.vehicleLabel ? ['Véhicule', data.vehicleLabel] : null
+      ].filter(Boolean);
+      document.getElementById('cFacts').innerHTML = facts.map(([l, v]) =>
+        `<div><span>${l}</span><span>${v}</span></div>`
+      ).join('');
+
+      const hasPhotos = (data.photosBefore && data.photosBefore.length) || (data.photosAfter && data.photosAfter.length);
+      if (hasPhotos) {
+        show(document.getElementById('cGallerySection'));
+        document.getElementById('cPhotosBefore').innerHTML = renderPhotos(data.photosBefore);
+        document.getElementById('cPhotosAfter').innerHTML  = renderPhotos(data.photosAfter);
+      }
+
+      fillSection('cInterventionSection', 'cIntervention', data.intervention);
+      fillSection('cProtectionsSection', 'cProtections', data.protections);
+      fillSection('cObservationsSection', 'cObservations', data.observations);
+      fillSection('cAdviceSection', 'cAdvice', data.careAdvice);
+      fillSection('cNextSection', 'cNext', data.nextService);
+
+      hide(loadingEl);
+      show(contentEl);
+    })
+    .catch(fail);
+
+  function renderPhotos(list) {
+    if (!list || !list.length) return '<div class="care-gallery-empty">—</div>';
+    return list.map(src => `<img src="${src}" alt="" loading="lazy">`).join('');
+  }
+
+  function fillSection(sectionId, textId, value) {
+    if (!value) return;
+    document.getElementById(textId).textContent = value;
+    show(document.getElementById(sectionId));
+  }
+
+  function fmtDate(str) {
+    if (!str) return '—';
+    const DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+    const MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const [y, m, d] = str.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return `${DAYS[date.getDay()]} ${d} ${MONTHS[m - 1]} ${y}`;
+  }
+})();
+</script>
+</body>
+</html>

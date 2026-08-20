@@ -492,6 +492,29 @@
       .service-card { grid-template-columns: 1fr 1fr; }
     }
 
+    /* ── Modal (Care Report) ── */
+    .modal-veil {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000;
+      align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
+    }
+    .modal-veil.is-open { display: flex; }
+    .modal { background: var(--bg2); border: 1px solid var(--border2); width: 100%; max-width: 640px; }
+    .modal__head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .modal__body { padding: 24px; display: flex; flex-direction: column; gap: 14px; max-height: 70vh; overflow-y: auto; }
+    .modal__body label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--grey3); display: block; }
+    .modal__body textarea { min-height: 64px; }
+    .modal__foot { display: flex; gap: 10px; padding: 18px 24px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+
+    .care-photos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .care-thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .care-thumb { position: relative; width: 64px; height: 64px; }
+    .care-thumb img { width: 100%; height: 100%; object-fit: cover; border: 1px solid var(--border2); }
+    .care-thumb button {
+      position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%;
+      background: var(--red); color: #fff; border: none; font-size: 11px; line-height: 1; cursor: pointer;
+    }
+    @media (max-width: 700px) { .care-photos-grid { grid-template-columns: 1fr; } }
+
     /* ── Empty state ── */
     .empty {
       padding: 48px 0;
@@ -776,6 +799,64 @@
     </div>
   </div>
 
+  <!-- Care Report -->
+  <div class="modal-veil" id="careVeil" onclick="if(event.target===this) closeCareReport()">
+    <div class="modal">
+      <div class="modal__head">
+        <p class="section-title" style="margin:0;">REYCE Care Report</p>
+        <button class="btn btn--ghost btn--sm" onclick="closeCareReport()">Fermer</button>
+      </div>
+
+      <div class="modal__body">
+        <div class="care-photos-grid">
+          <div>
+            <label>Photos avant</label>
+            <input type="file" accept="image/*" multiple id="careFileBefore" onchange="handleCareFiles(this,'before')">
+            <div class="care-thumbs" id="careThumbsBefore"></div>
+          </div>
+          <div>
+            <label>Photos après</label>
+            <input type="file" accept="image/*" multiple id="careFileAfter" onchange="handleCareFiles(this,'after')">
+            <div class="care-thumbs" id="careThumbsAfter"></div>
+          </div>
+        </div>
+
+        <label>Intervention réalisée</label>
+        <textarea id="careIntervention" placeholder="Ex : Nettoyage intérieur complet, extraction sièges tissu, traitement cuir..."></textarea>
+
+        <label>Protections appliquées</label>
+        <textarea id="careProtections" placeholder="Ex : Cire hydrophobe 6 mois, protection cuir..."></textarea>
+
+        <label>Observations</label>
+        <textarea id="careObservations" placeholder="Ex : Légère rayure aile avant droite déjà présente..."></textarea>
+
+        <label>Conseils d'entretien</label>
+        <textarea id="careAdvice" placeholder="Ex : Éviter les lavages haute pression pendant 15 jours..."></textarea>
+
+        <label>Prochaine intervention conseillée</label>
+        <textarea id="careNext" placeholder="Ex : Renouvellement de la protection céramique dans 12 mois"></textarea>
+
+        <label style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          <input type="checkbox" id="carePublished" style="width:auto;">
+          Publié (visible sur le lien privé)
+        </label>
+
+        <div id="careLinkBox" style="display:none;margin-top:14px;">
+          <label>Lien privé du client</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="careLinkInput" readonly>
+            <button class="btn btn--ghost btn--sm" onclick="copyCareLink()">Copier</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal__foot">
+        <button class="btn btn--ghost" onclick="saveCareReport()">Enregistrer</button>
+        <button class="btn btn--primary" onclick="sendCareReport()">Enregistrer et envoyer au client</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -989,6 +1070,7 @@
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReminder('${b.sessionId}')">Envoyer rappel</button>` : ''}
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Email véhicule prêt</button>` : ''}
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReview('${b.sessionId}')">Demande avis</button>` : ''}
+            ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="openCareReport('${b.sessionId}')">Care Report</button>` : ''}
             ${!isCancelled && status !== 'completed' ? `<button class="btn btn--ghost btn--sm" onclick="setStatus('${b.sessionId}','no_show')">Absent</button>` : ''}
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="cancelBooking('${b.sessionId}')">Annuler</button>` : ''}
           </div>
@@ -1546,6 +1628,126 @@ let openClientEmail = null;
         clients = cl.clients || [];
         renderStats(); renderBookings(); renderPlanning(); renderDashboard(); renderClients(); renderMarketingRecipients();
       } catch { showToast('Erreur de connexion', true); }
+    }
+
+    // ── Care Report ───────────────────────────────────────────
+    let careSessionId = null;
+    let carePhotos = { before: [], after: [] };
+
+    async function openCareReport(sessionId) {
+      careSessionId = sessionId;
+      try {
+        const data = await api('GET', `/api/admin/care-report/${sessionId}`);
+        carePhotos.before = data.photosBefore || [];
+        carePhotos.after  = data.photosAfter || [];
+        document.getElementById('careIntervention').value = data.intervention || '';
+        document.getElementById('careProtections').value  = data.protections || '';
+        document.getElementById('careObservations').value = data.observations || '';
+        document.getElementById('careAdvice').value       = data.careAdvice || '';
+        document.getElementById('careNext').value          = data.nextService || '';
+        document.getElementById('carePublished').checked  = !!data.published;
+        renderCareThumbs('before'); renderCareThumbs('after');
+        updateCareLinkBox(data.token, data.published);
+        document.getElementById('careVeil').classList.add('is-open');
+      } catch { showToast('Erreur de chargement du Care Report', true); }
+    }
+
+    function closeCareReport() {
+      document.getElementById('careVeil').classList.remove('is-open');
+      careSessionId = null;
+      carePhotos = { before: [], after: [] };
+      document.getElementById('careFileBefore').value = '';
+      document.getElementById('careFileAfter').value = '';
+    }
+
+    function updateCareLinkBox(token, published) {
+      const box = document.getElementById('careLinkBox');
+      if (token && published) {
+        box.style.display = 'block';
+        document.getElementById('careLinkInput').value = `${location.origin}/care-report.html?token=${token}`;
+      } else {
+        box.style.display = 'none';
+      }
+    }
+
+    function handleCareFiles(input, which) {
+      const files = [...input.files];
+      const MAX_DIM = 1400, QUALITY = 0.75;
+      Promise.all(files.map(file => new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = e => { img.onload = () => {
+          const scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width * scale; canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', QUALITY));
+        }; img.onerror = reject; img.src = e.target.result; };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      }))).then(dataUrls => {
+        carePhotos[which] = [...carePhotos[which], ...dataUrls].slice(0, 8);
+        renderCareThumbs(which);
+        input.value = '';
+      }).catch(() => showToast('Erreur de lecture d\'une image', true));
+    }
+
+    function renderCareThumbs(which) {
+      const el = document.getElementById(which === 'before' ? 'careThumbsBefore' : 'careThumbsAfter');
+      el.innerHTML = carePhotos[which].map((src, i) => `
+        <div class="care-thumb">
+          <img src="${src}" alt="">
+          <button type="button" onclick="removeCareThumb('${which}',${i})">×</button>
+        </div>
+      `).join('');
+    }
+
+    function removeCareThumb(which, i) {
+      carePhotos[which].splice(i, 1);
+      renderCareThumbs(which);
+    }
+
+    function collectCarePayload() {
+      return {
+        photosBefore: carePhotos.before,
+        photosAfter:  carePhotos.after,
+        intervention: document.getElementById('careIntervention').value.trim(),
+        protections:  document.getElementById('careProtections').value.trim(),
+        observations: document.getElementById('careObservations').value.trim(),
+        careAdvice:   document.getElementById('careAdvice').value.trim(),
+        nextService:  document.getElementById('careNext').value.trim(),
+        published:    document.getElementById('carePublished').checked
+      };
+    }
+
+    async function saveCareReport() {
+      if (!careSessionId) return;
+      try {
+        const result = await api('PUT', `/api/admin/care-report/${careSessionId}`, collectCarePayload());
+        if (result.error) return showToast(result.error, true);
+        updateCareLinkBox(result.token, result.published);
+        showToast('Care Report enregistré');
+      } catch { showToast('Erreur d\'enregistrement', true); }
+    }
+
+    async function sendCareReport() {
+      if (!careSessionId) return;
+      document.getElementById('carePublished').checked = true;
+      try {
+        const result = await api('PUT', `/api/admin/care-report/${careSessionId}`, collectCarePayload());
+        if (result.error) return showToast(result.error, true);
+        updateCareLinkBox(result.token, result.published);
+        const sendResult = await api('POST', `/api/admin/care-report/${careSessionId}/send`);
+        if (sendResult.error) return showToast(sendResult.error, true);
+        showToast('Care Report publié et envoyé au client');
+      } catch { showToast('Erreur d\'envoi', true); }
+    }
+
+    function copyCareLink() {
+      const input = document.getElementById('careLinkInput');
+      input.select();
+      navigator.clipboard?.writeText(input.value).then(() => showToast('Lien copié'))
+        .catch(() => showToast('Copie impossible — sélectionnez et copiez manuellement', true));
     }
 
     // ── Blocked ───────────────────────────────────────────────

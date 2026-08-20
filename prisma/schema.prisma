@@ -139,6 +139,7 @@ model Appointment {
   updatedAt DateTime @updatedAt
 
   logs EventLog[]
+  careReport CareReport?
 
   // TODO : ajouter une contrainte EXCLUDE (date/heure + serviceId) au niveau
   // base pour une protection anti-chevauchement même en écriture concurrente.
@@ -209,4 +210,33 @@ model AdminUser {
   role         String   @default("owner") // "owner" | "staff"
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
+}
+
+// ============================================================
+// REYCE Care Report — prototype simple, un rapport par rendez-vous,
+// consultable via un lien privé (token non devinable, pas de compte
+// client). Photos stockées en base (data URLs redimensionnées côté
+// client) : suffisant pour ce prototype, à faire évoluer vers un vrai
+// stockage objet si le volume de photos grandit significativement.
+// ============================================================
+model CareReport {
+  id            String   @id @default(uuid())
+  token         String   @unique @default(uuid()) // utilisé dans le lien privé /care/:token
+  appointmentId String   @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  photosBefore  String[] @default([])
+  photosAfter   String[] @default([])
+
+  intervention  String? // intervention réalisée
+  protections   String? // protections appliquées
+  observations  String?
+  careAdvice    String? // conseils d'entretien
+  nextService   String? // prochaine intervention conseillée
+
+  published     Boolean  @default(false) // visible sur le lien tant que non publié = false
+  sentAt        DateTime? // date d'envoi du lien au client
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
