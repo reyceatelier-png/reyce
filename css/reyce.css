@@ -103,6 +103,18 @@ html.intro-seen #pre{display:none}
 .svc-facts div{display:flex;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--line-soft);
   font-family:var(--disp);font-weight:400;font-size:.76rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
 .svc-facts div span:last-child{color:#fff;font-weight:600;text-align:right}
+
+/* blocs de tarifs par niveau (polissage, nettoyage...) — pas de tableau */
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.tier-grid.has-4{grid-template-columns:repeat(4,1fr)}
+.tier-card{background:var(--card);border:1px solid var(--line);padding:clamp(24px,2.8vw,32px) clamp(20px,2.2vw,26px);display:flex;flex-direction:column;gap:14px}
+.tier-card.featured{border-color:rgba(255,255,255,.42);background:var(--card-2)}
+.tier-card .tk{font-family:var(--disp);font-weight:500;font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+.tier-card .price{font-family:var(--disp);font-weight:800;font-size:1.6rem;line-height:1}
+.tier-card .price .from{display:block;font-family:var(--body);font-weight:400;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.tier-card p{color:rgba(255,255,255,.78);font-size:.84rem;line-height:1.6}
+@media(max-width:900px){.tier-grid,.tier-grid.has-4{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.tier-grid,.tier-grid.has-4{grid-template-columns:1fr}}
 .incl{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;border:1px solid var(--line)}
 .incl div{padding:22px 24px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);display:flex;gap:14px;align-items:flex-start}
 .incl div .tick{color:#fff;font-size:.9rem;line-height:1.4}
