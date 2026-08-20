@@ -70,3 +70,19 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
   function step(ts){if(!s)s=ts;var p=Math.min((ts-s)/d,1);var e=1-Math.pow(1-p,3);
     el.firstChild.textContent=Math.round(e*t);if(p<1)requestAnimationFrame(step);}
   if(reduce){el.firstChild.textContent=t;return;}requestAnimationFrame(step);}
+
+// vidéos hors écran (histoire, récit) : ne commencent à charger/jouer
+// qu'à l'approche du scroll — évite de télécharger ~22 Mo dès l'arrivée
+// sur la page pour des vidéos que le visiteur n'a peut-être pas encore
+// atteintes.
+(function(){
+  var vids=document.querySelectorAll('video.lazyvid');
+  if(!vids.length)return;
+  var vio=new IntersectionObserver(function(es){es.forEach(function(e){
+    if(!e.isIntersecting)return;
+    var v=e.target;
+    v.load();v.play().catch(function(){});
+    vio.unobserve(v);
+  });},{rootMargin:'150px 0px'});
+  vids.forEach(function(v){vio.observe(v);});
+})();

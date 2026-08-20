@@ -3,7 +3,7 @@
 <title>REYCE — Centre d'esthétique automobile à Lyon</title>
 <meta name="description" content="REYCE, centre d'esthétique automobile premium à Lyon. Detailing, protection PPF, covering, traitement céramique et rénovation de jantes. Réservez en ligne le soin d'exception pour votre véhicule.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/reyce.css">
 <script src="js/reyce-preloader.js"></script>
 <meta name="robots" content="index, follow">
@@ -96,7 +96,7 @@
 </section>
 
 <section id="histoire" class="wrap mani reveal">
-  <div class="hist-media" data-plx="0.08"><video autoplay muted loop playsinline><source src="assets/histoire.mp4" type="video/mp4"></video></div>
+  <div class="hist-media" data-plx="0.08"><video class="lazyvid" muted loop playsinline preload="metadata"><source src="assets/histoire.mp4" type="video/mp4"></video></div>
   <div class="hist-scrim"></div>
   <h2>Nous ne lavons pas des voitures.<br><b>Nous prenons soin d'objets d'exception.</b></h2>
   <p class="sub">REYCE est né d'une conviction simple : une voiture rare mérite un traitement rare — et une expérience à la hauteur. Après des années passées à affiner nos techniques auprès des meilleurs spécialistes européens, nous avons réuni à Lyon une équipe de techniciens certifiés, animés par la même obsession du détail. Pas de méthode industrielle, pas de raccourci — seulement du travail minutieux et une transparence totale avec chaque client.</p>
@@ -104,7 +104,7 @@
 
 <section id="atelier" class="wrap">
   <div class="atl reveal">
-    <img data-plx="-0.05" src="assets/img/20042048.jpg" alt="Atelier REYCE">
+    <img loading="lazy" data-plx="-0.05" src="assets/img/20042048.jpg" alt="Atelier REYCE">
     <div class="num"><span data-count="400">0</span></div>
     <div class="cap">
       <h2>Mètres carrés<br>dédiés au détail.</h2>
@@ -114,7 +114,7 @@
 </section>
 
 <section id="recit" class="recit">
-  <div class="recit-media" data-plx="0.1"><video class="recit-bg" autoplay muted loop playsinline poster="assets/img/3354648.jpg"><source src="assets/recit.mp4" type="video/mp4"></video><div class="recit-scrim"></div></div>
+  <div class="recit-media" data-plx="0.1"><video class="recit-bg lazyvid" muted loop playsinline preload="none" poster="assets/img/3354648.jpg"><source src="assets/recit.mp4" type="video/mp4"></video><div class="recit-scrim"></div></div>
   <div class="recit-inner wrap">
     <div class="recit-txt reveal">
       <h2>Chaque véhicule<br>a son histoire.</h2>
@@ -160,10 +160,10 @@
 <section id="experience" class="wrap">
   <div class="sec-head reveal"><h2><span class="uline">L'attente</span><br>devient une parenthèse.</h2></div>
   <div class="rail">
-    <article class="reveal"><img src="assets/img/29255727.jpg" alt="Salon vitré"><div class="b"><h3>Salon vitré</h3><p>Vitre toute hauteur sur l'atelier : vous suivez le travail en direct.</p></div></article>
-    <article class="reveal"><img src="assets/img/13305636.jpg" alt="Café"><div class="b"><h3>Café de spécialité</h3><p>Espresso de torréfacteur. Le temps d'un café, votre voiture change de visage.</p></div></article>
-    <article class="reveal"><img src="assets/img/28993123.jpg" alt="Simulateur"><div class="b"><h3>Simulateur racing</h3><p>Baquet et volant à retour de force. Patienter autrement, pied au plancher.</p></div></article>
-    <article class="reveal"><img src="assets/img/22737744.jpg" alt="Lounge"><div class="b"><h3>Écran & lounge</h3><p>Grand format, assises confortables, wifi. Un espace calme.</p></div></article>
+    <article class="reveal"><img loading="lazy" src="assets/img/29255727.jpg" alt="Salon vitré"><div class="b"><h3>Salon vitré</h3><p>Vitre toute hauteur sur l'atelier : vous suivez le travail en direct.</p></div></article>
+    <article class="reveal"><img loading="lazy" src="assets/img/13305636.jpg" alt="Café"><div class="b"><h3>Café de spécialité</h3><p>Espresso de torréfacteur. Le temps d'un café, votre voiture change de visage.</p></div></article>
+    <article class="reveal"><img loading="lazy" src="assets/img/28993123.jpg" alt="Simulateur"><div class="b"><h3>Simulateur racing</h3><p>Baquet et volant à retour de force. Patienter autrement, pied au plancher.</p></div></article>
+    <article class="reveal"><img loading="lazy" src="assets/img/22737744.jpg" alt="Lounge"><div class="b"><h3>Écran & lounge</h3><p>Grand format, assises confortables, wifi. Un espace calme.</p></div></article>
   </div>
   <div class="railhint">← Faites glisser →</div>
 </section>
@@ -174,12 +174,12 @@
       <h2 style="font-family:var(--disp);font-weight:600;text-transform:uppercase;font-size:clamp(1.8rem,5vw,4.2rem);line-height:.98;letter-spacing:.01em"><span class="uline">Le</span><br>protocole</h2>
       <p>Un déroulé maîtrisé, identique pour chaque véhicule. De l'inspection à la remise des clés.</p>
       <div class="proto-media" id="protoMedia">
-        <img class="protoimg active" data-step="0" src="assets/img/20042048.jpg" alt="Diagnostic">
-        <img class="protoimg" data-step="1" src="assets/img/3354648.jpg" alt="Décontamination">
-        <img class="protoimg" data-step="2" src="assets/img/29755711.jpg" alt="Correction">
-        <img class="protoimg" data-step="3" src="assets/img/30644946.jpg" alt="Protection">
-        <img class="protoimg" data-step="4" src="assets/img/37809565.jpg" alt="Contrôle">
-        <img class="protoimg" data-step="5" src="assets/img/30674495.jpg" alt="Livraison">
+        <img loading="lazy" class="protoimg active" data-step="0" src="assets/img/20042048.jpg" alt="Diagnostic">
+        <img loading="lazy" class="protoimg" data-step="1" src="assets/img/3354648.jpg" alt="Décontamination">
+        <img loading="lazy" class="protoimg" data-step="2" src="assets/img/29755711.jpg" alt="Correction">
+        <img loading="lazy" class="protoimg" data-step="3" src="assets/img/30644946.jpg" alt="Protection">
+        <img loading="lazy" class="protoimg" data-step="4" src="assets/img/37809565.jpg" alt="Contrôle">
+        <img loading="lazy" class="protoimg" data-step="5" src="assets/img/30674495.jpg" alt="Livraison">
       </div>
     </div>
     <div class="proto-steps">
