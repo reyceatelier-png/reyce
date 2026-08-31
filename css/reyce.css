@@ -197,9 +197,9 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 .hero-words{display:flex;flex-direction:column;gap:.02em}
 .hero-words .hw-mask{display:block;overflow:hidden;padding-bottom:.04em}
 .hero-words .hw{display:block;font-weight:700;transform:translateY(110%);
-  animation:hwReveal 1.5s cubic-bezier(.22,1,.36,1) 2.3s forwards}
-.hero-words .hw-mask:nth-child(2) .hw{animation-delay:2.6s}
-.hero-words .hw-mask:nth-child(3) .hw{font-weight:200;animation-delay:2.9s}
+  animation:hwReveal 1.5s cubic-bezier(.22,1,.36,1) 3.8s forwards}
+.hero-words .hw-mask:nth-child(2) .hw{animation-delay:4.1s}
+.hero-words .hw-mask:nth-child(3) .hw{font-weight:200;animation-delay:4.4s}
 @keyframes hwReveal{from{transform:translateY(110%)}to{transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.hero-words .hw{animation:none;transform:none}}
 
