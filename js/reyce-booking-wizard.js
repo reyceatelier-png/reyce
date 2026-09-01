@@ -104,21 +104,62 @@ function detectGab(marque,modele){
    Ces identifiants correspondent aux prestations définies côté
    serveur (server.js) pour la création de la session Stripe.
    ============================================================ */
+/* Sous-titre de palier — identique quel que soit le type de nettoyage :
+   il doit rendre la montée en gamme compréhensible en quelques secondes. */
+var TIER_SUB={Confort:'Entretien', Premium:'Nettoyage approfondi', 'Expérience':'Remise à neuf complète'};
+
 var CLEAN={
   interieur:{label:'Intérieur', svc:'int', formules:[
-    {k:'Confort', nom:'Confort', prix:69, feat:['Aspiration complète (sièges, moquettes, coffre)','Dépoussiérage tableau de bord & plastiques','Nettoyage des vitres intérieures','Vidage & essuyage des rangements']},
-    {k:'Premium', nom:'Premium', prix:129, reco:true, feat:['Tout le Confort, en plus approfondi','Nettoyage des entrées de porte & seuils','Shampoing sièges tissu ou dégraissage cuir','Plastiques nettoyés & protégés (anti-UV)','Aérateurs & recoins détaillés']},
-    {k:'Expérience', nom:'Expérience', prix:229, top:true, deep:true, feat:['Deep cleaning intégral — chaque recoin repris','Extraction en profondeur des sièges & moquettes (injection/extraction)','Shampoing complet coffre, moquettes, tapis & ciel de toit','Cuirs nettoyés en profondeur, nourris & protégés','Dégraissage minutieux de toutes les surfaces','Nettoyage des grilles d\'aération, boutons & moindres interstices','Traitement ozone — odeurs & bactéries totalement éliminées','Plastiques traités effet satiné d\'origine','Vitres intérieures finition parfaite sans trace','Le soin absolu pour les plus méticuleux']}
+    {k:'Confort', nom:'Confort', prix:69,
+      pitch:'Idéale pour l\'entretien régulier d\'un véhicule déjà correctement entretenu.',
+      highlights:['Aspiration en surface de l\'habitacle et des tapis','Dépoussiérage des plastiques et surfaces intérieures','Nettoyage des vitres intérieures'],
+      detail:['Aspiration en surface de l\'habitacle','Aspiration des tapis','Dépoussiérage des plastiques et surfaces intérieures','Nettoyage léger des surfaces accessibles','Nettoyage des vitres intérieures'],
+      outro:'Une prestation essentielle pour conserver votre véhicule propre au quotidien.'},
+    {k:'Premium', nom:'Premium', prix:129, reco:true,
+      pitch:'Un nettoyage intérieur approfondi pour retrouver un habitacle parfaitement propre.',
+      highlights:['Aspiration approfondie de l\'habitacle, tapis et moquettes','Shampooing des sièges tissu ou dégraissage des sièges cuir','Nettoyage approfondi des plastiques et de la console','Parfum intérieur REYCE'],
+      detail:['Aspiration approfondie de l\'habitacle','Aspiration des moquettes','Aspiration et nettoyage des tapis','Shampooing des sièges en tissu, ou nettoyage et dégraissage des sièges en cuir selon le véhicule','Nettoyage approfondi des plastiques','Nettoyage de la console centrale','Nettoyage des surfaces intérieures','Nettoyage des entrants de portes','Nettoyage des vitres intérieures','Désodorisation de l\'habitacle','Parfum intérieur REYCE'],
+      outro:'Idéale pour une remise au propre approfondie de l\'intérieur.'},
+    {k:'Expérience', nom:'Expérience', prix:229, top:true, deep:true,
+      pitch:'L\'Expérience REYCE va au-delà du nettoyage traditionnel : chaque zone de l\'habitacle est travaillée en profondeur.',
+      highlights:['Aspiration complète, y compris sous les sièges et zones difficiles d\'accès','Shampooing en profondeur des sièges, moquettes et tapis','Cuirs dégraissés, nettoyés, nourris et protégés','Traitement à l\'ozone — neutralise durablement les mauvaises odeurs'],
+      detail:['Aspiration complète et en profondeur','Aspiration sous les sièges et dans les zones difficiles d\'accès','Shampooing en profondeur des sièges en tissu','Shampooing des moquettes','Nettoyage et shampooing en profondeur des tapis','Nettoyage des rails et contours de sièges','Nettoyage des ceintures de sécurité','Nettoyage du plafonnier','Nettoyage approfondi des plastiques','Nettoyage de la console centrale','Nettoyage des aérateurs, boutons et commandes','Nettoyage approfondi des entrants et seuils de portes','Nettoyage des vitres et miroirs intérieurs','Pour les intérieurs cuir : dégraissage, nettoyage approfondi, nourrissage et protection','Finition et protection des plastiques intérieurs','Désodorisation complète et traitement à l\'ozone','Parfum intérieur et finition REYCE']}
   ]},
   exterieur:{label:'Extérieur', svc:'ext', formules:[
-    {k:'Confort', nom:'Confort', prix:49, feat:['Prélavage mousse active sans contact','Lavage carrosserie deux seaux','Séchage microfibre premium','Idéal pour un véhicule déjà presque propre']},
-    {k:'Premium', nom:'Premium', prix:89, reco:true, feat:['Tout le Confort, en plus complet','Décontamination anti-moustiques & résines','Jantes & passages de roue nettoyés','Garde-boue & bas de caisse','Brillance des pneus & plastiques']},
-    {k:'Expérience', nom:'Expérience', prix:149, top:true, deep:true, feat:['Deep cleaning extérieur — traitement d\'exception','Décontamination complète : chimique + mécanique (clay bar)','Élimination des goudrons, résines, insectes & dépôts ferreux','Jantes déposées ou détaillées intérieur & extérieur','Passages de roue, étriers & moindres recoins','Brillance longue tenue des plastiques & pneus','Cire hydrophobe 6 mois ultra-brillante','Une carrosserie qui retrouve son éclat le plus profond']}
+    {k:'Confort', nom:'Confort', prix:49,
+      pitch:'Idéale pour l\'entretien régulier d\'un véhicule déjà correctement entretenu.',
+      highlights:['Prélavage au canon à mousse','Shampooing extérieur et rinçage complet','Nettoyage des jantes en surface et séchage soigné'],
+      detail:['Prélavage au canon à mousse','Shampooing extérieur','Rinçage complet','Nettoyage des jantes en surface','Nettoyage des vitres extérieures','Séchage soigné'],
+      outro:'Une prestation essentielle pour conserver votre véhicule propre au quotidien.'},
+    {k:'Premium', nom:'Premium', prix:89, reco:true,
+      pitch:'Un lavage extérieur approfondi pour une carrosserie parfaitement propre.',
+      highlights:['Lavage manuel au gant et shampooing extérieur','Nettoyage complet des jantes et des pneus','Shampooing lustrant — une finition qui apporte de la brillance'],
+      detail:['Prélavage au canon à mousse','Lavage manuel au gant','Shampooing extérieur','Nettoyage complet des jantes','Nettoyage des pneus','Finition et dressing pneus','Shampooing lustrant — une finition rapide qui apporte davantage de brillance à la carrosserie','Nettoyage des vitres extérieures','Séchage soigné'],
+      outro:'Idéale pour une remise au propre approfondie de l\'extérieur.'},
+    {k:'Expérience', nom:'Expérience', prix:149, top:true, deep:true,
+      pitch:'L\'Expérience REYCE va au-delà du nettoyage traditionnel : chaque zone de la carrosserie est travaillée en profondeur.',
+      highlights:['Lavage manuel minutieux et jantes travaillées en profondeur','Passages de roues, garde-boues et recoins difficiles d\'accès traités','Dressing premium pneus, plastiques et passages de roues','Cire premium appliquée à la main, effet hydrophobe'],
+      detail:['Prélavage complet au canon à mousse','Lavage manuel minutieux au gant','Shampooing extérieur premium','Nettoyage en profondeur des jantes et des pneus','Nettoyage des passages de roues et des garde-boues','Nettoyage des recoins et zones difficiles d\'accès','Nettoyage des contours, joints et détails extérieurs','Nettoyage complet des vitres','Dressing premium des pneus, plastiques extérieurs et passages de roues','Finitions détaillées de la carrosserie','Protection carrosserie : application à la main d\'une cire premium','Brillance et profondeur renforcées, effet hydrophobe pouvant durer environ 6 à 12 mois selon l\'usage, l\'entretien du véhicule et les conditions extérieures']}
   ]},
   duo:{label:'Intérieur + Extérieur', svc:'duo', formules:[
-    {k:'Confort', nom:'Confort', prix:99, feat:['Tout l\'Intérieur Confort','Tout l\'Extérieur Confort','Le véhicule repris dedans comme dehors','La solution complète au meilleur prix']},
-    {k:'Premium', nom:'Premium', prix:169, reco:true, feat:['Tout l\'Intérieur Premium','Tout l\'Extérieur Premium','La remise à neuf complète du véhicule','Plastiques & cuirs protégés','Le choix de la plupart de nos clients']},
-    {k:'Expérience', nom:'Expérience', prix:299, top:true, deep:true, feat:['Deep cleaning complet intérieur + extérieur','Tout l\'Intérieur Expérience (extraction, ozone, cuirs, ciel de toit)','Tout l\'Extérieur Expérience (décontamination clay, jantes détaillées)','Le soin ultime, sans le moindre compromis','Traitement ozone & cire hydrophobe 6 mois inclus','Chaque surface, chaque recoin, repris à la perfection','L\'expérience REYCE dans son intégralité — pour les plus exigeants']}
+    {k:'Confort', nom:'Confort', prix:99,
+      pitch:'Idéale pour l\'entretien régulier d\'un véhicule déjà correctement entretenu.',
+      highlights:['Aspiration en surface de l\'habitacle et des tapis','Prélavage au canon à mousse et shampooing extérieur','Nettoyage des vitres, intérieur et extérieur'],
+      detailInt:['Aspiration en surface de l\'habitacle','Aspiration des tapis','Dépoussiérage des plastiques et surfaces intérieures','Nettoyage léger des surfaces accessibles','Nettoyage des vitres intérieures'],
+      detailExt:['Prélavage au canon à mousse','Shampooing extérieur','Rinçage complet','Nettoyage des jantes en surface','Nettoyage des vitres extérieures','Séchage soigné'],
+      outro:'Une prestation essentielle pour conserver votre véhicule propre au quotidien.'},
+    {k:'Premium', nom:'Premium', prix:169, reco:true,
+      pitch:'Un nettoyage intérieur et extérieur approfondi pour retrouver un véhicule parfaitement propre.',
+      highlights:['Aspiration approfondie de l\'habitacle, tapis et moquettes','Shampooing sièges tissu ou dégraissage cuir','Lavage manuel au gant, jantes et pneus nettoyés en profondeur','Shampooing lustrant apportant davantage de brillance','Parfum intérieur REYCE'],
+      detailInt:['Aspiration approfondie de l\'habitacle','Aspiration des moquettes','Aspiration et nettoyage des tapis','Shampooing des sièges en tissu, ou nettoyage et dégraissage des sièges en cuir selon le véhicule','Nettoyage approfondi des plastiques','Nettoyage de la console centrale','Nettoyage des surfaces intérieures','Nettoyage des entrants de portes','Nettoyage des vitres intérieures','Désodorisation de l\'habitacle','Parfum intérieur REYCE'],
+      detailExt:['Prélavage au canon à mousse','Lavage manuel au gant','Shampooing extérieur','Nettoyage complet des jantes','Nettoyage des pneus','Finition et dressing pneus','Shampooing lustrant — une finition rapide qui apporte davantage de brillance à la carrosserie','Nettoyage des vitres extérieures','Séchage soigné'],
+      outro:'Idéale pour une remise au propre approfondie de l\'intérieur comme de l\'extérieur.'},
+    {k:'Expérience', nom:'Expérience', prix:299, top:true, deep:true,
+      pitch:'L\'Expérience REYCE va au-delà du nettoyage traditionnel. Chaque partie du véhicule est travaillée en profondeur afin de retrouver un niveau de propreté, de finition et de protection exceptionnel.',
+      highlights:['Detailing complet de l\'habitacle, jusque dans les moindres recoins','Cuirs dégraissés, nettoyés, nourris et protégés','Traitement à l\'ozone — neutralise durablement les mauvaises odeurs','Lavage manuel minutieux et jantes travaillées en profondeur','Cire premium appliquée à la main, effet hydrophobe'],
+      detailInt:['Aspiration complète et en profondeur','Aspiration sous les sièges et dans les zones difficiles d\'accès','Shampooing en profondeur des sièges en tissu','Shampooing des moquettes','Nettoyage et shampooing en profondeur des tapis','Nettoyage des rails et contours de sièges','Nettoyage des ceintures de sécurité','Nettoyage du plafonnier','Nettoyage approfondi des plastiques','Nettoyage de la console centrale','Nettoyage des aérateurs, boutons et commandes','Nettoyage approfondi des entrants et seuils de portes','Nettoyage des vitres et miroirs intérieurs','Pour les intérieurs cuir : dégraissage, nettoyage approfondi, nourrissage et protection','Finition et protection des plastiques intérieurs','Désodorisation complète et traitement à l\'ozone','Parfum intérieur et finition REYCE'],
+      detailExt:['Prélavage complet au canon à mousse','Lavage manuel minutieux au gant','Shampooing extérieur premium','Nettoyage en profondeur des jantes et des pneus','Nettoyage des passages de roues et des garde-boues','Nettoyage des recoins et zones difficiles d\'accès','Nettoyage des contours, joints et détails extérieurs','Nettoyage complet des vitres','Dressing premium des pneus, plastiques extérieurs et passages de roues','Finitions détaillées de la carrosserie','Protection carrosserie : application à la main d\'une cire premium','Brillance et profondeur renforcées, effet hydrophobe pouvant durer environ 6 à 12 mois selon l\'usage, l\'entretien du véhicule et les conditions extérieures'],
+      outro:'La formule pensée pour une véritable remise à neuf, ou pour le niveau de finition le plus complet proposé par REYCE.'}
   ]}
 };
 
@@ -348,11 +389,22 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
       fs.forEach(function(f,i){
         var cls='formcard'+(state.form===i?' sel':'')+(f.reco?' reco':'')+(f.top?' top':'');
         var tag=f.top?'<span class="tag alt">Signature REYCE</span>':(f.reco?'<span class="tag">Recommandé</span>':'');
-        var deepBadge=f.deep?'<div class="deepk">✦ Deep Cleaning · le soin ultime</div>':'';
+        var hi='<ul>'+f.highlights.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul>';
+        var detailHtml='';
+        if(f.detailInt&&f.detailExt){
+          detailHtml='<details class="fdetail"><summary><span>Voir le détail complet</span><span class="pm"></span></summary>'+
+            '<div class="fdetail-group"><h5>Intérieur</h5><ul>'+f.detailInt.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></div>'+
+            '<div class="fdetail-group"><h5>Extérieur</h5><ul>'+f.detailExt.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></div>'+
+            '</details>';
+        } else if(f.detail){
+          detailHtml='<details class="fdetail"><summary><span>Voir le détail complet</span><span class="pm"></span></summary>'+
+            '<ul>'+f.detail.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></details>';
+        }
         h+='<div class="'+cls+'" data-form="'+i+'">'+tag+
-           '<div><div class="fk">'+f.k+'</div><h4>'+f.nom+'</h4>'+deepBadge+'</div>'+
+           '<div><div class="fk">'+f.k+'</div><h4>'+f.nom+'</h4><div class="fsub">'+TIER_SUB[f.k]+'</div></div>'+
            '<div class="price"><span class="from">À partir de</span>'+euro(f.prix>0?(f.prix+gabSupp()):0)+'</div>'+
-           '<ul>'+f.feat.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul>'+
+           '<p class="fpitch">'+f.pitch+'</p>'+hi+detailHtml+
+           (f.outro?'<p class="fnote">'+f.outro+'</p>':'')+
            '<div class="pick">'+(state.form===i?'Sélectionnée':(f.top?'Vivre l\'expérience':'Choisir'))+'</div></div>';
       });
       h+='</div>';
@@ -631,6 +683,7 @@ function validProjetStep(){
 function bindP(last){
   panel.querySelectorAll('[data-clean]').forEach(function(b){b.addEventListener('click',function(){state.clean=b.dataset.clean;render()})});
   panel.querySelectorAll('[data-form]').forEach(function(b){b.addEventListener('click',function(){state.form=+b.dataset.form;render()})});
+  panel.querySelectorAll('.fdetail summary').forEach(function(s){s.addEventListener('click',function(e){e.stopPropagation();})});
   panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){var id=b.dataset.opt;var k=state.opts.indexOf(id);if(k>-1)state.opts.splice(k,1);else state.opts.push(id);render()})});
   var promoBtn=document.getElementById('promoBtn');
   if(promoBtn)promoBtn.addEventListener('click',function(){
