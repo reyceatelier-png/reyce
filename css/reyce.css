@@ -770,8 +770,26 @@ footer{border-top:1px solid var(--line);padding-top:clamp(60px,9vh,120px);margin
 .optbody{flex:1;display:flex;flex-direction:column;gap:3px}
 .optbody b{font-family:var(--disp);font-weight:600;font-size:.92rem;text-transform:uppercase;letter-spacing:.01em}
 .optd{font-size:.8rem;color:var(--dim);line-height:1.4}
-.optp{font-family:var(--disp);font-weight:700;font-size:.92rem;white-space:nowrap}
+.optp{font-family:var(--disp);font-weight:700;font-size:.98rem;white-space:nowrap;text-align:right;line-height:1.3}
+.optp i{display:block;font-style:normal;font-family:var(--body);font-weight:400;font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+.optnote{margin-top:14px;color:var(--dim);font-size:.8rem;line-height:1.5}
 @media(max-width:720px){.optgrid{grid-template-columns:1fr}}
+
+/* ---- upsell Car Staging ---- */
+.staging-upsell{margin-top:34px;border-top:1px solid var(--line-soft);padding-top:28px}
+.staging-hook{font-family:var(--disp);font-weight:600;font-size:.92rem;letter-spacing:.005em;color:#fff;margin-bottom:14px}
+.staging-card{display:flex;justify-content:space-between;align-items:center;gap:28px;flex-wrap:wrap;
+  border:1px solid var(--line);background:var(--card);padding:clamp(22px,2.6vw,30px)}
+.staging-kicker{display:block;font-family:var(--disp);font-weight:500;font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+.staging-body h4{font-family:var(--disp);font-weight:700;text-transform:uppercase;font-size:1.15rem;letter-spacing:.01em;margin-bottom:8px}
+.staging-body p{color:rgba(255,255,255,.78);font-size:.86rem;line-height:1.6;max-width:46ch}
+.staging-ceramique{margin-top:12px;color:var(--dim);font-size:.78rem;line-height:1.55;max-width:46ch}
+.staging-cta{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.staging-price{font-family:var(--disp);font-weight:600;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+.staging-upsell--top .staging-hook{font-size:1rem}
+.staging-card--top{border-color:#fff;background:linear-gradient(180deg,var(--card-2),var(--card))}
+.staging-card--top .staging-kicker{color:#fff}
+@media(max-width:640px){.staging-card{flex-direction:column;align-items:stretch}.staging-cta{align-items:stretch}.staging-cta .btn{text-align:center}}
 
 /* ---- decoy récap combiné ---- */
 .combo{border:1px solid var(--line);background:var(--card);padding:24px;margin-top:2px}

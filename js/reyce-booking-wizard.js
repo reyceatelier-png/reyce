@@ -165,16 +165,33 @@ var CLEAN={
 
 /* ============================================================
    OPTIONS / SUPPLÉMENTS AU CHOIX
-   prix:0 -> s'affiche "___" tant que le tarif n'est pas défini.
+   Tarifs "à partir de" : le montant réel dépend de l'état du
+   véhicule, de la surface à traiter et du temps nécessaire.
    ============================================================ */
 var OPTIONS=[
-  {id:'poils', nom:'Poils d\'animaux', desc:'Traitement spécifique sièges & moquettes', prix:0},
-  {id:'taches', nom:'Taches incrustées', desc:'Détachage en profondeur des salissures tenaces', prix:0},
-  {id:'ozone', nom:'Désinfection ozone', desc:'Élimine odeurs (tabac, animaux) et bactéries', prix:0},
-  {id:'cuir', nom:'Rénovation cuir', desc:'Nettoyage, nourrissage et protection des cuirs', prix:0},
-  {id:'phares', nom:'Rénovation optiques', desc:'Polissage des phares ternis ou jaunis', prix:0},
-  {id:'hydro', nom:'Protection hydrophobe vitres', desc:'Effet déperlant longue durée sur les vitrages', prix:0}
+  {id:'poils', nom:'Poils d\'animaux', desc:'Traitement spécifique sièges & moquettes', prix:30, variable:true},
+  {id:'taches', nom:'Taches incrustées', desc:'Détachage en profondeur des salissures tenaces', prix:30, variable:true},
+  {id:'ozone', nom:'Désinfection / traitement ozone', desc:'Neutralise durablement les mauvaises odeurs (tabac, animaux)', prix:50},
+  {id:'cuir', nom:'Rénovation cuir', desc:'Nettoyage, nourrissage et soin approfondi des cuirs', prix:60},
+  {id:'phares', nom:'Rénovation des optiques', desc:'Polissage des phares ternis ou jaunis', prix:80},
+  {id:'hydro', nom:'Protection hydrophobe vitres', desc:'Effet déperlant longue durée sur les vitrages', prix:80}
 ];
+var OPTS_VARIABLE_NOTE='Le tarif peut évoluer selon la quantité, l\'état et le temps de traitement nécessaire.';
+
+/* ============================================================
+   CAR STAGING — upsell discret vers la remise à neuf en 1 journée
+   Prestation sur devis : pas de réservation/paiement direct ici,
+   on redirige vers le flux "projet" déjà existant (demande + rappel).
+   ============================================================ */
+var STAGING={
+  prix:600,
+  kicker:'Car Staging',
+  titre:'Remise à neuf en 1 journée',
+  hookPremium:'Vous souhaitez aller plus loin ?',
+  hookExperience:'Pour une remise à neuf encore plus poussée, découvrez notre Car Staging.',
+  lead:'Confiez-nous votre véhicule pendant une journée complète. Intérieur, carrosserie, finitions et protection : nous établissons un programme personnalisé afin de le remettre au meilleur niveau possible.',
+  ceramique:'Vous recherchez une protection encore plus durable ? Nos traitements céramiques peuvent être intégrés à une préparation personnalisée après échange avec un technicien.'
+};
 
 /* Code promo — réservé aux formules Premium & Expérience */
 var PROMO={active:true, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', formules:['Premium','Expérience']};
@@ -195,8 +212,21 @@ var projets=[
   {label:'Vitres teintées', img:'assets/img/22737744.jpg'},
   {label:'Customisation', img:'assets/img/32726106.jpg'},
   {label:'Ligne d\'échappement', img:'assets/img/6872609.jpg'},
+  {label:'Car Staging (remise à neuf en 1 journée)', img:'assets/img/30674495.jpg'},
+  {label:'Traitement céramique', img:'assets/img/3892898.jpg'},
   {label:'Autre projet', img:'assets/img/20042048.jpg'}
 ];
+var STAGING_PROJ_IDX=projets.findIndex(function(p){return p.label.indexOf('Car Staging')===0;});
+var CERAMIQUE_PROJ_IDX=projets.findIndex(function(p){return p.label==='Traitement céramique';});
+
+/* Bascule vers le flux "projet" avec la prestation pré-sélectionnée —
+   réutilise entièrement le parcours de demande existant (pas de nouveau
+   système : véhicule, échange, coordonnées, envoi via /api/contact). */
+function goToProjet(idx){
+  state.type='projet';state.projet=[idx];step=0;
+  document.querySelectorAll('#rtype button').forEach(function(x){x.classList.toggle('sel', x.dataset.type==='projet');});
+  render();
+}
 var contactModes=['Par téléphone','En visio','À l\'atelier'];
 var LAB={
   prestation:['Véhicule','Nettoyage','Formule','Créneau','Coordonnées'],
@@ -409,14 +439,18 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
       });
       h+='</div>';
       h+='<div class="optsec"><div class="optsec-h"><h4 style="margin:0">Ajoutez des options</h4><span class="mono">Facultatif</span></div><div class="optgrid">';
+      var showVarNote=false;
       OPTIONS.forEach(function(op){
         var on=state.opts.indexOf(op.id)>-1;
+        if(on&&op.variable) showVarNote=true;
         h+='<button type="button" class="optcard'+(on?' sel':'')+'" data-opt="'+op.id+'">'+
            '<span class="optck">'+(on?'✓':'+')+'</span>'+
            '<span class="optbody"><b>'+op.nom+'</b><span class="optd">'+op.desc+'</span></span>'+
-           '<span class="optp">'+(op.prix>0?('+'+op.prix+' €'):'+___€')+'</span></button>';
+           '<span class="optp"><i>à partir de</i>'+op.prix+'&nbsp;€</span></button>';
       });
-      h+='</div></div>';
+      h+='</div>';
+      if(showVarNote) h+='<p class="optnote">'+OPTS_VARIABLE_NOTE+'</p>';
+      h+='</div>';
 
       var sv=duoSave(state.form);
       if(state.clean==='duo'){
@@ -426,6 +460,28 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
         if(sv){h+='<div class="eco">Le complet vous fait économiser '+sv.save+' € — et va au bout des choses</div>';}
         else{h+='<div class="eco">Le soin le plus abouti, dedans comme dehors</div>';}
         h+='</div>';
+      }
+
+      /* upsell Car Staging — discret sur Premium, plus visible sur Expérience,
+         quasi absent sur Confort. Aucune réservation directe : renvoie vers
+         le flux "projet" existant pour être conseillé par un technicien. */
+      if(state.form===1){
+        h+='<div class="staging-upsell"><p class="staging-hook">'+STAGING.hookPremium+'</p>'+
+           '<div class="staging-card">'+
+             '<div class="staging-body"><span class="staging-kicker">'+STAGING.kicker+'</span><h4>'+STAGING.titre+'</h4>'+
+             '<p>'+STAGING.lead+'</p></div>'+
+             '<div class="staging-cta"><span class="staging-price">À partir de '+STAGING.prix+'&nbsp;€</span>'+
+             '<button type="button" class="btn ghost" id="stagingBtn">Découvrir le Car Staging</button></div>'+
+           '</div></div>';
+      } else if(state.form===2){
+        h+='<div class="staging-upsell staging-upsell--top"><p class="staging-hook">'+STAGING.hookExperience+'</p>'+
+           '<div class="staging-card staging-card--top">'+
+             '<div class="staging-body"><span class="staging-kicker">'+STAGING.kicker+' — Signature REYCE</span><h4>'+STAGING.titre+'</h4>'+
+             '<p>'+STAGING.lead+'</p>'+
+             '<p class="staging-ceramique">'+STAGING.ceramique+'</p></div>'+
+             '<div class="staging-cta"><span class="staging-price">À partir de '+STAGING.prix+'&nbsp;€</span>'+
+             '<button type="button" class="btn" id="stagingBtn">Demander mon Car Staging</button></div>'+
+           '</div></div>';
       }
     }
     else if(step===3){
@@ -684,6 +740,8 @@ function bindP(last){
   panel.querySelectorAll('[data-clean]').forEach(function(b){b.addEventListener('click',function(){state.clean=b.dataset.clean;render()})});
   panel.querySelectorAll('[data-form]').forEach(function(b){b.addEventListener('click',function(){state.form=+b.dataset.form;render()})});
   panel.querySelectorAll('.fdetail summary').forEach(function(s){s.addEventListener('click',function(e){e.stopPropagation();})});
+  var stagingBtn=document.getElementById('stagingBtn');
+  if(stagingBtn)stagingBtn.addEventListener('click',function(){goToProjet(STAGING_PROJ_IDX);});
   panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){var id=b.dataset.opt;var k=state.opts.indexOf(id);if(k>-1)state.opts.splice(k,1);else state.opts.push(id);render()})});
   var promoBtn=document.getElementById('promoBtn');
   if(promoBtn)promoBtn.addEventListener('click',function(){
