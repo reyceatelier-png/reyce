@@ -16,6 +16,10 @@ const SERVICES = [
   { id: 'nettoyage-duo-confort',    name: 'Nettoyage Intérieur + Extérieur — Confort',     category: 'nettoyage', durationMin: 90,  priceCents:  9900, depositCents: 4000 },
   { id: 'nettoyage-duo-premium',    name: 'Nettoyage Intérieur + Extérieur — Premium',     category: 'nettoyage', durationMin: 150, priceCents: 16900, depositCents: 4000 },
   { id: 'nettoyage-duo-experience', name: 'Nettoyage Intérieur + Extérieur — Expérience',  category: 'nettoyage', durationMin: 480, priceCents: 29900, depositCents: 4000 },
+  // Sur devis uniquement (jamais réservée en ligne) : active:false n'est posé
+  // qu'à la création (voir boucle plus bas, le champ n'est jamais réécrit par
+  // "update" pour ne pas écraser un choix ultérieur fait depuis l'admin).
+  { id: 'car-staging',              name: 'Car Staging',                                   category: 'car-staging', durationMin: 480, priceCents: 60000, depositCents: 0, active: false },
 ];
 
 // 7j/7 — horaires standards (alignés sur les créneaux déjà utilisés côté site)

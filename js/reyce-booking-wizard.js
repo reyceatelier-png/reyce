@@ -861,4 +861,11 @@ function bindJ(last){
 }
 
 render();
+
+/* Le prix du Car Staging est centralisé côté serveur (catalogue de
+   prestations, éditable depuis l'admin) — 600 € ci-dessus n'est qu'un
+   repli affiché le temps que l'appel réponde, ou s'il échoue. */
+fetch('/api/public/pricing/car-staging').then(function(r){return r.ok?r.json():null;}).then(function(d){
+  if(d&&d.priceCents>0){STAGING.prix=Math.round(d.priceCents/100);render();}
+}).catch(function(){});
 })();

@@ -66,6 +66,9 @@ document.querySelectorAll('.stagger').forEach(function(g){[].slice.call(g.childr
 var io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');
   if(e.target.dataset.count){countUp(e.target);}io.unobserve(e.target)}}),{threshold:.08,rootMargin:'0px 0px -8% 0px'});
 document.querySelectorAll('.reveal,[data-count]').forEach(el=>io.observe(el));
+/* Le HTML contient déjà la vraie valeur (SEO/no-JS/lecteurs d'écran) ; si JS
+   tourne, on repart de 0 pour l'effet de comptage au scroll — purement cosmétique. */
+if(!reduce) document.querySelectorAll('[data-count]').forEach(el=>{el.textContent='0';});
 function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
   function step(ts){if(!s)s=ts;var p=Math.min((ts-s)/d,1);var e=1-Math.pow(1-p,3);
     el.firstChild.textContent=Math.round(e*t);if(p<1)requestAnimationFrame(step);}

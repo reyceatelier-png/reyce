@@ -43,7 +43,11 @@ const SERVICES = {
   'nettoyage-ext-experience':   { name: 'Nettoyage Extérieur — Expérience',   priceCents: 14900, depositCents: 4000, durationMin: 180, slots: ['09:00'] },
   'nettoyage-duo-confort':      { name: 'Nettoyage Intérieur + Extérieur — Confort',    priceCents:  9900, depositCents: 4000, durationMin: 90,  slots: ['09:00', '11:00', '14:00', '16:00'] },
   'nettoyage-duo-premium':      { name: 'Nettoyage Intérieur + Extérieur — Premium',    priceCents: 16900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
-  'nettoyage-duo-experience':   { name: 'Nettoyage Intérieur + Extérieur — Expérience', priceCents: 29900, depositCents: 4000, durationMin: 480, slots: ['09:00'] }
+  'nettoyage-duo-experience':   { name: 'Nettoyage Intérieur + Extérieur — Expérience', priceCents: 29900, depositCents: 4000, durationMin: 480, slots: ['09:00'] },
+  // Car Staging : prestation sur devis (jamais réservée/payée directement ici),
+  // le prix affiché au client est simplement centralisé ici + éditable dans
+  // l'admin (onglet Prestations) au lieu d'être codé en dur côté front.
+  'car-staging':                { name: 'Car Staging',                                   priceCents: 60000, depositCents: 0,    durationMin: 480, slots: [] }
 };
 
 // Catalogue "vivant" des prestations : les créneaux horaires (slots) restent
@@ -1050,6 +1054,21 @@ app.get('/api/slots', async (req, res) => {
   const blockedSlots = blocked.slots[date] || [];
 
   res.json({ slots: SERVICES[service].slots.filter(s => !taken.includes(s) && !blockedSlots.includes(s)) });
+});
+
+// Lecture publique d'un tarif "sur devis" affiché côté site (ex. Car Staging),
+// pour que le prix reste centralisé dans le catalogue de prestations (éditable
+// depuis l'admin) au lieu d'être codé en dur dans le JS du site public.
+// Liste blanche volontairement restreinte : ne pas exposer tout le catalogue
+// (acomptes, durées internes) à n'importe quel visiteur.
+const PUBLIC_PRICING_IDS = ['car-staging'];
+app.get('/api/public/pricing/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!PUBLIC_PRICING_IDS.includes(id) || !SERVICES[id]) {
+    return res.status(404).json({ error: 'Tarif introuvable' });
+  }
+  const catalog = await getServiceCatalog();
+  res.json({ id, priceCents: catalog[id].priceCents });
 });
 
 app.use('/api/create-checkout-session', express.json());
