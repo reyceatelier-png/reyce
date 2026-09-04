@@ -868,4 +868,17 @@ render();
 fetch('/api/public/pricing/car-staging').then(function(r){return r.ok?r.json():null;}).then(function(d){
   if(d&&d.priceCents>0){STAGING.prix=Math.round(d.priceCents/100);render();}
 }).catch(function(){});
+
+/* Pré-remplissage du flux "projet" quand on arrive depuis une page SEO
+   dédiée (ex. rendez-vous.html?projet=car-staging) — réutilise goToProjet()
+   et le tableau projets déjà existants, aucun nouveau système. */
+(function(){
+  var wanted=new URLSearchParams(location.search).get('projet');
+  if(!wanted) return;
+  var map={'car-staging':'Car Staging','ceramique':'Traitement céramique','ppf':'PPF','vitres-teintees':'Vitres teintées','wrap':'Covering'};
+  var label=map[wanted];
+  if(!label) return;
+  var idx=projets.findIndex(function(p){return p.label.indexOf(label)===0;});
+  if(idx>-1) goToProjet(idx);
+})();
 })();
