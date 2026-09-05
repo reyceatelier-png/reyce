@@ -9,15 +9,17 @@ asideTitle=document.getElementById('asideTitle'),asideText=document.getElementBy
 if(!panel) return;
 
 /* ============================================================
-   GABARITS & SUPPLÉMENTS
-   Le prix affiché = prix de base de la formule (tarif Citadine)
-   + le supplément du gabarit ci-dessous. Citadine = référence.
+   GABARITS
+   Chaque gabarit a désormais son propre tarif par formule (voir
+   CLEAN[...].formules[...].parGabarit) — plus de supplément flat, sauf
+   pour "sportive" (véhicules d'exception, non concernés par la nouvelle
+   grille), qui reste calculé sur la base citadine + ce supplément.
    ============================================================ */
 var GABARITS={
-  citadine:{label:'Citadine', desc:'Petite voiture urbaine', supp:0},
-  berline:{label:'Berline / Break', desc:'Compacte, berline, break', supp:20},
-  suv:{label:'SUV / 4×4', desc:'SUV, crossover, tout-terrain', supp:40},
-  van:{label:'Utilitaire / Van', desc:'Monospace 7+ places, utilitaire', supp:70},
+  citadine:{label:'Citadine', desc:'Petite voiture urbaine'},
+  berline:{label:'Berline / Break', desc:'Compacte, berline, break'},
+  suv:{label:'SUV / 4×4', desc:'SUV, crossover, tout-terrain'},
+  van:{label:'Utilitaire / Van', desc:'Monospace 7+ places, utilitaire'},
   sportive:{label:'Sportive / Exception', desc:'Sportive, GT, supercar', supp:60}
 };
 /* base des modèles les plus courants en France -> gabarit.
@@ -110,51 +112,51 @@ var TIER_SUB={Confort:'Entretien', Premium:'Nettoyage approfondi', 'Expérience'
 
 var CLEAN={
   interieur:{label:'Intérieur', svc:'int', formules:[
-    {k:'Confort', nom:'Confort', prix:69,
+    {k:'Confort', nom:'Confort', prix:69, parGabarit:{citadine:69,berline:79,suv:89,van:99},
       pitch:'Idéale pour l\'entretien régulier d\'un véhicule déjà correctement entretenu.',
       highlights:['Aspiration en surface de l\'habitacle et des tapis','Dépoussiérage des plastiques et surfaces intérieures','Nettoyage des vitres intérieures'],
       detail:['Aspiration en surface de l\'habitacle','Aspiration des tapis','Dépoussiérage des plastiques et surfaces intérieures','Nettoyage léger des surfaces accessibles','Nettoyage des vitres intérieures'],
       outro:'Une prestation essentielle pour conserver votre véhicule propre au quotidien.'},
-    {k:'Premium', nom:'Premium', prix:129, reco:true,
+    {k:'Premium', nom:'Premium', prix:129, parGabarit:{citadine:129,berline:149,suv:169,van:189}, reco:true,
       pitch:'Un nettoyage intérieur approfondi pour retrouver un habitacle parfaitement propre.',
       highlights:['Aspiration approfondie de l\'habitacle, tapis et moquettes','Shampooing des sièges tissu ou dégraissage des sièges cuir','Nettoyage approfondi des plastiques et de la console','Parfum intérieur REYCE'],
       detail:['Aspiration approfondie de l\'habitacle','Aspiration des moquettes','Aspiration et nettoyage des tapis','Shampooing des sièges en tissu, ou nettoyage et dégraissage des sièges en cuir selon le véhicule','Nettoyage approfondi des plastiques','Nettoyage de la console centrale','Nettoyage des surfaces intérieures','Nettoyage des entrants de portes','Nettoyage des vitres intérieures','Désodorisation de l\'habitacle','Parfum intérieur REYCE'],
       outro:'Idéale pour une remise au propre approfondie de l\'intérieur.'},
-    {k:'Expérience', nom:'Expérience', prix:229, top:true, deep:true,
+    {k:'Expérience', nom:'Expérience', prix:219, parGabarit:{citadine:219,berline:249,suv:279,van:309}, top:true, deep:true,
       pitch:'L\'Expérience REYCE va au-delà du nettoyage traditionnel : chaque zone de l\'habitacle est travaillée en profondeur.',
       highlights:['Aspiration complète, y compris sous les sièges et zones difficiles d\'accès','Shampooing en profondeur des sièges, moquettes et tapis','Cuirs dégraissés, nettoyés, nourris et protégés','Traitement à l\'ozone — neutralise durablement les mauvaises odeurs'],
       detail:['Aspiration complète et en profondeur','Aspiration sous les sièges et dans les zones difficiles d\'accès','Shampooing en profondeur des sièges en tissu','Shampooing des moquettes','Nettoyage et shampooing en profondeur des tapis','Nettoyage des rails et contours de sièges','Nettoyage des ceintures de sécurité','Nettoyage du plafonnier','Nettoyage approfondi des plastiques','Nettoyage de la console centrale','Nettoyage des aérateurs, boutons et commandes','Nettoyage approfondi des entrants et seuils de portes','Nettoyage des vitres et miroirs intérieurs','Pour les intérieurs cuir : dégraissage, nettoyage approfondi, nourrissage et protection','Finition et protection des plastiques intérieurs','Désodorisation complète et traitement à l\'ozone','Parfum intérieur et finition REYCE']}
   ]},
   exterieur:{label:'Extérieur', svc:'ext', formules:[
-    {k:'Confort', nom:'Confort', prix:49,
+    {k:'Confort', nom:'Confort', prix:59, parGabarit:{citadine:59,berline:69,suv:79,van:89},
       pitch:'Idéale pour l\'entretien régulier d\'un véhicule déjà correctement entretenu.',
       highlights:['Prélavage au canon à mousse','Shampooing extérieur et rinçage complet','Nettoyage des jantes en surface et séchage soigné'],
       detail:['Prélavage au canon à mousse','Shampooing extérieur','Rinçage complet','Nettoyage des jantes en surface','Nettoyage des vitres extérieures','Séchage soigné'],
       outro:'Une prestation essentielle pour conserver votre véhicule propre au quotidien.'},
-    {k:'Premium', nom:'Premium', prix:89, reco:true,
+    {k:'Premium', nom:'Premium', prix:109, parGabarit:{citadine:109,berline:119,suv:139,van:159}, reco:true,
       pitch:'Un lavage extérieur approfondi pour une carrosserie parfaitement propre.',
       highlights:['Lavage manuel au gant et shampooing extérieur','Nettoyage complet des jantes et des pneus','Shampooing lustrant — une finition qui apporte de la brillance'],
       detail:['Prélavage au canon à mousse','Lavage manuel au gant','Shampooing extérieur','Nettoyage complet des jantes','Nettoyage des pneus','Finition et dressing pneus','Shampooing lustrant — une finition rapide qui apporte davantage de brillance à la carrosserie','Nettoyage des vitres extérieures','Séchage soigné'],
       outro:'Idéale pour une remise au propre approfondie de l\'extérieur.'},
-    {k:'Expérience', nom:'Expérience', prix:149, top:true, deep:true,
+    {k:'Expérience', nom:'Expérience', prix:179, parGabarit:{citadine:179,berline:199,suv:219,van:239}, top:true, deep:true,
       pitch:'L\'Expérience REYCE va au-delà du nettoyage traditionnel : chaque zone de la carrosserie est travaillée en profondeur.',
       highlights:['Lavage manuel minutieux et jantes travaillées en profondeur','Passages de roues, garde-boues et recoins difficiles d\'accès traités','Dressing premium pneus, plastiques et passages de roues','Cire premium appliquée à la main, effet hydrophobe'],
       detail:['Prélavage complet au canon à mousse','Lavage manuel minutieux au gant','Shampooing extérieur premium','Nettoyage en profondeur des jantes et des pneus','Nettoyage des passages de roues et des garde-boues','Nettoyage des recoins et zones difficiles d\'accès','Nettoyage des contours, joints et détails extérieurs','Nettoyage complet des vitres','Dressing premium des pneus, plastiques extérieurs et passages de roues','Finitions détaillées de la carrosserie','Protection carrosserie : application à la main d\'une cire premium','Brillance et profondeur renforcées, effet hydrophobe pouvant durer environ 6 à 12 mois selon l\'usage, l\'entretien du véhicule et les conditions extérieures']}
   ]},
   duo:{label:'Intérieur + Extérieur', svc:'duo', formules:[
-    {k:'Confort', nom:'Confort', prix:99,
+    {k:'Confort', nom:'Confort', prix:99, parGabarit:{citadine:99,berline:119,suv:139,van:159},
       pitch:'Idéale pour l\'entretien régulier d\'un véhicule déjà correctement entretenu.',
       highlights:['Aspiration en surface de l\'habitacle et des tapis','Prélavage au canon à mousse et shampooing extérieur','Nettoyage des vitres, intérieur et extérieur'],
       detailInt:['Aspiration en surface de l\'habitacle','Aspiration des tapis','Dépoussiérage des plastiques et surfaces intérieures','Nettoyage léger des surfaces accessibles','Nettoyage des vitres intérieures'],
       detailExt:['Prélavage au canon à mousse','Shampooing extérieur','Rinçage complet','Nettoyage des jantes en surface','Nettoyage des vitres extérieures','Séchage soigné'],
       outro:'Une prestation essentielle pour conserver votre véhicule propre au quotidien.'},
-    {k:'Premium', nom:'Premium', prix:169, reco:true,
+    {k:'Premium', nom:'Premium', prix:199, parGabarit:{citadine:199,berline:219,suv:249,van:279}, reco:true,
       pitch:'Un nettoyage intérieur et extérieur approfondi pour retrouver un véhicule parfaitement propre.',
       highlights:['Aspiration approfondie de l\'habitacle, tapis et moquettes','Shampooing sièges tissu ou dégraissage cuir','Lavage manuel au gant, jantes et pneus nettoyés en profondeur','Shampooing lustrant apportant davantage de brillance','Parfum intérieur REYCE'],
       detailInt:['Aspiration approfondie de l\'habitacle','Aspiration des moquettes','Aspiration et nettoyage des tapis','Shampooing des sièges en tissu, ou nettoyage et dégraissage des sièges en cuir selon le véhicule','Nettoyage approfondi des plastiques','Nettoyage de la console centrale','Nettoyage des surfaces intérieures','Nettoyage des entrants de portes','Nettoyage des vitres intérieures','Désodorisation de l\'habitacle','Parfum intérieur REYCE'],
       detailExt:['Prélavage au canon à mousse','Lavage manuel au gant','Shampooing extérieur','Nettoyage complet des jantes','Nettoyage des pneus','Finition et dressing pneus','Shampooing lustrant — une finition rapide qui apporte davantage de brillance à la carrosserie','Nettoyage des vitres extérieures','Séchage soigné'],
       outro:'Idéale pour une remise au propre approfondie de l\'intérieur comme de l\'extérieur.'},
-    {k:'Expérience', nom:'Expérience', prix:299, top:true, deep:true,
+    {k:'Expérience', nom:'Expérience', prix:349, parGabarit:{citadine:349,berline:389,suv:429,van:469}, top:true, deep:true,
       pitch:'L\'Expérience REYCE va au-delà du nettoyage traditionnel. Chaque partie du véhicule est travaillée en profondeur afin de retrouver un niveau de propreté, de finition et de protection exceptionnel.',
       highlights:['Detailing complet de l\'habitacle, jusque dans les moindres recoins','Cuirs dégraissés, nettoyés, nourris et protégés','Traitement à l\'ozone — neutralise durablement les mauvaises odeurs','Lavage manuel minutieux et jantes travaillées en profondeur','Cire premium appliquée à la main, effet hydrophobe'],
       detailInt:['Aspiration complète et en profondeur','Aspiration sous les sièges et dans les zones difficiles d\'accès','Shampooing en profondeur des sièges en tissu','Shampooing des moquettes','Nettoyage et shampooing en profondeur des tapis','Nettoyage des rails et contours de sièges','Nettoyage des ceintures de sécurité','Nettoyage du plafonnier','Nettoyage approfondi des plastiques','Nettoyage de la console centrale','Nettoyage des aérateurs, boutons et commandes','Nettoyage approfondi des entrants et seuils de portes','Nettoyage des vitres et miroirs intérieurs','Pour les intérieurs cuir : dégraissage, nettoyage approfondi, nourrissage et protection','Finition et protection des plastiques intérieurs','Désodorisation complète et traitement à l\'ozone','Parfum intérieur et finition REYCE'],
@@ -178,6 +180,15 @@ var OPTIONS=[
 ];
 var OPTS_VARIABLE_NOTE='Le tarif peut évoluer selon la quantité, l\'état et le temps de traitement nécessaire.';
 
+/* Ne pas reproposer en option payante ce qui est déjà inclus dans la formule
+   choisie : l'Expérience (intérieur ou complet) inclut déjà un traitement à
+   l'ozone dans son descriptif — inutile de le refaire payer une deuxième fois. */
+function visibleOptions(){
+  var f=CLEAN[state.clean]&&CLEAN[state.clean].formules[state.form];
+  var ozoneIncluded=f&&f.k==='Expérience'&&(state.clean==='interieur'||state.clean==='duo');
+  return OPTIONS.filter(function(op){return !(ozoneIncluded&&op.id==='ozone');});
+}
+
 /* ============================================================
    CAR STAGING — upsell discret vers la remise à neuf en 1 journée
    Prestation sur devis : pas de réservation/paiement direct ici,
@@ -199,9 +210,8 @@ var PROMO={active:true, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', fo
 function euro(n){return n>0?(n+'<span class="eur">€</span>'):'___<span class="eur">€</span>';}
 function euroTxt(n){return n>0?(n+' €'):'___ €';}
 function duoSave(idx){
-  var s=gabSupp();
-  var i=CLEAN.interieur.formules[idx].prix, e=CLEAN.exterieur.formules[idx].prix, d=CLEAN.duo.formules[idx].prix;
-  if(i>0&&e>0&&d>0) return {sep:i+e+2*s, duo:d+s, save:(i+e-d+s)};
+  var i=priceFor('interieur',idx,state.gab), e=priceFor('exterieur',idx,state.gab), d=priceFor('duo',idx,state.gab);
+  if(i>0&&e>0&&d>0) return {sep:i+e, duo:d, save:(i+e-d)};
   return null;
 }
 
@@ -266,17 +276,29 @@ function calendar(){
   return h+'</div>';
 }
 
-/* prix courant sélectionné (avant promo) */
-function gabSupp(){return (state.gab&&GABARITS[state.gab])?GABARITS[state.gab].supp:0;}
-function optsTotal(){var t=0;state.opts.forEach(function(id){var o=OPTIONS.find(function(x){return x.id===id});if(o)t+=o.prix;});return t;}
+/* prix courant sélectionné (avant promo)
+   Seul endroit qui calcule un prix de formule : les véhicules "sportive"
+   (exception) se calculent sur la base citadine + le supplément dédié
+   (inchangé) ; les 4 gabarits de la grille (citadine/berline/suv/van) ont
+   chacun leur tarif propre dans parGabarit, déjà correct — aucun supplément
+   à ajouter. */
+function priceFor(cleanKey,formIdx,gab){
+  var f=CLEAN[cleanKey].formules[formIdx];
+  if(!f||f.prix<=0)return 0;
+  if(gab==='sportive')return f.prix+GABARITS.sportive.supp;
+  var g=gab||'citadine';
+  return (f.parGabarit&&f.parGabarit[g])||f.prix;
+}
+function formuleKey(f){return f.k==='Confort'?'confort':(f.k==='Premium'?'premium':'experience');}
+function optsTotal(){var visible=visibleOptions();var t=0;state.opts.forEach(function(id){var o=visible.find(function(x){return x.id===id});if(o)t+=o.prix;});return t;}
 function promoEligible(){return PROMO.active && PROMO.formules.indexOf(CLEAN[state.clean].formules[state.form].k)>-1;}
 function subTotal(){var bp=basePrice();if(bp<=0)return 0;return bp+optsTotal();}
 function grandTotal(){var st=subTotal();if(st<=0)return 0;return (state.promo&&promoEligible())?Math.round(st*(1-PROMO.rate)):st;}
-function basePrice(){if(state.type!=='prestation')return 0;var f=CLEAN[state.clean].formules[state.form];if(!f||f.prix<=0)return 0;return f.prix+gabSupp();}
+function basePrice(){if(state.type!=='prestation')return 0;return priceFor(state.clean,state.form,state.gab);}
 function serviceId(){
   var f=CLEAN[state.clean].formules[state.form];
-  var key=f.k==='Confort'?'confort':(f.k==='Premium'?'premium':'experience');
-  return 'nettoyage-'+CLEAN[state.clean].svc+'-'+key;
+  var gabForPricing=state.gab==='sportive'?'citadine':(state.gab||'citadine');
+  return 'nettoyage-'+CLEAN[state.clean].svc+'-'+formuleKey(f)+'-'+gabForPricing;
 }
 
 var navDirection=null;
@@ -347,7 +369,7 @@ function updateAsideSummary(){
     if(step>=2){rows+='<div class="ws-row"><span>Formule</span><b>'+f.k+'</b></div>';}
     if(state.jourLabel&&state.heure){rows+='<div class="ws-row"><span>Créneau</span><b>'+state.jourLabel+' · '+state.heure+'</b></div>';}
     if(step>=2){var gt=grandTotal();
-      rows+='<div class="ws-row ws-total"><span>Total estimé</span><b>'+(gt>0?(gt+' €'):(f.prix>0?((f.prix+gabSupp())+' €'):'sur devis'))+'</b></div>';}
+      rows+='<div class="ws-row ws-total"><span>Total estimé</span><b>'+(gt>0?(gt+' €'):(f.prix>0?(basePrice()+' €'):'sur devis'))+'</b></div>';}
     el.innerHTML=rows;
     el.style.display='block';
     return;
@@ -432,7 +454,7 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
         }
         h+='<div class="'+cls+'" data-form="'+i+'">'+tag+
            '<div><div class="fk">'+f.k+'</div><h4>'+f.nom+'</h4><div class="fsub">'+TIER_SUB[f.k]+'</div></div>'+
-           '<div class="price"><span class="from">À partir de</span>'+euro(f.prix>0?(f.prix+gabSupp()):0)+'</div>'+
+           '<div class="price"><span class="from">À partir de</span>'+euro(priceFor(state.clean,i,state.gab))+'</div>'+
            '<p class="fpitch">'+f.pitch+'</p>'+hi+detailHtml+
            (f.outro?'<p class="fnote">'+f.outro+'</p>':'')+
            '<div class="pick">'+(state.form===i?'Sélectionnée':(f.top?'Vivre l\'expérience':'Choisir'))+'</div></div>';
@@ -440,7 +462,7 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
       h+='</div>';
       h+='<div class="optsec"><div class="optsec-h"><h4 style="margin:0">Ajoutez des options</h4><span class="mono">Facultatif</span></div><div class="optgrid">';
       var showVarNote=false;
-      OPTIONS.forEach(function(op){
+      visibleOptions().forEach(function(op){
         var on=state.opts.indexOf(op.id)>-1;
         if(on&&op.variable) showVarNote=true;
         h+='<button type="button" class="optcard'+(on?' sel':'')+'" data-opt="'+op.id+'">'+
@@ -456,7 +478,7 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
       if(state.clean==='duo'){
         h+='<div class="combo">';
         if(sv){h+='<div class="l"><span>Les deux soins séparément</span><s>'+sv.sep+' €</s></div>';}
-        h+='<div class="tot"><span>Formule complète '+fs[state.form].k+'</span><span class="v">'+euroTxt(fs[state.form].prix>0?(fs[state.form].prix+gabSupp()):0)+'</span></div>';
+        h+='<div class="tot"><span>Formule complète '+fs[state.form].k+'</span><span class="v">'+euroTxt(priceFor('duo',state.form,state.gab))+'</span></div>';
         if(sv){h+='<div class="eco">Le complet vous fait économiser '+sv.save+' € — et va au bout des choses</div>';}
         else{h+='<div class="eco">Le soin le plus abouti, dedans comme dehors</div>';}
         h+='</div>';
@@ -501,7 +523,8 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
         '<div class="rl"><span>Gabarit</span><b>'+(state.gab?GABARITS[state.gab].label:'—')+'</b></div>'+
         '<div class="rl"><span>Véhicule</span><b>'+((state.marque||'—')+' '+state.modele)+'</b></div>'+
         '<div class="rl"><span>Créneau</span><b>'+(state.jourLabel?(state.jourLabel+' · '+(state.heure||'—')):'—')+'</b></div>'+
-        (state.opts.length?'<div class="rl"><span>Options</span><b>'+state.opts.map(function(id){var o=OPTIONS.find(function(x){return x.id===id});return o?o.nom:'';}).join(', ')+'</b></div>':'')+
+        (function(){var vis=visibleOptions();var noms=state.opts.map(function(id){var o=vis.find(function(x){return x.id===id});return o?o.nom:'';}).filter(Boolean);
+          return noms.length?'<div class="rl"><span>Options</span><b>'+noms.join(', ')+'</b></div>':'';})()+
       '</div>';
       if(PROMO.active){
         if(state.promo && promoEligible()){

@@ -32,18 +32,53 @@ function ah(fn) {
 // ============================================================
 // Configuration des prestations
 // ============================================================
-// Tarifs de base (gabarit Citadine). Le supplément gabarit (voir GABARIT_SUPP)
-// est ajouté au moment de la création de la session Stripe.
+// Grille tarifaire nettoyage : un prix explicite par (type × formule × gabarit),
+// citadine/berline/suv/van — id "nettoyage-{int|ext|duo}-{formule}-{gabarit}".
+// Les véhicules "sportive" (exception) ne sont pas dans cette grille : ils
+// utilisent le tarif "-citadine" + le supplément GABARIT_SUPP_CENTS.sportive,
+// appliqué au moment de la création de la session Stripe (inchangé).
 const SERVICES = {
-  'nettoyage-int-confort':      { name: 'Nettoyage Intérieur — Confort',      priceCents:  6900, depositCents: 4000, durationMin: 60,  slots: ['09:00', '11:00', '14:00', '16:00'] },
-  'nettoyage-int-premium':      { name: 'Nettoyage Intérieur — Premium',      priceCents: 12900, depositCents: 4000, durationMin: 90,  slots: ['09:00', '11:30', '14:00'] },
-  'nettoyage-int-experience':   { name: 'Nettoyage Intérieur — Expérience',   priceCents: 22900, depositCents: 4000, durationMin: 240, slots: ['09:00'] },
-  'nettoyage-ext-confort':      { name: 'Nettoyage Extérieur — Confort',      priceCents:  4900, depositCents: 4000, durationMin: 45,  slots: ['09:00', '11:00', '14:00', '16:00'] },
-  'nettoyage-ext-premium':      { name: 'Nettoyage Extérieur — Premium',      priceCents:  8900, depositCents: 4000, durationMin: 75,  slots: ['09:00', '11:30', '14:00'] },
-  'nettoyage-ext-experience':   { name: 'Nettoyage Extérieur — Expérience',   priceCents: 14900, depositCents: 4000, durationMin: 180, slots: ['09:00'] },
-  'nettoyage-duo-confort':      { name: 'Nettoyage Intérieur + Extérieur — Confort',    priceCents:  9900, depositCents: 4000, durationMin: 90,  slots: ['09:00', '11:00', '14:00', '16:00'] },
-  'nettoyage-duo-premium':      { name: 'Nettoyage Intérieur + Extérieur — Premium',    priceCents: 16900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
-  'nettoyage-duo-experience':   { name: 'Nettoyage Intérieur + Extérieur — Expérience', priceCents: 29900, depositCents: 4000, durationMin: 480, slots: ['09:00'] },
+  // — Citadine —
+  'nettoyage-int-confort-citadine':   { name: 'Nettoyage Intérieur — Confort (Citadine)', priceCents:  6900, depositCents: 4000, durationMin:  60, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-ext-confort-citadine':   { name: 'Nettoyage Extérieur — Confort (Citadine)', priceCents:  5900, depositCents: 4000, durationMin:  45, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-duo-confort-citadine':   { name: 'Nettoyage Intérieur + Extérieur — Confort (Citadine)', priceCents:  9900, depositCents: 4000, durationMin:  90, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-int-premium-citadine':   { name: 'Nettoyage Intérieur — Premium (Citadine)', priceCents: 12900, depositCents: 4000, durationMin:  90, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-ext-premium-citadine':   { name: 'Nettoyage Extérieur — Premium (Citadine)', priceCents: 10900, depositCents: 4000, durationMin:  75, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-duo-premium-citadine':   { name: 'Nettoyage Intérieur + Extérieur — Premium (Citadine)', priceCents: 19900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-int-experience-citadine':{ name: 'Nettoyage Intérieur — Expérience (Citadine)', priceCents: 21900, depositCents: 4000, durationMin: 240, slots: ['09:00'] },
+  'nettoyage-ext-experience-citadine':{ name: 'Nettoyage Extérieur — Expérience (Citadine)', priceCents: 17900, depositCents: 4000, durationMin: 180, slots: ['09:00'] },
+  'nettoyage-duo-experience-citadine':{ name: 'Nettoyage Intérieur + Extérieur — Expérience (Citadine)', priceCents: 34900, depositCents: 4000, durationMin: 480, slots: ['09:00'] },
+  // — Berline —
+  'nettoyage-int-confort-berline':    { name: 'Nettoyage Intérieur — Confort (Berline)', priceCents:  7900, depositCents: 4000, durationMin:  60, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-ext-confort-berline':    { name: 'Nettoyage Extérieur — Confort (Berline)', priceCents:  6900, depositCents: 4000, durationMin:  45, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-duo-confort-berline':    { name: 'Nettoyage Intérieur + Extérieur — Confort (Berline)', priceCents: 11900, depositCents: 4000, durationMin:  90, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-int-premium-berline':    { name: 'Nettoyage Intérieur — Premium (Berline)', priceCents: 14900, depositCents: 4000, durationMin:  90, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-ext-premium-berline':    { name: 'Nettoyage Extérieur — Premium (Berline)', priceCents: 11900, depositCents: 4000, durationMin:  75, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-duo-premium-berline':    { name: 'Nettoyage Intérieur + Extérieur — Premium (Berline)', priceCents: 21900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-int-experience-berline': { name: 'Nettoyage Intérieur — Expérience (Berline)', priceCents: 24900, depositCents: 4000, durationMin: 240, slots: ['09:00'] },
+  'nettoyage-ext-experience-berline': { name: 'Nettoyage Extérieur — Expérience (Berline)', priceCents: 19900, depositCents: 4000, durationMin: 180, slots: ['09:00'] },
+  'nettoyage-duo-experience-berline': { name: 'Nettoyage Intérieur + Extérieur — Expérience (Berline)', priceCents: 38900, depositCents: 4000, durationMin: 480, slots: ['09:00'] },
+  // — SUV —
+  'nettoyage-int-confort-suv':        { name: 'Nettoyage Intérieur — Confort (SUV)', priceCents:  8900, depositCents: 4000, durationMin:  60, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-ext-confort-suv':        { name: 'Nettoyage Extérieur — Confort (SUV)', priceCents:  7900, depositCents: 4000, durationMin:  45, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-duo-confort-suv':        { name: 'Nettoyage Intérieur + Extérieur — Confort (SUV)', priceCents: 13900, depositCents: 4000, durationMin:  90, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-int-premium-suv':        { name: 'Nettoyage Intérieur — Premium (SUV)', priceCents: 16900, depositCents: 4000, durationMin:  90, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-ext-premium-suv':        { name: 'Nettoyage Extérieur — Premium (SUV)', priceCents: 13900, depositCents: 4000, durationMin:  75, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-duo-premium-suv':        { name: 'Nettoyage Intérieur + Extérieur — Premium (SUV)', priceCents: 24900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-int-experience-suv':     { name: 'Nettoyage Intérieur — Expérience (SUV)', priceCents: 27900, depositCents: 4000, durationMin: 240, slots: ['09:00'] },
+  'nettoyage-ext-experience-suv':     { name: 'Nettoyage Extérieur — Expérience (SUV)', priceCents: 21900, depositCents: 4000, durationMin: 180, slots: ['09:00'] },
+  'nettoyage-duo-experience-suv':     { name: 'Nettoyage Intérieur + Extérieur — Expérience (SUV)', priceCents: 42900, depositCents: 4000, durationMin: 480, slots: ['09:00'] },
+  // — Grand SUV —
+  'nettoyage-int-confort-van':        { name: 'Nettoyage Intérieur — Confort (Grand SUV)', priceCents:  9900, depositCents: 4000, durationMin:  60, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-ext-confort-van':        { name: 'Nettoyage Extérieur — Confort (Grand SUV)', priceCents:  8900, depositCents: 4000, durationMin:  45, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-duo-confort-van':        { name: 'Nettoyage Intérieur + Extérieur — Confort (Grand SUV)', priceCents: 15900, depositCents: 4000, durationMin:  90, slots: ['09:00', '11:00', '14:00', '16:00'] },
+  'nettoyage-int-premium-van':        { name: 'Nettoyage Intérieur — Premium (Grand SUV)', priceCents: 18900, depositCents: 4000, durationMin:  90, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-ext-premium-van':        { name: 'Nettoyage Extérieur — Premium (Grand SUV)', priceCents: 15900, depositCents: 4000, durationMin:  75, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-duo-premium-van':        { name: 'Nettoyage Intérieur + Extérieur — Premium (Grand SUV)', priceCents: 27900, depositCents: 4000, durationMin: 150, slots: ['09:00', '11:30', '14:00'] },
+  'nettoyage-int-experience-van':     { name: 'Nettoyage Intérieur — Expérience (Grand SUV)', priceCents: 30900, depositCents: 4000, durationMin: 240, slots: ['09:00'] },
+  'nettoyage-ext-experience-van':     { name: 'Nettoyage Extérieur — Expérience (Grand SUV)', priceCents: 23900, depositCents: 4000, durationMin: 180, slots: ['09:00'] },
+  'nettoyage-duo-experience-van':     { name: 'Nettoyage Intérieur + Extérieur — Expérience (Grand SUV)', priceCents: 46900, depositCents: 4000, durationMin: 480, slots: ['09:00'] },
+
   // Car Staging : prestation sur devis (jamais réservée/payée directement ici),
   // le prix affiché au client est simplement centralisé ici + éditable dans
   // l'admin (onglet Prestations) au lieu d'être codé en dur côté front.
@@ -79,11 +114,16 @@ async function getServiceCatalog(forceRefresh) {
 }
 
 // Supplément (en centimes) ajouté au prix de base selon le gabarit détecté du véhicule.
+// Depuis la grille tarifaire par gabarit (citadine/berline/suv/van), le prix
+// de chaque combinaison est déjà correct dans SERVICES — plus besoin de
+// supplément pour ces 4 gabarits. Seul "sportive" (véhicules d'exception,
+// non concernés par la nouvelle grille) continue de se calculer sur la base
+// citadine + ce supplément, inchangé.
 const GABARIT_SUPP_CENTS = {
   citadine: 0,
-  berline:  2000,
-  suv:      4000,
-  van:      7000,
+  berline:  0,
+  suv:      0,
+  van:      0,
   sportive: 6000
 };
 
