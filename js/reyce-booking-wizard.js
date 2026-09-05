@@ -607,6 +607,19 @@ function showDoneScreen(title, msg){
            projet:[],photos:[],mode:null,nom:'',tel:'',email:'',msg:''};lastAmt=null;render();});
 }
 
+/* Résumé lisible des options sélectionnées (respecte l'exclusion ozone
+   déjà incluse dans l'Expérience) — stocké dans les notes de réservation,
+   seul endroit déjà relié aux emails/SMS de confirmation sans nécessiter
+   de nouveau champ en base. Le prix réellement facturé, lui, est toujours
+   recalculé côté serveur à partir des ids d'options (voir computeOptsCents
+   dans server.js) : le client n'envoie jamais de montant. */
+function optsNotes(){
+  var vis=visibleOptions();
+  var chosen=state.opts.map(function(id){return vis.find(function(o){return o.id===id});}).filter(Boolean);
+  if(!chosen.length) return undefined;
+  return 'Options : '+chosen.map(function(o){return o.nom;}).join(', ');
+}
+
 function done(){
   if(state.type==='prestation'){
     var next=document.getElementById('next');
@@ -623,7 +636,8 @@ function done(){
           vehicleModel: (state.marque+' '+state.modele).trim(),
           date: state.jourISO,
           time: state.heure,
-          client: {firstName: nm.firstName, lastName: nm.lastName, phone: state.tel, email: state.email},
+          client: {firstName: nm.firstName, lastName: nm.lastName, phone: state.tel, email: state.email, notes: optsNotes()},
+          opts: state.opts,
           paymentType: 'deposit'
         })
       }).then(function(r){return r.json();}).then(function(data){
@@ -643,7 +657,8 @@ function done(){
         vehicleModel: (state.marque+' '+state.modele).trim(),
         date: state.jourISO,
         time: state.heure,
-        client: {firstName: nm.firstName, lastName: nm.lastName, phone: state.tel, email: state.email}
+        client: {firstName: nm.firstName, lastName: nm.lastName, phone: state.tel, email: state.email, notes: optsNotes()},
+        opts: state.opts
       })
     }).then(function(r){return r.json();}).then(function(data){
       if(data.error){showError(data.error,'Confirmer le rendez-vous');return;}

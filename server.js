@@ -127,6 +127,34 @@ const GABARIT_SUPP_CENTS = {
   sportive: 6000
 };
 
+// Options nettoyage (poils, taches, ozone, cuir, phares, hydro) : catalogue
+// faisant autorité pour le montant réellement facturé. Doit rester identique
+// aux tarifs affichés dans js/reyce-booking-wizard.js (OPTIONS) — le serveur
+// ne fait jamais confiance à un prix envoyé par le client, seulement à l'id.
+const OPTIONS_CENTS = {
+  poils:  3000,
+  taches: 3000,
+  ozone:  5000,
+  cuir:   6000,
+  phares: 8000,
+  hydro:  8000
+};
+
+// L'option "ozone" est déjà incluse dans la formule Expérience (intérieur ou
+// complet) — ne pas la facturer une deuxième fois, même si un client
+// contournait l'interface et l'envoyait quand même. Miroir exact de la
+// règle appliquée côté wizard (visibleOptions()).
+function computeOptsCents(serviceId, opts) {
+  if (!Array.isArray(opts) || !opts.length) return 0;
+  const ozoneIncluded = /^nettoyage-(int|duo)-experience-/.test(serviceId || '');
+  let total = 0;
+  for (const id of opts) {
+    if (id === 'ozone' && ozoneIncluded) continue;
+    if (Object.prototype.hasOwnProperty.call(OPTIONS_CENTS, id)) total += OPTIONS_CENTS[id];
+  }
+  return total;
+}
+
 // ============================================================
 // Helpers — dates
 // ============================================================
@@ -1113,7 +1141,7 @@ app.get('/api/public/pricing/:id', async (req, res) => {
 
 app.use('/api/create-checkout-session', express.json());
 app.post('/api/create-checkout-session', async (req, res) => {
-  const { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType } = req.body;
+  const { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType, opts } = req.body;
 
   if (!SERVICES[service])
     return res.status(400).json({ error: 'Prestation invalide' });
@@ -1126,11 +1154,13 @@ app.post('/api/create-checkout-session', async (req, res) => {
   if (!catalog[service].active)
     return res.status(400).json({ error: 'Cette prestation n\'est plus disponible à la réservation en ligne' });
 
-  const svc         = catalog[service];
-  const isFull      = paymentType === 'full';
-  const suppCents   = GABARIT_SUPP_CENTS[vehicleType] || 0;
-  const amountCents = isFull ? (svc.priceCents + suppCents) : svc.depositCents;
-  const productName = isFull ? `Paiement complet — ${svc.name}` : `Acompte — ${svc.name}`;
+  const svc          = catalog[service];
+  const isFull       = paymentType === 'full';
+  const suppCents    = GABARIT_SUPP_CENTS[vehicleType] || 0;
+  const optsCents    = computeOptsCents(service, opts);
+  const fullCents    = svc.priceCents + suppCents + optsCents;
+  const amountCents  = isFull ? fullCents : svc.depositCents;
+  const productName  = isFull ? `Paiement complet — ${svc.name}` : `Acompte — ${svc.name}`;
   const bookingData = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: paymentType || 'deposit' };
 
   // Pose une réservation "en attente de paiement" avant de créer la session
@@ -1142,7 +1172,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     hold = await holdSlot({
       service, svc, date, time, vehicleType, vehicleModel, tintOption, client,
       paymentType: paymentType || 'deposit',
-      totalCents:   isFull ? amountCents : svc.priceCents + suppCents,
+      totalCents:   fullCents,
       depositCents: svc.depositCents
     });
   } catch (err) {
@@ -1190,7 +1220,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
 // webhook Stripe, mais sans étape de paiement.
 app.use('/api/create-booking', express.json());
 app.post('/api/create-booking', async (req, res) => {
-  const { service, vehicleType, vehicleModel, tintOption, date, time, client } = req.body;
+  const { service, vehicleType, vehicleModel, tintOption, date, time, client, opts } = req.body;
 
   if (!SERVICES[service])
     return res.status(400).json({ error: 'Prestation invalide' });
@@ -1205,7 +1235,8 @@ app.post('/api/create-booking', async (req, res) => {
 
   const svc         = catalog[service];
   const suppCents   = GABARIT_SUPP_CENTS[vehicleType] || 0;
-  const totalCents  = svc.priceCents + suppCents;
+  const optsCents   = computeOptsCents(service, opts);
+  const totalCents  = svc.priceCents + suppCents + optsCents;
 
   let booking;
   try {
