@@ -40,7 +40,7 @@ img{display:block;max-width:100%}
 #pre{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
 #pre.done{opacity:0;visibility:hidden;transition:opacity .3s ease,visibility .3s}
 .cur{position:absolute;top:0;bottom:0;width:50%;background:#000;z-index:1;will-change:transform;pointer-events:auto;
-  animation-duration:1.7s;animation-timing-function:var(--ease-open);animation-delay:2.1s;animation-fill-mode:forwards}
+  animation-duration:1.1s;animation-timing-function:var(--ease-open);animation-delay:1.4s;animation-fill-mode:forwards}
 .cur-l{left:0;transform-origin:left;animation-name:curL}
 .cur-r{right:0;transform-origin:right;animation-name:curR}
 .cur-l::after,.cur-r::after{content:"";position:absolute;top:0;bottom:0;width:70px}
@@ -49,7 +49,7 @@ img{display:block;max-width:100%}
 @keyframes curL{to{transform:translateX(-100%)}}
 @keyframes curR{to{transform:translateX(100%)}}
 .sig-logo{position:relative;z-index:2;width:110px;filter:drop-shadow(0 0 18px rgba(255,255,255,.38)) drop-shadow(0 0 44px rgba(255,255,255,.16));
-  animation:sigFade 1.7s var(--ease-open) 2.1s forwards}
+  animation:sigFade 1.1s var(--ease-open) 1.4s forwards}
 .sig-logo img{width:100%;display:block}
 .sig-logo .scan{display:none}
 @keyframes sigFade{to{opacity:0;transform:scale(.94)}}
@@ -58,9 +58,9 @@ img{display:block;max-width:100%}
    disparaît avec lui au moment précis où le rideau commence à s'ouvrir */
 .pre-bar{position:relative;z-index:2;width:clamp(120px,42vw,200px);height:1px;margin-top:28px;
   background:rgba(255,255,255,.16);overflow:hidden;
-  animation:sigFade 1.7s var(--ease-open) 2.1s forwards}
+  animation:sigFade 1.1s var(--ease-open) 1.4s forwards}
 .pre-bar__fill{position:absolute;inset:0;transform:scaleX(0);transform-origin:left;background:#fff;
-  box-shadow:0 0 8px rgba(255,255,255,.6);animation:preFill 2.1s var(--ease-io) forwards}
+  box-shadow:0 0 8px rgba(255,255,255,.6);animation:preFill 1.4s var(--ease-io) forwards}
 @keyframes preFill{to{transform:scaleX(1)}}
 
 /* navigation interne : l'intro ne se rejoue pas dans la même session */
@@ -188,7 +188,8 @@ nav.main a:hover,nav.main a.active{color:#fff}
 nav.main a.active::after{content:"";position:absolute;left:0;right:0;bottom:-7px;height:1px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.7)}
 nav.main a.cta{color:#fff;border:1px solid var(--line);padding:11px 22px;transition:background-color .18s ease,color .18s ease,box-shadow .18s ease}
 nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255,255,.35)}
-.burger{display:none;flex-direction:column;gap:5px;background:none;border:0;cursor:pointer;padding:6px}
+.burger{display:none;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:none;border:0;cursor:pointer;
+  width:44px;height:44px;padding:0;margin:-11px;box-sizing:border-box}
 .burger span{width:26px;height:1.5px;background:#fff;transition:transform .28s var(--ease),opacity .28s var(--ease)}
 .burger.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
 .burger.open span:nth-child(2){opacity:0}
@@ -212,9 +213,9 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 .hero-words{display:flex;flex-direction:column;gap:.02em}
 .hero-words .hw-mask{display:block;overflow:hidden;padding-bottom:.04em}
 .hero-words .hw{display:block;font-weight:700;transform:translateY(110%);opacity:0;
-  animation:hwReveal 1.5s cubic-bezier(.22,1,.36,1) 3.8s forwards}
-.hero-words .hw-mask:nth-child(2) .hw{animation-delay:4.1s}
-.hero-words .hw-mask:nth-child(3) .hw{font-weight:200;animation-delay:4.4s}
+  animation:hwReveal 1.1s cubic-bezier(.22,1,.36,1) 2.5s forwards}
+.hero-words .hw-mask:nth-child(2) .hw{animation-delay:2.7s}
+.hero-words .hw-mask:nth-child(3) .hw{font-weight:200;animation-delay:2.9s}
 /* Le glissement seul révèle le haut des lettres avant le bas (l'accent d'un É
    apparaît avant le reste de la lettre) : l'opacité reste à 0 pendant le
    déplacement et le mot n'apparaît, d'un bloc, qu'une fois quasiment en place. */

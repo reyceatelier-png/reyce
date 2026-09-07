@@ -16,6 +16,6 @@
     p.classList.add('done');
     setTimeout(function(){ p.style.display = 'none'; }, 350);
   }
-  /* filet de sécurité unique : un peu après la fin du rideau (2.1s + 1.7s) */
-  setTimeout(kill, 4200);
+  /* filet de sécurité unique : un peu après la fin du rideau (1.4s + 1.1s) */
+  setTimeout(kill, 2600);
 })();
