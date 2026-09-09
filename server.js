@@ -9,9 +9,66 @@ const path       = require('path');
 const multer     = require('multer');
 const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6 * 1024 * 1024, files: 3 } });
 const prisma     = require('./db');
+const helmet          = require('helmet');
+const rateLimit        = require('express-rate-limit');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
+
+// Railway place le serveur derrière un proxy inverse : sans ce réglage,
+// express-rate-limit (et tout code qui lit req.ip) verrait l'IP du proxy
+// au lieu de celle du visiteur, et le rate limiting ne servirait à rien.
+app.set('trust proxy', 1);
+
+// ── En-têtes de sécurité ──────────────────────────────────────
+// CSP construite à partir de ce que le site charge réellement (vérifié dans
+// les pages HTML) : Google Fonts, Google Tag Manager (script inline + son
+// iframe noscript), et le JSON-LD inline présent sur presque toutes les
+// pages. Aucun Stripe.js côté client : le paiement redirige vers une session
+// Stripe créée côté serveur, donc rien à autoriser pour Stripe ici.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      // 'unsafe-inline' nécessaire pour le snippet GTM et le JSON-LD inline
+      // présents sur les ~120 pages existantes — passer à des nonces
+      // impliquerait de modifier chaque page, hors périmètre de ce lot.
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://www.googletagmanager.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'https://www.googletagmanager.com', 'https://www.google-analytics.com', 'https://region1.google-analytics.com', 'https://analytics.google.com'],
+      frameSrc: ['https://www.googletagmanager.com'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  // Désactivé : bloquerait le chargement de Google Fonts / GTM, qui n'envoient
+  // pas les en-têtes CORP attendus par cette protection.
+  crossOriginEmbedderPolicy: false,
+}));
+
+// ── Rate limiting ────────────────────────────────────────────
+// Strict sur l'admin : ralentit un brute-force du token sans gêner un usage
+// normal (une poignée de requêtes par minute depuis le back-office).
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, réessayez plus tard.' },
+});
+// Plus large sur les endpoints publics : empêche le spam automatisé sans
+// bloquer un client qui soumettrait le formulaire deux ou trois fois.
+const publicLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes, réessayez plus tard.' },
+});
 
 // Toute route async qui rejette (ex. base de données injoignable) doit
 // répondre 500 au client au lieu de crasher tout le process Node (rejet de
@@ -433,9 +490,9 @@ function buildClientEmail(data, svc) {
   const tintLine = data.tintOption
     ? `<tr><td class="label">Film teinté</td><td>${data.tintOption === 'legal' ? 'Homologuée' : 'Très sombre'}</td></tr>`
     : '';
-  const vehicleLine = [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—';
+  const vehicleLine = escapeHtml([data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—');
   const notesLine = data.client.notes?.trim()
-    ? `<tr><td class="label">Notes</td><td>${data.client.notes}</td></tr>`
+    ? `<tr><td class="label">Notes</td><td>${escapeHtml(data.client.notes)}</td></tr>`
     : '';
   const onSite = data.paymentType === 'on_site';
   const paymentRow = onSite
@@ -487,7 +544,7 @@ function buildClientEmail(data, svc) {
 
   <p class="title">Votre rendez-vous<br>est confirmé.</p>
   <p class="sub">
-    Bonjour ${data.client.firstName},<br>
+    Bonjour ${escapeHtml(data.client.firstName)},<br>
     ${onSite ? 'votre créneau est réservé.' : 'votre acompte a bien été encaissé.'} Nous avons hâte de prendre soin de votre véhicule.
   </p>
 
@@ -538,9 +595,9 @@ function buildOwnerEmail(data, svc) {
   const tintLine = data.tintOption
     ? `<tr><td class="label">Film teinté</td><td>${data.tintOption === 'legal' ? 'Homologuée' : 'Très sombre'}</td></tr>`
     : '';
-  const vehicleLine = [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—';
+  const vehicleLine = escapeHtml([data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ') || '—');
   const notesLine = data.client.notes?.trim()
-    ? `<tr><td class="label">Notes client</td><td>${data.client.notes}</td></tr>`
+    ? `<tr><td class="label">Notes client</td><td>${escapeHtml(data.client.notes)}</td></tr>`
     : '';
   const onSite = data.paymentType === 'on_site';
   const paymentRow = onSite
@@ -584,9 +641,9 @@ function buildOwnerEmail(data, svc) {
     <tr><td class="label">Heure</td><td>${data.time}</td></tr>
     <tr><td class="label">Véhicule</td><td>${vehicleLine}</td></tr>
     ${tintLine}
-    <tr><td class="label">Client</td><td>${data.client.firstName} ${data.client.lastName}</td></tr>
-    <tr><td class="label">Téléphone</td><td>${data.client.phone}</td></tr>
-    <tr><td class="label">Email</td><td>${data.client.email}</td></tr>
+    <tr><td class="label">Client</td><td>${escapeHtml(data.client.firstName)} ${escapeHtml(data.client.lastName)}</td></tr>
+    <tr><td class="label">Téléphone</td><td>${escapeHtml(data.client.phone)}</td></tr>
+    <tr><td class="label">Email</td><td>${escapeHtml(data.client.email)}</td></tr>
     ${notesLine}
     ${paymentRow}
   </table>
@@ -664,10 +721,38 @@ async function getAccessToken() {
   return data.access_token;
 }
 
+// ── Sécurité : échappement HTML + nettoyage d'en-têtes email ──
+// escapeHtml : toute valeur saisie par un visiteur (nom, message, notes...)
+// doit passer par ici avant d'être interpolée dans un template email HTML,
+// sinon un client mal intentionné peut injecter des balises dans l'email
+// reçu par le propriétaire (contenu trompeur, faux lien, mise en page cassée).
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+// Un en-tête email (To/From) ne doit jamais contenir de retour à la ligne :
+// une adresse "email" saisie par un visiteur pourrait sinon injecter des
+// en-têtes supplémentaires (ex. Bcc:) et transformer l'envoi Gmail
+// authentifié de REYCE en relais de spam. Le sujet est déjà protégé par son
+// encodage base64 (RFC 2047) ; ceci protège spécifiquement To:/From:.
+function sanitizeHeaderValue(str) {
+  return String(str || '').replace(/[\r\n]+/g, ' ').trim();
+}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function isValidEmail(str) {
+  return typeof str === 'string' && str.length <= 254 && EMAIL_RE.test(str.trim());
+}
+
 // ── Envoi via Gmail REST API (HTTPS port 443) ─────────────────
 async function sendEmail(to, subject, html, attachments) {
   const accessToken = await getAccessToken();
-  const from        = `"REYCE" <${process.env.GMAIL_USER}>`;
+  const from        = `"REYCE" <${sanitizeHeaderValue(process.env.GMAIL_USER)}>`;
+  const toSafe      = sanitizeHeaderValue(to);
   const subjectHdr  = `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
 
   let raw;
@@ -675,7 +760,7 @@ async function sendEmail(to, subject, html, attachments) {
     const boundary = 'reyce_' + Date.now();
     const parts = [
       `From: ${from}`,
-      `To: ${to}`,
+      `To: ${toSafe}`,
       subjectHdr,
       'MIME-Version: 1.0',
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
@@ -688,11 +773,12 @@ async function sendEmail(to, subject, html, attachments) {
       ''
     ];
     attachments.forEach(att => {
+      const safeName = sanitizeHeaderValue(att.filename).replace(/"/g, "'");
       parts.push(
         `--${boundary}`,
-        `Content-Type: ${att.contentType || 'application/octet-stream'}; name="${att.filename}"`,
+        `Content-Type: ${att.contentType || 'application/octet-stream'}; name="${safeName}"`,
         'Content-Transfer-Encoding: base64',
-        `Content-Disposition: attachment; filename="${att.filename}"`,
+        `Content-Disposition: attachment; filename="${safeName}"`,
         '',
         att.buffer.toString('base64'),
         ''
@@ -703,7 +789,7 @@ async function sendEmail(to, subject, html, attachments) {
   } else {
     raw = [
       `From: ${from}`,
-      `To: ${to}`,
+      `To: ${toSafe}`,
       subjectHdr,
       'MIME-Version: 1.0',
       'Content-Type: text/html; charset=UTF-8',
@@ -954,6 +1040,26 @@ app.post('/api/webhook',
 // Middleware
 // IMPORTANT : express.static et express.json après le webhook
 // ============================================================
+// express.static(__dirname) servait tout le dossier du dépôt, y compris
+// server.js, db.js, package.json, prisma/schema.prisma et docs/ — tous
+// directement téléchargeables par URL. Liste blanche explicite : seuls les
+// dossiers/fichiers réellement destinés au public sont servis. Tout le
+// reste (code serveur, schéma de base de données, .env*, node_modules)
+// devient invisible par URL directe, sans réorganiser les 120 pages
+// existantes qui référencent leurs assets en chemin relatif.
+const PUBLIC_DIRS  = ['assets', 'css', 'js'];
+const PUBLIC_FILES = ['robots.txt', 'sitemap.xml'];
+app.use((req, res, next) => {
+  const reqPath = req.path.split('?')[0];
+  // Toute requête vers /api/... est gérée plus bas dans ce fichier — ce
+  // filtre ne concerne que la diffusion de fichiers statiques, jamais l'API.
+  if (reqPath.startsWith('/api/')) return next();
+  const first = reqPath.replace(/^\/+/, '').split('/')[0];
+  const isPublicDir  = PUBLIC_DIRS.includes(first);
+  const isPublicFile = PUBLIC_FILES.includes(first) || reqPath === '/' || /^\/[a-z0-9][a-z0-9-]*\.html$/i.test(reqPath);
+  if (isPublicDir || isPublicFile) return next();
+  return res.status(404).type('text/plain').send('Not found');
+});
 app.use(express.static(path.join(__dirname)));
 
 // ============================================================
@@ -961,12 +1067,15 @@ app.use(express.static(path.join(__dirname)));
 // ============================================================
 
 // ── Contact / Devis ──────────────────────────────────────────
-app.use('/api/contact', express.json());
+app.use('/api/contact', publicLimiter, express.json());
 app.post('/api/contact', async (req, res) => {
   const { type, firstName, lastName, email, phone, subject, message, source, vehicleInfo } = req.body;
 
   if (!email || !firstName) {
     return res.status(400).json({ error: 'Champs obligatoires manquants' });
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: 'Adresse email invalide' });
   }
 
   if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) {
@@ -976,19 +1085,20 @@ app.post('/api/contact', async (req, res) => {
 
   const ownerEmail = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
 
+  const safeFirst = escapeHtml(firstName), safeLast = escapeHtml(lastName);
   const isDevis   = type === 'devis';
   const subjectLine = isDevis
     ? `[Devis] ${subject || 'Demande de devis'} — ${firstName} ${lastName}`
     : `[Contact] ${subject || 'Message'} — ${firstName} ${lastName}`;
 
   const vehicleBlock = vehicleInfo
-    ? `<tr><td class="lbl">Véhicule</td><td>${vehicleInfo}</td></tr>` : '';
+    ? `<tr><td class="lbl">Véhicule</td><td>${escapeHtml(vehicleInfo)}</td></tr>` : '';
   const sourceBlock  = source
-    ? `<tr><td class="lbl">Source</td><td>${source}</td></tr>` : '';
+    ? `<tr><td class="lbl">Source</td><td>${escapeHtml(source)}</td></tr>` : '';
   const subjectBlock = subject
-    ? `<tr><td class="lbl">Objet</td><td>${subject}</td></tr>` : '';
+    ? `<tr><td class="lbl">Objet</td><td>${escapeHtml(subject)}</td></tr>` : '';
   const messageBlock = message
-    ? `<tr><td class="lbl">Message</td><td style="white-space:pre-wrap">${message}</td></tr>` : '';
+    ? `<tr><td class="lbl">Message</td><td style="white-space:pre-wrap">${escapeHtml(message)}</td></tr>` : '';
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
@@ -1006,12 +1116,12 @@ app.post('/api/contact', async (req, res) => {
   <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
   <div class="badge">${isDevis ? 'Demande de devis' : 'Message de contact'}</div>
   <table>
-    <tr><td class="lbl">Nom</td><td>${firstName} ${lastName}</td></tr>
-    <tr><td class="lbl">Email</td><td>${email}</td></tr>
-    <tr><td class="lbl">Téléphone</td><td>${phone || '—'}</td></tr>
+    <tr><td class="lbl">Nom</td><td>${safeFirst} ${safeLast}</td></tr>
+    <tr><td class="lbl">Email</td><td>${escapeHtml(email)}</td></tr>
+    <tr><td class="lbl">Téléphone</td><td>${escapeHtml(phone) || '—'}</td></tr>
     ${vehicleBlock}${subjectBlock}${sourceBlock}${messageBlock}
   </table>
-  <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${firstName}</p>
+  <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${safeFirst}</p>
   <p class="foot">Reçu via le site reyce.fr</p>
 </div></body></html>`;
 
@@ -1029,11 +1139,14 @@ app.post('/api/contact', async (req, res) => {
 // ============================================================
 // Demande de devis "projet" avec photos jointes (jusqu'à 3)
 // ============================================================
-app.post('/api/devis-photos', upload.array('photos', 3), async (req, res) => {
+app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (req, res) => {
   const { firstName, lastName, email, phone, subject, message, vehicleInfo } = req.body;
 
   if (!email || !firstName) {
     return res.status(400).json({ error: 'Champs obligatoires manquants' });
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: 'Adresse email invalide' });
   }
 
   if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) {
@@ -1042,15 +1155,16 @@ app.post('/api/devis-photos', upload.array('photos', 3), async (req, res) => {
   }
 
   const ownerEmail = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
+  const safeFirst = escapeHtml(firstName), safeLast = escapeHtml(lastName);
   const subjectLine = `[Devis] ${subject || 'Discuter d\'un projet'} — ${firstName} ${lastName || ''}`.trim();
 
   const files = Array.isArray(req.files) ? req.files : [];
   const photoNote = files.length
     ? `<tr><td class="lbl">Photos</td><td>${files.length} photo${files.length > 1 ? 's' : ''} jointe${files.length > 1 ? 's' : ''}</td></tr>` : '';
   const vehicleBlock = vehicleInfo
-    ? `<tr><td class="lbl">Véhicule</td><td>${vehicleInfo}</td></tr>` : '';
+    ? `<tr><td class="lbl">Véhicule</td><td>${escapeHtml(vehicleInfo)}</td></tr>` : '';
   const messageBlock = message
-    ? `<tr><td class="lbl">Message</td><td style="white-space:pre-wrap">${message}</td></tr>` : '';
+    ? `<tr><td class="lbl">Message</td><td style="white-space:pre-wrap">${escapeHtml(message)}</td></tr>` : '';
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
@@ -1067,12 +1181,12 @@ app.post('/api/devis-photos', upload.array('photos', 3), async (req, res) => {
   <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
   <div class="badge">Demande de devis — projet</div>
   <table>
-    <tr><td class="lbl">Nom</td><td>${firstName} ${lastName || ''}</td></tr>
-    <tr><td class="lbl">Email</td><td>${email}</td></tr>
-    <tr><td class="lbl">Téléphone</td><td>${phone || '—'}</td></tr>
+    <tr><td class="lbl">Nom</td><td>${safeFirst} ${safeLast || ''}</td></tr>
+    <tr><td class="lbl">Email</td><td>${escapeHtml(email)}</td></tr>
+    <tr><td class="lbl">Téléphone</td><td>${escapeHtml(phone) || '—'}</td></tr>
     ${vehicleBlock}${messageBlock}${photoNote}
   </table>
-  <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${firstName}</p>
+  <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${safeFirst}</p>
   <p class="foot">Reçu via le site reyce.fr</p>
 </div></body></html>`;
 
@@ -1139,7 +1253,7 @@ app.get('/api/public/pricing/:id', async (req, res) => {
   res.json({ id, priceCents: catalog[id].priceCents });
 });
 
-app.use('/api/create-checkout-session', express.json());
+app.use('/api/create-checkout-session', publicLimiter, express.json());
 app.post('/api/create-checkout-session', async (req, res) => {
   const { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType, opts } = req.body;
 
@@ -1149,6 +1263,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.status(400).json({ error: 'Date et créneau obligatoires' });
   if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
     return res.status(400).json({ error: 'Coordonnées incomplètes' });
+  if (!isValidEmail(client.email))
+    return res.status(400).json({ error: 'Adresse email invalide' });
 
   const catalog = await getServiceCatalog();
   if (!catalog[service].active)
@@ -1218,7 +1334,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
 // Réservation directe sans paiement en ligne (acompte/Stripe désactivés) :
 // le créneau est bloqué et confirmé immédiatement, comme le ferait le
 // webhook Stripe, mais sans étape de paiement.
-app.use('/api/create-booking', express.json());
+app.use('/api/create-booking', publicLimiter, express.json());
 app.post('/api/create-booking', async (req, res) => {
   const { service, vehicleType, vehicleModel, tintOption, date, time, client, opts } = req.body;
 
@@ -1228,6 +1344,8 @@ app.post('/api/create-booking', async (req, res) => {
     return res.status(400).json({ error: 'Date et créneau obligatoires' });
   if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
     return res.status(400).json({ error: 'Coordonnées incomplètes' });
+  if (!isValidEmail(client.email))
+    return res.status(400).json({ error: 'Adresse email invalide' });
 
   const catalog = await getServiceCatalog();
   if (!catalog[service].active)
@@ -1311,7 +1429,7 @@ function requireAdmin(req, res, next) {
 // doit être déclarée avant le express.json() générique de /api/admin.
 app.use('/api/admin/care-report', express.json({ limit: '12mb' }));
 
-app.use('/api/admin', express.json(), requireAdmin);
+app.use('/api/admin', adminLimiter, express.json(), requireAdmin);
 
 // Lister toutes les réservations
 app.get('/api/admin/bookings', async (req, res) => {
@@ -1330,6 +1448,8 @@ app.post('/api/admin/bookings', async (req, res) => {
     return res.status(400).json({ error: 'Date et créneau obligatoires' });
   if (!client?.email || !client?.firstName || !client?.lastName || !client?.phone)
     return res.status(400).json({ error: 'Coordonnées incomplètes' });
+  if (!isValidEmail(client.email))
+    return res.status(400).json({ error: 'Adresse email invalide' });
 
   const catalog     = await getServiceCatalog();
   const svc         = catalog[service];
