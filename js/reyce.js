@@ -35,7 +35,7 @@
   if(rm)return;
   document.querySelectorAll('a[href]').forEach(function(a){
     var href=a.getAttribute('href');
-    if(!href||href.charAt(0)==='#'||href.indexOf('http')===0||a.target)return;
+    if(!href||href.charAt(0)==='#'||href.indexOf('http')===0||href.indexOf('tel:')===0||href.indexOf('mailto:')===0||a.hasAttribute('download')||a.target)return;
     a.addEventListener('click',function(e){
       e.preventDefault();veil.classList.add('on');
       setTimeout(function(){location.href=href},520);
