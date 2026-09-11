@@ -1048,7 +1048,7 @@ app.post('/api/webhook',
 // devient invisible par URL directe, sans réorganiser les 120 pages
 // existantes qui référencent leurs assets en chemin relatif.
 const PUBLIC_DIRS  = ['assets', 'css', 'js'];
-const PUBLIC_FILES = ['robots.txt', 'sitemap.xml'];
+const PUBLIC_FILES = ['robots.txt', 'sitemap.xml', 'llms.txt'];
 app.use((req, res, next) => {
   const reqPath = req.path.split('?')[0];
   // Toute requête vers /api/... est gérée plus bas dans ce fichier — ce
