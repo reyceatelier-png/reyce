@@ -455,6 +455,8 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 .chip{border:1px solid var(--line);padding:11px 15px;cursor:pointer;font-family:var(--disp);font-weight:500;font-size:.72rem;letter-spacing:.08em;transition:background-color .18s ease,color .18s ease,border-color .18s ease,transform .12s var(--ease);text-transform:uppercase}
 .chip:hover{border-color:#fff}
 .chip.sel{background:#fff;color:#000;border-color:#fff}
+.chip.taken{opacity:.32;cursor:not-allowed;text-decoration:line-through;pointer-events:none}
+.chip.taken:hover{border-color:var(--line)}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px}
 .cal .d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:1px solid var(--line-soft);font-family:var(--disp);font-weight:500;font-size:.78rem;cursor:pointer;color:var(--dim);transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .12s var(--ease)}
 .cal .d:hover{border-color:#fff;color:#fff}
@@ -1078,3 +1080,20 @@ body[data-lp-service] .phero .lp-phone{margin-top:22px}
   .lp-choice span{font-size:.6rem;padding:10px 12px}
 }
 @media(prefers-reduced-motion:reduce){.lp-sticky{transition:none}}
+
+/* ===== Quiz "je ne sais pas quelle formule choisir" (rendez-vous.html) ===== */
+.quiz-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px}
+.quiz-overlay[hidden]{display:none}
+.quiz-box{position:relative;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;background:var(--card);border:1px solid var(--line);padding:clamp(28px,4vw,44px)}
+.quiz-close{position:absolute;top:16px;right:16px;background:transparent;border:1px solid var(--line);color:#fff;width:32px;height:32px;cursor:pointer;font-size:.9rem;transition:background-color .16s,color .16s}
+.quiz-close:hover{background:#fff;color:#000}
+.quiz-box h4{font-family:var(--disp);font-weight:600;text-transform:uppercase;font-size:1.3rem;letter-spacing:.01em;margin-bottom:22px;max-width:36ch}
+.quiz-choices{display:flex;flex-direction:column;gap:8px}
+.quiz-choice{display:block;width:100%;text-align:left;border:1px solid var(--line);background:transparent;color:#fff;padding:14px 16px;font-size:.9rem;cursor:pointer;transition:border-color .16s,background-color .16s}
+.quiz-choice:hover{border-color:#fff;background:var(--card-2)}
+.quiz-result .mono{color:var(--dim)}
+.quiz-result h4{margin-top:8px}
+.quiz-result p{color:var(--dim);font-size:.9rem;line-height:1.65;margin-top:10px}
+.quiz-result .price{font-family:var(--disp);font-weight:800;font-size:1.8rem;margin-top:16px}
+.quiz-result .btn{margin-top:20px}
+@media(max-width:600px){.quiz-box{padding:26px 20px}}

@@ -9,6 +9,7 @@ const path       = require('path');
 const multer     = require('multer');
 const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6 * 1024 * 1024, files: 3 } });
 const prisma     = require('./db');
+const { Prisma } = require('@prisma/client');
 const helmet          = require('helmet');
 const rateLimit        = require('express-rate-limit');
 
@@ -344,30 +345,54 @@ async function releaseHold(appointmentId) {
 // suite via la même contrainte que le flux Stripe.
 async function createDirectBooking({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, totalCents }) {
   const localId = `local_${crypto.randomUUID()}`;
-  const row = await prisma.appointment.create({
-    data: {
-      serviceId:       service,
-      date:            strToDate(date),
-      startTime:       time,
-      endTime:         addMinutes(time, svc.durationMin),
-      durationMin:     svc.durationMin,
-      status:          'confirmed',
-      guestFirstName:  client.firstName,
-      guestLastName:   client.lastName,
-      guestEmail:      client.email,
-      guestPhone:      client.phone,
-      guestNotes:      client.notes || null,
-      vehicleLabel:    vehicleModel || null,
-      vehicleCategory: vehicleType || null,
-      tintOption:      tintOption || null,
-      totalCents,
-      depositCents:    0,
-      amountPaidCents: 0,
-      paymentType:     'on_site',
-      paidAt:          null,
-      stripeSessionId: localId
+  const dateObj = strToDate(date);
+
+  // Protection anti-double-réservation au niveau applicatif : une tentative
+  // d'ajouter une contrainte unique en base (date + heure) a échoué en
+  // production (Postgres 18, voir prisma/schema.prisma) et a bloqué le
+  // démarrage du serveur — on ne la retente pas ici. À la place, on
+  // vérifie dans la même transaction, sous isolation "serializable", qu'
+  // aucune réservation active n'existe déjà sur ce créneau avant de créer
+  // la nouvelle ligne : Postgres fait échouer l'une des deux transactions
+  // concurrentes en cas de conflit, ce qui est rattrapé plus bas (409).
+  const row = await prisma.$transaction(async (tx) => {
+    const conflict = await tx.appointment.findFirst({
+      where: {
+        serviceId: service,
+        date:      dateObj,
+        startTime: time,
+        status:    { notIn: ['cancelled', 'no_show'] }
+      },
+      select: { id: true }
+    });
+    if (conflict) {
+      throw new Error('Créneau déjà réservé');
     }
-  });
+    return tx.appointment.create({
+      data: {
+        serviceId:       service,
+        date:            dateObj,
+        startTime:       time,
+        endTime:         addMinutes(time, svc.durationMin),
+        durationMin:     svc.durationMin,
+        status:          'confirmed',
+        guestFirstName:  client.firstName,
+        guestLastName:   client.lastName,
+        guestEmail:      client.email,
+        guestPhone:      client.phone,
+        guestNotes:      client.notes || null,
+        vehicleLabel:    vehicleModel || null,
+        vehicleCategory: vehicleType || null,
+        tintOption:      tintOption || null,
+        totalCents,
+        depositCents:    0,
+        amountPaidCents: 0,
+        paymentType:     'on_site',
+        paidAt:          null,
+        stripeSessionId: localId
+      }
+    });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   return row;
 }
 
@@ -2077,6 +2102,22 @@ app.use((err, req, res, next) => {
   console.error('[Erreur non gérée]', err);
   if (res.headersSent) return next(err);
   res.status(500).json({ error: 'Erreur serveur, veuillez réessayer.' });
+});
+
+// ============================================================
+// Filet de sécurité process — une erreur async non rattrapée par le
+// middleware ci-dessus (ex. dans un .catch() manquant, un callback hors
+// requête) peut faire planter tout le process Node, ce qui se traduit
+// côté visiteur par un 502 (Railway ne trouve plus de process derrière le
+// proxy) au lieu d'un 500 propre. On journalise et on continue au lieu de
+// laisser le process s'arrêter — c'est l'explication la plus probable
+// pour un 502 signalé mais non reproductible directement.
+// ============================================================
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
 });
 
 // ============================================================

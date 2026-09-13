@@ -146,9 +146,14 @@ model Appointment {
   // Tentative retirée le 2026-08-16 : la migration a échoué sur la base de
   // production Railway (Postgres 18) et a bloqué le démarrage du serveur ;
   // à réessayer avec un accès direct à la base pour diagnostiquer avant de
-  // la remettre en place. En attendant, la vérification applicative
-  // (soft-hold "pending_payment" + contrôle du créneau avant création de la
-  // session Stripe) reste seule en place.
+  // la remettre en place. En attendant (2026-09-13) : createDirectBooking()
+  // dans server.js vérifie, dans une transaction Prisma sous isolation
+  // "serializable", qu'aucune réservation active n'existe déjà sur ce
+  // créneau avant de créer la ligne — Postgres fait échouer l'une des deux
+  // transactions concurrentes en cas de conflit réel (409 côté client).
+  // Réduit fortement le risque sans migration, mais une contrainte au
+  // niveau base resterait la protection définitive si elle peut être
+  // remise en place proprement.
   @@index([date, startTime])
   @@index([status])
   @@index([serviceId, date])

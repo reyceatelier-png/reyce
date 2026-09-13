@@ -207,6 +207,39 @@ var STAGING={
 /* Code promo — réservé aux formules Premium & Expérience */
 var PROMO={active:true, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', formules:['Premium','Expérience']};
 
+/* ============================================================
+   TRACKING GOOGLE ADS / GTM / GA4
+   Micro-conversions à chaque étape clé + conversion principale
+   booking_complete, déclenchée uniquement après confirmation réelle
+   côté serveur (jamais au simple clic ou à l'affichage du formulaire).
+   ============================================================ */
+window.dataLayer=window.dataLayer||[];
+function pushEvt(o){try{window.dataLayer.push(o);}catch(e){}}
+var _bookingStarted=false;
+function trackBookingStart(){
+  if(_bookingStarted)return;_bookingStarted=true;
+  pushEvt({event:'booking_start', booking_type:state.type});
+}
+
+/* UTM / gclid — capturés à l'arrivée, transmis à la page de remerciement
+   et ajoutés aux notes de réservation pour l'attribution côté admin. */
+var UTM_KEYS=['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid'];
+var UTM_PARAMS=(function(){
+  var sp=new URLSearchParams(location.search),out={};
+  UTM_KEYS.forEach(function(k){var v=sp.get(k);if(v)out[k]=v;});
+  return out;
+})();
+function utmQueryString(){
+  var sp=new URLSearchParams();
+  UTM_KEYS.forEach(function(k){if(UTM_PARAMS[k])sp.set(k,UTM_PARAMS[k]);});
+  return sp.toString();
+}
+function utmNoteLine(){
+  var keys=Object.keys(UTM_PARAMS);
+  if(!keys.length)return null;
+  return 'Source : '+keys.map(function(k){return k+'='+UTM_PARAMS[k];}).join(' · ');
+}
+
 function euro(n){return n>0?(n+'<span class="eur">€</span>'):'___<span class="eur">€</span>';}
 function euroTxt(n){return n>0?(n+' €'):'___ €';}
 function duoSave(idx){
@@ -252,7 +285,19 @@ var MONTHS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août
 
 document.querySelectorAll('#rtype button').forEach(function(b){b.addEventListener('click',function(){
   document.querySelectorAll('#rtype button').forEach(function(x){x.classList.remove('sel');});b.classList.add('sel');
-  state.type=b.dataset.type;step=0;render();})});
+  state.type=b.dataset.type;step=0;trackBookingStart();render();})});
+
+/* booking_start : première interaction réelle avec le tunnel, quel que
+   soit l'endroit où elle a lieu (sélecteur de formule ou panneau du bas). */
+document.addEventListener('click',function(e){
+  if(!_bookingStarted && e.target.closest('#rtype, .resa')) trackBookingStart();
+},true);
+
+/* click_phone : tout lien tel: cliqué sur la page (hero, sticky, aside). */
+document.addEventListener('click',function(e){
+  var a=e.target.closest('a[href^="tel:"]');
+  if(a) pushEvt({event:'click_phone', booking_type:state.type});
+},true);
 
 function renderSteps(){var L=LAB[state.type];stepsEl.innerHTML='';for(var i=0;i<L.length;i++){var d=document.createElement('div');
   d.className='s'+(i===step?' active':i<step?' done':'');d.innerHTML='<span class="dot"></span>0'+(i+1)+' — '+L[i];stepsEl.appendChild(d);}}
@@ -547,7 +592,7 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
     var lastLabel=STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer le rendez-vous';
     h+='<div class="pnav"><button type="button" class="btn ghost" id="back" '+(step===0?'style="visibility:hidden"':'')+'>← Retour</button>'+
        '<button type="button" class="btn" id="next">'+(step===last?lastLabel:'Continuer →')+'</button></div>';
-    setPanel(h);bindP(last);animateAmt();return;
+    setPanel(h);bindP(last);animateAmt();updateSticky();return;
   }
 
   /* ---------- FLUX PROJET ---------- */
@@ -575,7 +620,7 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
   var lastJ=LAB.projet.length-1;
   h+='<div class="pnav"><button type="button" class="btn ghost" id="back" '+(step===0?'style="visibility:hidden"':'')+'>← Retour</button>'+
      '<button type="button" class="btn" id="next">'+(step===lastJ?'Envoyer la demande':'Continuer →')+'</button></div>';
-  setPanel(h);bindJ(lastJ);
+  setPanel(h);bindJ(lastJ);updateSticky();
 }
 
 function splitName(full){
@@ -649,6 +694,7 @@ function done(){
 
     // ---- paiement en pause : réservation directe, confirmée sans Stripe ----
     if(next){next.disabled=true;next.textContent='Confirmation…';}
+    var notesParts=[optsNotes(),utmNoteLine()].filter(Boolean);
     fetch('/api/create-booking',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -657,12 +703,24 @@ function done(){
         vehicleModel: (state.marque+' '+state.modele).trim(),
         date: state.jourISO,
         time: state.heure,
-        client: {firstName: nm.firstName, lastName: nm.lastName, phone: state.tel, email: state.email, notes: optsNotes()},
+        client: {firstName: nm.firstName, lastName: nm.lastName, phone: state.tel, email: state.email, notes: notesParts.length?notesParts.join(' — '):undefined},
         opts: state.opts
       })
     }).then(function(r){return r.json();}).then(function(data){
       if(data.error){showError(data.error,'Confirmer le rendez-vous');return;}
-      if(data.sessionId){window.location.href='/confirmation.html?session_id='+encodeURIComponent(data.sessionId);}
+      if(data.sessionId){
+        /* booking_complete : conversion principale, déclenchée uniquement
+           ici — après confirmation réelle côté serveur, jamais au clic. */
+        pushEvt({
+          event:'booking_complete', service:serviceId(), formula:f.k, clean_type:state.clean,
+          vehicle_type:state.gab, value:grandTotal(), currency:'EUR'
+        });
+        var qs='session_id='+encodeURIComponent(data.sessionId);
+        var utm=utmQueryString();
+        if(utm)qs+='&'+utm;
+        setTimeout(function(){window.location.href='/confirmation.html?'+qs;},250);
+        return;
+      }
     }).catch(function(){showError('Erreur de connexion. Vérifiez votre réseau et réessayez.','Confirmer le rendez-vous');});
     return;
   }
@@ -680,6 +738,7 @@ function done(){
 
   var finish=function(){
     var first=state.nom.split(' ')[0]||'';
+    pushEvt({event:'project_request_sent', projects:state.projet.map(function(i){return projets[i].label;})});
     showDoneScreen('Demande envoyée', 'Merci '+first+'. Nous revenons vers vous très vite pour échanger sur votre projet.');
   };
 
@@ -775,12 +834,12 @@ function validProjetStep(){
 }
 
 function bindP(last){
-  panel.querySelectorAll('[data-clean]').forEach(function(b){b.addEventListener('click',function(){state.clean=b.dataset.clean;render()})});
-  panel.querySelectorAll('[data-form]').forEach(function(b){b.addEventListener('click',function(){state.form=+b.dataset.form;render()})});
+  panel.querySelectorAll('[data-clean]').forEach(function(b){b.addEventListener('click',function(){state.clean=b.dataset.clean;pushEvt({event:'interior_exterior_selected', clean_type:state.clean});render()})});
+  panel.querySelectorAll('[data-form]').forEach(function(b){b.addEventListener('click',function(){state.form=+b.dataset.form;pushEvt({event:'formula_selected', formula:CLEAN[state.clean].formules[state.form].k});render()})});
   panel.querySelectorAll('.fdetail summary').forEach(function(s){s.addEventListener('click',function(e){e.stopPropagation();})});
   var stagingBtn=document.getElementById('stagingBtn');
-  if(stagingBtn)stagingBtn.addEventListener('click',function(){goToProjet(STAGING_PROJ_IDX);});
-  panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){var id=b.dataset.opt;var k=state.opts.indexOf(id);if(k>-1)state.opts.splice(k,1);else state.opts.push(id);render()})});
+  if(stagingBtn)stagingBtn.addEventListener('click',function(){pushEvt({event:'staging_click', formula:CLEAN[state.clean].formules[state.form].k});goToProjet(STAGING_PROJ_IDX);});
+  panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){var id=b.dataset.opt;var k=state.opts.indexOf(id);if(k>-1){state.opts.splice(k,1);}else{state.opts.push(id);pushEvt({event:'option_selected', option:id});}render()})});
   var promoBtn=document.getElementById('promoBtn');
   if(promoBtn)promoBtn.addEventListener('click',function(){
     var v=(document.getElementById('promoInput').value||'').trim().toUpperCase();
@@ -789,7 +848,10 @@ function bindP(last){
     if(!promoEligible()){ if(hint){hint.textContent='Ce code est valable sur Premium et Expérience. Choisissez l\'une de ces formules pour en profiter.';hint.style.color='#fff';} return; }
     state.promo=true; render();
   });
-  panel.querySelectorAll('[data-t]').forEach(function(b){b.addEventListener('click',function(){state.heure=b.dataset.t;render()})});
+  panel.querySelectorAll('[data-t]').forEach(function(b){b.addEventListener('click',function(){
+    if(b.classList.contains('taken'))return;
+    state.heure=b.dataset.t;pushEvt({event:'slot_selected', slot_time:state.heure});render()
+  })});
   function bI(id,key){var el=document.getElementById(id);if(el)el.addEventListener('input',function(e){state[key]=e.target.value;})}
   bI('nom','nom');bI('tel','tel');bI('email','email');
 
@@ -857,8 +919,37 @@ function bindP(last){
   var next=document.getElementById('next');
   if(next)next.addEventListener('click',function(){
     if(!validPrestationStep()){shakeNext();return;}
+    if(step===0) pushEvt({event:'vehicle_selected', vehicle_type:state.gab, vehicle_label:(state.marque+' '+state.modele).trim()||null});
     if(step<last){step++;navDirection='fwd';render()}else{done()}
   });
+  refreshSlotAvailability();
+}
+
+/* Interroge la disponibilité réelle des créneaux (réservations déjà en
+   base pour ce service et ce jour) pour ce même jour, une fois choisi —
+   les créneaux déjà pris sont grisés et non cliquables, jamais affichés
+   comme libres par défaut. */
+function refreshSlotAvailability(){
+  if(state.type!=='prestation'||!state.jourISO)return;
+  var wrap=document.getElementById('heureChips');
+  if(!wrap)return;
+  var svc=serviceId(), date=state.jourISO;
+  fetch('/api/slots?service='+encodeURIComponent(svc)+'&date='+encodeURIComponent(date))
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(data){
+      if(!data||!data.slots)return;
+      var avail=data.slots;
+      var w=document.getElementById('heureChips');
+      if(!w)return;
+      w.querySelectorAll('[data-t]').forEach(function(b){
+        b.classList.toggle('taken', avail.indexOf(b.dataset.t)===-1);
+      });
+      if(state.heure && avail.indexOf(state.heure)===-1){
+        state.heure=null;
+        render();
+      }
+    })
+    .catch(function(){});
 }
 function renderPhotoList(){
   var list=document.getElementById('photoList');
@@ -918,5 +1009,107 @@ fetch('/api/public/pricing/car-staging').then(function(r){return r.ok?r.json():n
   if(!label) return;
   var idx=projets.findIndex(function(p){return p.label.indexOf(label)===0;});
   if(idx>-1) goToProjet(idx);
+})();
+
+/* ============================================================
+   CTA COLLANT MOBILE — évolue avec l'avancée du tunnel, masqué
+   quand le bouton "Continuer" est déjà visible à l'écran.
+   ============================================================ */
+var stickyEl=document.getElementById('lpSticky'), stickyCta=document.getElementById('lpStickyCta');
+function updateSticky(){
+  if(!stickyEl||!stickyCta) return;
+  if(state.type==='prestation'){
+    var price=(step>=2)?(grandTotal()||basePrice()):0;
+    stickyCta.textContent=price>0?('Continuer — '+price+' €'):'Choisir mon soin';
+  } else {
+    stickyCta.textContent='Continuer ma demande';
+  }
+  refreshStickyVisibility();
+}
+function refreshStickyVisibility(){
+  if(!stickyEl) return;
+  var hero=document.querySelector('.phero');
+  var pastHero=window.scrollY>((hero?hero.offsetHeight:400)*0.85);
+  var nextBtn=document.getElementById('next');
+  var nextVisible=false;
+  if(nextBtn){var r=nextBtn.getBoundingClientRect();nextVisible=(r.top<window.innerHeight-24&&r.bottom>0);}
+  stickyEl.classList.toggle('on', pastHero&&!nextVisible);
+}
+addEventListener('scroll',refreshStickyVisibility,{passive:true});
+addEventListener('resize',refreshStickyVisibility);
+if(stickyCta)stickyCta.addEventListener('click',function(e){
+  var panelEl=document.getElementById('panel');
+  if(panelEl){e.preventDefault();panelEl.scrollIntoView({behavior:'smooth',block:'center'});}
+});
+updateSticky();
+
+/* ============================================================
+   QUIZ "JE NE SAIS PAS QUELLE FORMULE CHOISIR"
+   3 questions courtes -> recommandation de formule + type de nettoyage,
+   pré-remplit le state existant et saute directement à l'étape Formule.
+   Aucun nouveau système de tarification : reprend priceFor()/CLEAN déjà en place.
+   ============================================================ */
+(function(){
+  var openBtn=document.getElementById('quizOpen'), overlay=document.getElementById('quizOverlay'),
+      closeBtn=document.getElementById('quizClose'), body=document.getElementById('quizBody');
+  if(!openBtn||!overlay||!body) return;
+
+  var Q=[
+    {q:'Quel est votre objectif ?', key:'obj', opts:[
+      ['entretien','Entretien courant'],['gros','Gros nettoyage'],['neuf','Remise à neuf'],['protec','Protection durable']]},
+    {q:'Quel est l\'état intérieur ?', key:'int', opts:[
+      ['propre','Propre'],['moyen','Moyen'],['sale','Très sale']]},
+    {q:'Quel est l\'état extérieur ?', key:'ext', opts:[
+      ['entretien','Entretien'],['terne','Terne / micro-rayé'],['protec','Besoin de protection']]}
+  ];
+  var answers={};
+
+  function recommend(){
+    var score=0; // 0 Confort, 1 Premium, 2 Expérience
+    if(answers.obj==='neuf')score+=2; else if(answers.obj==='gros'||answers.obj==='protec')score+=1;
+    if(answers.int==='sale')score+=2; else if(answers.int==='moyen')score+=1;
+    if(answers.ext==='protec')score+=2; else if(answers.ext==='terne')score+=1;
+    var formIdx=score>=4?2:(score>=2?1:0);
+    var clean='duo';
+    if(answers.int==='propre'&&answers.ext!=='entretien')clean='exterieur';
+    else if(answers.ext==='entretien'&&answers.int!=='propre')clean='interieur';
+    return {formIdx:formIdx, clean:clean};
+  }
+
+  function renderQuestion(i){
+    if(i>=Q.length){renderResult();return;}
+    var s=Q[i];
+    body.innerHTML='<span class="mono">Question '+(i+1)+' / '+Q.length+'</span><h4>'+s.q+'</h4><div class="quiz-choices">'+
+      s.opts.map(function(o){return '<button type="button" class="quiz-choice" data-v="'+o[0]+'">'+o[1]+'</button>';}).join('')+'</div>';
+    body.querySelectorAll('.quiz-choice').forEach(function(b){b.addEventListener('click',function(){
+      answers[s.key]=b.dataset.v; renderQuestion(i+1);
+    });});
+  }
+
+  function renderResult(){
+    var r=recommend();
+    var f=CLEAN[r.clean].formules[r.formIdx];
+    body.innerHTML='<div class="quiz-result"><span class="mono">Notre recommandation</span><h4>'+f.k+' — '+CLEAN[r.clean].label+'</h4>'+
+      '<p>'+f.pitch+'</p><div class="price">'+euro(priceFor(r.clean,r.formIdx,state.gab))+'</div>'+
+      '<button type="button" class="btn solid" id="quizApply">Choisir cette formule</button></div>';
+    document.getElementById('quizApply').addEventListener('click',function(){
+      state.type='prestation'; state.clean=r.clean; state.form=r.formIdx; step=2;
+      document.querySelectorAll('#rtype button').forEach(function(x){x.classList.toggle('sel', x.dataset.type==='prestation');});
+      pushEvt({event:'formula_selected', formula:f.k, source:'quiz'});
+      closeQuiz(); render();
+      var panelEl=document.getElementById('panel');
+      if(panelEl) setTimeout(function(){panelEl.scrollIntoView({behavior:'smooth',block:'center'});},60);
+    });
+  }
+
+  function openQuiz(){
+    answers={}; overlay.hidden=false; renderQuestion(0);
+    pushEvt({event:'quiz_start'});
+  }
+  function closeQuiz(){ overlay.hidden=true; }
+
+  openBtn.addEventListener('click',openQuiz);
+  closeBtn.addEventListener('click',closeQuiz);
+  overlay.addEventListener('click',function(e){ if(e.target===overlay) closeQuiz(); });
 })();
 })();
