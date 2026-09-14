@@ -634,22 +634,25 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
            '<button type="button" class="btn-line" id="vehReset">Modifier</button></div>'+
            '<p class="veh-note">Le tarif affiché ensuite correspondra exactement à ce gabarit.</p>';
       } else if(state.vehUnknown){
-        h+='<div class="veh-unknown"><p>Nous n\'avons pas encore identifié automatiquement ce modèle'+
-           (state.vehQuery?' (<b>'+state.vehQuery+'</b>)':'')+'.</p>'+
-           '<p class="vu-sub">Indiquez simplement son gabarit — le tarif en dépend.</p></div>'+
-           '<div class="gabs" id="gabbox" role="radiogroup" aria-label="Gabarit du véhicule">';
+        h+='<div class="veh-unknown">'+
+           (state.vehQuery?'<span class="mono">Modèle non identifié</span><p><b>'+state.vehQuery+'</b> ne figure pas encore dans notre base.</p>'
+                          :'<span class="mono">Gabarit du véhicule</span><p>Indiquez le gabarit de votre véhicule.</p>')+
+           '<p class="vu-sub">C\'est lui qui détermine le tarif — le reste du parcours est identique.</p></div>';
+        h+='<div class="qopts" id="gabbox" role="radiogroup" aria-label="Gabarit du véhicule">';
         for(var gk in GABARITS){
-          h+='<button type="button" role="radio" aria-checked="'+(state.gab===gk?'true':'false')+'" class="gabo'+(state.gab===gk?' sel':'')+'" data-gab="'+gk+'">'+
-             '<b>'+GABARITS[gk].label+'</b><span>'+GABARITS[gk].desc+'</span></button>';
+          var gsel=state.gab===gk;
+          h+='<button type="button" role="radio" aria-checked="'+(gsel?'true':'false')+'" class="qopt'+(gsel?' sel':'')+'" data-gab="'+gk+'">'+
+             '<span class="qo-mark">'+(gsel?'✓':'')+'</span>'+
+             '<span class="qo-body"><b>'+GABARITS[gk].label+'</b><span>'+GABARITS[gk].desc+'</span></span></button>';
         }
-        h+='</div><p class="veh-note"><button type="button" class="btn-line" id="vehReset">Rechercher à nouveau</button></p>';
+        h+='</div><p class="veh-back"><button type="button" class="link-soft" id="vehReset">Rechercher un autre modèle</button></p>';
       } else {
         h+='<div class="vehsearch"><div class="field">'+
            '<label for="vehq">Marque ou modèle</label>'+
            '<input id="vehq" autocomplete="off" placeholder="BMW X3 M, Clio, Cayenne, Model 3…" value="'+(state.vehQuery||'').replace(/"/g,'&quot;')+'">'+
            '<div class="ac" id="ac"></div></div></div>'+
            '<p class="veh-note">Tapez les premières lettres : nous identifions le modèle et son gabarit tarifaire.</p>'+
-           '<p style="margin-top:14px"><button type="button" class="btn-line" id="noModel">Je ne trouve pas mon véhicule</button></p>';
+           '<p class="veh-back">Vous ne trouvez pas votre véhicule ? <button type="button" class="link-soft" id="noModel">Choisir le gabarit</button></p>';
       }
     }
     /* ---------- 02 · BESOIN ----------

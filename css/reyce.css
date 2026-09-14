@@ -202,8 +202,12 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 
 
 /* bouton-lien épuré (sur images immersives) — pas de cadre, une flèche */
+/* Utilisable indifféremment sur <a> et <button> : sans cette remise à zéro,
+   un bouton conserve le fond et les bordures par défaut du navigateur et
+   apparaît comme une boîte grise au milieu du texte. */
 .btn-line{display:inline-flex;align-items:center;gap:12px;font-family:var(--disp);font-weight:600;
   font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:#fff;padding:6px 0;
+  background:transparent;border:0;cursor:pointer;text-align:left;
   border-bottom:1px solid rgba(255,255,255,.35);transition:gap .3s var(--ease),border-color .3s ease}
 .btn-line::after{content:'→';font-size:.9rem;transition:transform .3s var(--ease)}
 .btn-line:hover{gap:18px;border-color:#fff}
@@ -1093,9 +1097,18 @@ body[data-lp-service] .phero .lp-phone{margin-top:22px}
 .veh-picked .mono{color:var(--dim-2)}
 .veh-picked b{font-family:var(--disp);font-weight:700;font-size:1.25rem;text-transform:uppercase;letter-spacing:.01em}
 .veh-picked .vp-cat{font-size:.82rem;color:var(--dim)}
-.veh-unknown{border-left:1px solid var(--line);padding-left:18px;margin-bottom:20px}
-.veh-unknown p{font-size:.92rem;line-height:1.6}
-.veh-unknown .vu-sub{color:var(--dim);font-size:.85rem;margin-top:6px}
+.veh-unknown{margin-bottom:24px}
+.veh-unknown .mono{display:block;color:var(--dim-2);margin-bottom:10px}
+.veh-unknown p{font-size:1rem;line-height:1.6}
+.veh-unknown p b{font-family:var(--disp);font-weight:700}
+.veh-unknown .vu-sub{color:var(--dim);font-size:.86rem;margin-top:8px;max-width:50ch}
+/* Action tertiaire : discrète, jamais en concurrence visuelle avec le
+   bouton « Continuer ». */
+.veh-back{margin-top:18px;color:var(--dim);font-size:.85rem}
+.link-soft{background:transparent;border:0;padding:0;cursor:pointer;color:#fff;font-size:.85rem;
+  font-family:inherit;border-bottom:1px solid rgba(255,255,255,.32);transition:border-color .2s ease}
+.link-soft:hover{border-color:#fff}
+.link-soft:focus-visible{outline:2px solid #fff;outline-offset:3px}
 
 /* -- 02 aiguillage -- */
 .need2{display:grid;grid-template-columns:1fr 1fr;gap:2px;border:1px solid var(--line)}
