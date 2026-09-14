@@ -16,11 +16,11 @@ if(!panel) return;
    grille), qui reste calculé sur la base citadine + ce supplément.
    ============================================================ */
 var GABARITS={
-  citadine:{label:'Citadine', desc:'Petite voiture urbaine'},
-  berline:{label:'Berline / Break', desc:'Compacte, berline, break'},
-  suv:{label:'SUV / 4×4', desc:'SUV, crossover, tout-terrain'},
-  van:{label:'Utilitaire / Van', desc:'Monospace 7+ places, utilitaire'},
-  sportive:{label:'Sportive / Exception', desc:'Sportive, GT, supercar', supp:60}
+  citadine:{label:'Citadine / compacte', desc:'Citadine, compacte, petite urbaine'},
+  berline:{label:'Berline', desc:'Berline, break, coupé'},
+  suv:{label:'SUV / crossover', desc:'SUV, crossover, tout-terrain'},
+  van:{label:'Grand SUV / 7 places', desc:'Grand SUV, monospace, van, utilitaire'},
+  sportive:{label:'Véhicule d\'exception', desc:'Sportive, GT, supercar', supp:60}
 };
 /* base des modèles les plus courants en France -> gabarit.
    Le client tape, on autocomplète, le gabarit est déduit avec certitude.
@@ -99,6 +99,41 @@ function detectGab(marque,modele){
   var nmk=norm(mkq),nmd=norm(mdq);
   for(var i=0;i<VLIST.length;i++){if(norm(VLIST[i].marque)===nmk&&norm(VLIST[i].modele)===nmd)return VLIST[i].gab;}
   return null;
+}
+
+/* Recherche véhicule unifiée : le client tape librement « BMW X3 M »,
+   « x3 m », « cayenne »… On classe les correspondances sur la liste plate
+   déjà construite à partir de VDB — une seule base véhicule, qui renvoie
+   toujours vers les gabarits tarifaires existants. */
+function searchVehicles(q,limit){
+  var nq=norm(q);
+  if(nq.length<2) return [];
+  var out=[];
+  for(var i=0;i<VLIST.length;i++){
+    var v=VLIST[i], nf=norm(v.full), nm=norm(v.modele);
+    var sc=-1;
+    if(nf===nq) sc=0;
+    else if(nm===nq) sc=1;
+    else if(nf.indexOf(nq)===0) sc=2;
+    else if(nm.indexOf(nq)===0) sc=3;
+    else if(nf.indexOf(nq)>-1) sc=4;
+    if(sc>-1) out.push({v:v,sc:sc});
+  }
+  out.sort(function(a,b){return a.sc-b.sc || a.v.full.length-b.v.full.length;});
+  return out.slice(0,limit||7).map(function(o){return o.v;});
+}
+
+/* Modèle non reconnu : on ne devine jamais silencieusement. Le client
+   choisit son gabarit, et la saisie est journalisée côté serveur pour
+   enrichir la base véhicule plus tard (aucune donnée personnelle). */
+function logUnknownVehicle(query,chosenGab){
+  if(!query||!query.trim()) return;
+  try{
+    fetch('/api/vehicle-unknown',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({query:query.trim().slice(0,120), category:chosenGab||null})
+    }).catch(function(){});
+  }catch(e){}
 }
 
 /* ============================================================
@@ -185,8 +220,13 @@ var OPTS_VARIABLE_NOTE='Le tarif peut évoluer selon la quantité, l\'état et l
    l'ozone dans son descriptif — inutile de le refaire payer une deuxième fois. */
 function visibleOptions(){
   var f=CLEAN[state.clean]&&CLEAN[state.clean].formules[state.form];
-  var ozoneIncluded=f&&f.k==='Expérience'&&(state.clean==='interieur'||state.clean==='duo');
-  return OPTIONS.filter(function(op){return !(ozoneIncluded&&op.id==='ozone');});
+  /* L'Expérience intérieure/complète inclut déjà, dans son descriptif, le
+     traitement à l'ozone ET le soin complet des cuirs (dégraissage,
+     nettoyage, nourrissage, protection) : ces deux options ne doivent pas
+     être refacturées par-dessus. Règle reproduite côté serveur. */
+  var deepInt=f&&f.k==='Expérience'&&(state.clean==='interieur'||state.clean==='duo');
+  var included=deepInt?['ozone','cuir']:[];
+  return OPTIONS.filter(function(op){return included.indexOf(op.id)===-1;});
 }
 
 /* ============================================================
@@ -206,6 +246,121 @@ var STAGING={
 
 /* Code promo — réservé aux formules Premium & Expérience */
 var PROMO={active:true, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', formules:['Premium','Expérience']};
+
+/* ============================================================
+   QUESTIONNAIRE « CONSEILLEZ-MOI »
+   Il ne connaît AUCUN prix : il ne produit qu'un triplet
+   (gabarit déjà choisi à l'étape 1) + formule + type de prestation,
+   qui repasse ensuite par priceFor() — le moteur tarifaire unique,
+   également utilisé par le parcours direct, l'admin et les emails.
+   ============================================================ */
+var QUIZ=[
+  {key:'goal', q:'Que souhaitez-vous retrouver ?', opts:[
+    ['entretenir','Entretenir mon véhicule','Il est déjà correctement entretenu.'],
+    ['profondeur','Nettoyer en profondeur','L\'intérieur ou l\'extérieur nécessite davantage de travail.'],
+    ['neuf','Le remettre au meilleur niveau','Je recherche une remise à neuf plus poussée.'],
+    ['inconnu','Je ne sais pas','Guidez-moi.']]},
+  {key:'area', q:'Quelle partie souhaitez-vous traiter ?', opts:[
+    ['interieur','Intérieur','Habitacle, sièges, plastiques, vitres.'],
+    ['exterieur','Extérieur','Carrosserie, jantes, vitres, finition.'],
+    ['duo','Intérieur + Extérieur','Le véhicule repris dans son ensemble.','Recommandé']]},
+  {key:'etat', q:'Comment décririez-vous l\'état actuel de votre véhicule ?', opts:[
+    ['entretenu','Entretenu','Poussière et traces d\'utilisation normale.'],
+    ['reprendre','À reprendre','Salissures visibles, tapis ou surfaces marqués.'],
+    ['marque','Très marqué','Taches, odeurs, poils ou salissures importantes.']]},
+  {key:'intFlags', q:'Votre intérieur présente-t-il l\'un de ces éléments ?', multi:true, when:'int', opts:[
+    ['poils','Poils d\'animaux',''],
+    ['taches','Taches incrustées',''],
+    ['odeurs','Odeurs persistantes',''],
+    ['cuir','Sellerie cuir',''],
+    ['aucun','Aucun','']]},
+  {key:'extFlags', q:'Que souhaitez-vous améliorer à l\'extérieur ?', multi:true, when:'ext', opts:[
+    ['entretien','Entretien courant',''],
+    ['brillance','Brillance',''],
+    ['jantes','Jantes / pneus',''],
+    ['terne','Carrosserie terne',''],
+    ['rayures','Micro-rayures',''],
+    ['protection','Protection','']]}
+];
+/* Questions réellement posées : les deux dernières dépendent de la zone
+   choisie en question 2 (intérieur / extérieur / complet). */
+function quizSteps(){
+  var area=state.quiz.area;
+  return QUIZ.filter(function(s){
+    if(s.when==='int') return area==='interieur'||area==='duo';
+    if(s.when==='ext') return area==='exterieur'||area==='duo';
+    return true;
+  });
+}
+/* Recommandation : renvoie uniquement { clean, form, why[] }.
+   Aucun montant n'est calculé ici. */
+function computeReco(){
+  /* Barème volontairement prudent : on ne recommande l'Expérience que
+     lorsque plusieurs signaux forts convergent. Sur-recommander coûte la
+     confiance du client — un besoin courant doit tomber sur Premium. */
+  var q=state.quiz, score=0;
+  if(q.goal==='profondeur') score=1;
+  else if(q.goal==='neuf') score=2;
+  else if(q.goal==='inconnu') score=0.5; // laisse l'état trancher
+  else score=0;                          // « entretenir »
+  if(q.etat==='reprendre') score+=0.5;
+  else if(q.etat==='marque') score+=1.5;
+  var fi=q.intFlags||[], fe=q.extFlags||[];
+  if(fi.indexOf('odeurs')>-1) score+=1;   // seule l'Expérience inclut l'ozone
+  if(fi.indexOf('poils')>-1) score+=0.25;
+  if(fi.indexOf('taches')>-1) score+=0.25;
+  if(fe.indexOf('terne')>-1) score+=0.5;
+  if(fe.indexOf('rayures')>-1) score+=0.5;
+  var idx=score>=2?2:(score>=1?1:0);
+  /* On ne pousse jamais au-delà du Premium un client qui a explicitement
+     demandé un simple entretien. */
+  if(q.goal==='entretenir') idx=Math.min(idx,1);
+  var why=[];
+  if(q.goal==='entretenir') why.push('Vous recherchez avant tout un entretien régulier.');
+  else if(q.goal==='profondeur') why.push('Vous souhaitez un nettoyage nettement plus poussé qu\'un entretien courant.');
+  else if(q.goal==='neuf') why.push('Vous visez une remise à niveau complète du véhicule.');
+  else why.push('Nous nous sommes appuyés sur l\'état décrit pour vous orienter.');
+  if(q.etat==='entretenu') why.push('Votre véhicule est déjà correctement entretenu.');
+  else if(q.etat==='reprendre') why.push('Les salissures visibles demandent un traitement plus approfondi.');
+  else if(q.etat==='marque') why.push('L\'état décrit nécessite un travail en profondeur, zone par zone.');
+  if(fi.indexOf('odeurs')>-1) why.push('Les odeurs persistantes nécessitent une désodorisation en profondeur.');
+  else if(fi.indexOf('poils')>-1) why.push('Les poils d\'animaux demandent un traitement spécifique des textiles.');
+  else if(fi.indexOf('cuir')>-1) why.push('Votre sellerie cuir demande un soin adapté.');
+  else if(fe.indexOf('terne')>-1||fe.indexOf('rayures')>-1) why.push('L\'état de la carrosserie mérite une finition plus poussée.');
+  return {clean:q.area||'duo', form:idx, why:why.slice(0,3)};
+}
+/* Les réponses du questionnaire pré-sélectionnent les options cohérentes —
+   jamais celles déjà incluses dans la formule recommandée. */
+function optsFromQuiz(){
+  var fi=state.quiz.intFlags||[], fe=state.quiz.extFlags||[], picked=[];
+  if(fi.indexOf('poils')>-1) picked.push('poils');
+  if(fi.indexOf('taches')>-1) picked.push('taches');
+  if(fi.indexOf('odeurs')>-1) picked.push('ozone');
+  if(fi.indexOf('cuir')>-1) picked.push('cuir');
+  if(fe.indexOf('protection')>-1) picked.push('hydro');
+  var vis=visibleOptions().map(function(o){return o.id;});
+  return picked.filter(function(id){return vis.indexOf(id)>-1;});
+}
+/* Fin du questionnaire : on applique le triplet recommandé au state
+   commun (gabarit déjà connu + prestation + formule). À partir d'ici, le
+   parcours guidé et le parcours direct sont strictement identiques. */
+function finishQuiz(){
+  var r=computeReco();
+  state.reco=r;
+  state.clean=r.clean;
+  state.form=r.form;
+  state.opts=optsFromQuiz();
+  pushEvt({event:'recommendation_complete', formula:CLEAN[r.clean].formules[r.form].k,
+           service_area:r.clean, vehicle_type:state.gab,
+           value:priceFor(r.clean,r.form,state.gab), currency:'EUR'});
+}
+
+/* Le Car Staging n'est proposé que lorsque le besoin exprimé le justifie. */
+function stagingRelevant(){
+  var q=state.quiz, fe=q.extFlags||[];
+  return state.form===2 || q.goal==='neuf' || q.etat==='marque' ||
+         fe.indexOf('terne')>-1 || fe.indexOf('rayures')>-1;
+}
 
 /* ============================================================
    TRACKING GOOGLE ADS / GTM / GA4
@@ -272,14 +427,19 @@ function goToProjet(idx){
 }
 var contactModes=['Par téléphone','En visio','À l\'atelier'];
 var LAB={
-  prestation:['Véhicule','Nettoyage','Formule','Créneau','Coordonnées'],
+  prestation:['Véhicule','Besoin','Soin','Options','Créneau'],
   projet:['Projet','Véhicule','Échange','Coordonnées']
 };
 
 var today=new Date();
-var state={type:'prestation',clean:'duo',form:1,marque:'',modele:'',gab:null,gabAuto:false,manualGab:false,opts:[],promo:false,
-           calYear:today.getFullYear(),calMonth:today.getMonth(),jourISO:null,jourLabel:null,heure:null,
-           projet:[],photos:[],mode:null,nom:'',tel:'',email:'',msg:''};
+function freshState(type){
+  return {type:type||'prestation',clean:'duo',form:1,marque:'',modele:'',gab:null,gabAuto:false,manualGab:false,
+          vehQuery:'',vehUnknown:false,need:null,quizIdx:0,quiz:{},reco:null,
+          opts:[],promo:false,
+          calYear:today.getFullYear(),calMonth:today.getMonth(),jourISO:null,jourLabel:null,heure:null,
+          projet:[],photos:[],mode:null,prenom:'',nomFam:'',nom:'',tel:'',email:'',msg:''};
+}
+var state=freshState('prestation');
 var step=0;
 var MONTHS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
@@ -383,12 +543,17 @@ function updateWizMedia(){
   });
 }
 
+/* Cohérence des promesses : un soin réservable en ligne est confirmé
+   immédiatement sur un créneau réellement disponible ; un projet (PPF,
+   céramique, covering, Car Staging) est une demande que l'on rappelle. */
 var ASIDE_TXT={
-  prestation:['Trois formules : Confort, Premium, Expérience. Choisissez le niveau de soin, puis votre créneau.',
-    'Encore quatre étapes, deux minutes.','Plus que le créneau et vos coordonnées.',
-    'Presque fini — choisissez votre heure.','Dernière ligne droite avant confirmation.'],
+  prestation:['Le tarif dépend du véhicule : commençons par lui.',
+    'Vous savez déjà ce que vous voulez, ou nous vous guidons en 30 secondes.',
+    'Trois niveaux de soin, au tarif exact de votre véhicule.',
+    'Des options facultatives, seulement si elles ont du sens.',
+    'Créneau confirmé immédiatement, règlement sur place.'],
   projet:['Décrivez votre projet, on vous recontacte pour chiffrer ensemble.',
-    'Encore trois étapes.','On y est presque.','Dernière étape avant l\'envoi.']
+    'Encore trois étapes.','On y est presque.','Nous revenons vers vous sous 24 h.']
 };
 
 function updateProgress(){
@@ -398,27 +563,47 @@ function updateProgress(){
   fill.style.width=(((step+1)/L.length)*100)+'%';
 }
 
+function vehLabel(){
+  var v=(state.marque+' '+state.modele).trim();
+  return v||(state.vehQuery||'').trim()||'';
+}
+/* Récapitulatif « configurateur » : le véhicule reste visible pendant tout
+   le parcours, avec un accès direct pour le modifier. Tous les montants
+   proviennent du moteur tarifaire central (priceFor / optsTotal). */
+function recapHtml(){
+  var f=CLEAN[state.clean].formules[state.form];
+  var h='<div class="ws-veh"><div><span class="ws-k">Véhicule</span>'+
+        '<b>'+(vehLabel()||'À renseigner')+'</b>'+
+        (state.gab?'<span class="ws-gab">'+GABARITS[state.gab].label+'</span>':'')+'</div>'+
+        (state.gab?'<button type="button" class="ws-edit" data-goto="0">Modifier</button>':'')+'</div>';
+  if(step<2) return h;
+  h+='<div class="ws-rows">';
+  h+='<div class="ws-row"><span>Soin</span><b>'+f.k+'</b></div>';
+  h+='<div class="ws-row"><span>Prestation</span><b>'+CLEAN[state.clean].label+'</b></div>';
+  var vis=visibleOptions();
+  var chosen=state.opts.map(function(id){return vis.find(function(o){return o.id===id});}).filter(Boolean);
+  if(step>=3) h+='<div class="ws-row"><span>Options</span><b>'+(chosen.length?chosen.map(function(o){return o.nom;}).join(', '):'Aucune')+'</b></div>';
+  if(state.jourLabel&&state.heure) h+='<div class="ws-row"><span>Créneau</span><b>'+state.jourLabel+' · '+state.heure+'</b></div>';
+  h+='</div>';
+  var gt=grandTotal();
+  h+='<div class="ws-total"><span>Total</span><b>'+(gt>0?(gt+' € TTC'):'sur devis')+'</b></div>';
+  return h;
+}
+
 function updateAsideSummary(){
   var el=document.getElementById('wizSummary');
   if(!el) return;
-  if(step<1){el.innerHTML='';el.style.display='none';return;}
 
   if(state.type==='prestation'){
-    var f=CLEAN[state.clean].formules[state.form];
-    var rows='';
-    if(state.marque||state.modele||state.gab){
-      var vehLabel=(state.marque+' '+state.modele).trim()||(state.gab?GABARITS[state.gab].label:'');
-      if(vehLabel) rows+='<div class="ws-row"><span>Véhicule</span><b>'+vehLabel+'</b></div>';
-    }
-    rows+='<div class="ws-row"><span>Nettoyage</span><b>'+CLEAN[state.clean].label+'</b></div>';
-    if(step>=2){rows+='<div class="ws-row"><span>Formule</span><b>'+f.k+'</b></div>';}
-    if(state.jourLabel&&state.heure){rows+='<div class="ws-row"><span>Créneau</span><b>'+state.jourLabel+' · '+state.heure+'</b></div>';}
-    if(step>=2){var gt=grandTotal();
-      rows+='<div class="ws-row ws-total"><span>Total estimé</span><b>'+(gt>0?(gt+' €'):(f.prix>0?(basePrice()+' €'):'sur devis'))+'</b></div>';}
-    el.innerHTML=rows;
+    if(step<1&&!state.gab){el.innerHTML='';el.style.display='none';return;}
+    el.innerHTML='<div class="ws-title mono">Votre REYCE</div>'+recapHtml();
     el.style.display='block';
+    el.querySelectorAll('[data-goto]').forEach(function(b){
+      b.addEventListener('click',function(){step=+b.dataset.goto;navDirection='back';render();});
+    });
     return;
   }
+  if(step<1){el.innerHTML='';el.style.display='none';return;}
 
   // ---- flux projet ----
   var prows='';
@@ -438,85 +623,138 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
 
   /* ---------- FLUX PRESTATION (nettoyage + acompte) ---------- */
   if(state.type==='prestation'){
+    /* ---------- 01 · VÉHICULE ----------
+       Le véhicule est demandé avant toute recommandation : le tarif en
+       dépend, le client ne doit jamais le découvrir à la fin. */
     if(step===0){
-      h+=head+'<h4>Votre véhicule.</h4>';
-      h+='<div class="vehsearch">'+
-         '<div class="row2">'+
-           '<div class="field"><label>Marque</label><input id="marque" autocomplete="off" placeholder="Renault, BMW, Tesla…" value="'+state.marque+'"><div class="ac" id="acMk"></div></div>'+
-           '<div class="field"><label>Modèle</label><input id="modele" autocomplete="off" placeholder="Clio, Série 3, Model 3…" value="'+state.modele+'"><div class="ac" id="ac"></div></div>'+
-         '</div></div>';
-      var g=state.gab;
-      h+='<div class="gabbox" id="gabbox">';
-      if(g&&state.gabAuto){
-        h+='<div class="gab-auto"><span class="gk">Gabarit détecté</span><span class="gv">'+GABARITS[g].label+'</span><button type="button" class="gchange" id="gchange">Modifier</button></div>';
-      } else if(state.manualGab){
-        h+='<div class="gab-manual"><span class="gk">Choisissez votre gabarit :</span><div class="gabs">';
-        for(var gk in GABARITS){h+='<button type="button" class="gabo'+(state.gab===gk?' sel':'')+'" data-gab="'+gk+'"><b>'+GABARITS[gk].label+'</b><span>'+GABARITS[gk].desc+'</span></button>';}
-        h+='</div></div>';
+      h+=head+'<h4>Quel véhicule nous confiez-vous ?</h4>';
+      if(state.gab&&!state.vehUnknown&&state.gabAuto){
+        h+='<div class="veh-picked"><div class="vp-main"><span class="mono">Véhicule identifié</span>'+
+           '<b>'+vehLabel()+'</b><span class="vp-cat">'+GABARITS[state.gab].label+'</span></div>'+
+           '<button type="button" class="btn-line" id="vehReset">Modifier</button></div>'+
+           '<p class="veh-note">Le tarif affiché ensuite correspondra exactement à ce gabarit.</p>';
+      } else if(state.vehUnknown){
+        h+='<div class="veh-unknown"><p>Nous n\'avons pas encore identifié automatiquement ce modèle'+
+           (state.vehQuery?' (<b>'+state.vehQuery+'</b>)':'')+'.</p>'+
+           '<p class="vu-sub">Indiquez simplement son gabarit — le tarif en dépend.</p></div>'+
+           '<div class="gabs" id="gabbox" role="radiogroup" aria-label="Gabarit du véhicule">';
+        for(var gk in GABARITS){
+          h+='<button type="button" role="radio" aria-checked="'+(state.gab===gk?'true':'false')+'" class="gabo'+(state.gab===gk?' sel':'')+'" data-gab="'+gk+'">'+
+             '<b>'+GABARITS[gk].label+'</b><span>'+GABARITS[gk].desc+'</span></button>';
+        }
+        h+='</div><p class="veh-note"><button type="button" class="btn-line" id="vehReset">Rechercher à nouveau</button></p>';
       } else {
-        h+='<p style="color:var(--dim-2);font-size:.82rem;margin-top:4px">Tapez votre marque et modèle ci-dessus, le gabarit se détecte automatiquement.</p>'+
-           '<label style="display:flex;align-items:center;gap:10px;margin-top:14px;cursor:pointer;font-size:.85rem;color:var(--dim)"><input type="checkbox" id="noModel" style="width:16px;height:16px;accent-color:#fff"> Je ne trouve pas mon modèle</label>';
+        h+='<div class="vehsearch"><div class="field">'+
+           '<label for="vehq">Marque ou modèle</label>'+
+           '<input id="vehq" autocomplete="off" placeholder="BMW X3 M, Clio, Cayenne, Model 3…" value="'+(state.vehQuery||'').replace(/"/g,'&quot;')+'">'+
+           '<div class="ac" id="ac"></div></div></div>'+
+           '<p class="veh-note">Tapez les premières lettres : nous identifions le modèle et son gabarit tarifaire.</p>'+
+           '<p style="margin-top:14px"><button type="button" class="btn-line" id="noModel">Je ne trouve pas mon véhicule</button></p>';
       }
-      h+='</div>';
     }
+    /* ---------- 02 · BESOIN ----------
+       Aiguillage : parcours direct ou questionnaire guidé. Les deux
+       aboutissent au même triplet (gabarit, formule, prestation). */
     else if(step===1){
-      h+=head+'<h4>Quel nettoyage pour votre '+(state.gab?GABARITS[state.gab].label:'véhicule')+' ?</h4>';
-      h+='<div class="clean3" id="clean3">';
-      [['interieur','Formule A','Habitacle comme neuf : sièges, plastiques, vitres, cuirs.'],
-       ['exterieur','Formule B','Carrosserie, jantes, brillance et protection.'],
-       ['duo','Formule C','Le véhicule entièrement repris, dedans comme dehors.']].forEach(function(row){
-        var key=row[0], best=(key==='duo');
-        var sv=best?duoSave(state.form):null;
-        var saveHtml='';
-        if(best){ saveHtml = sv ? ('<div class="save"><s>'+sv.sep+' €</s>'+sv.duo+' € · vous économisez '+sv.save+' €</div>')
-                                 : '<div class="save">Le prix des deux, avantageux</div>'; }
-        h+='<button type="button" data-clean="'+key+'" class="'+(state.clean===key?'sel ':'')+(best?'best':'')+'">'+
-           (best?'<span class="flag">Le plus complet</span>':'')+
-           '<span class="ck">'+row[1]+'</span>'+
-           '<div><h3>'+CLEAN[key].label+'</h3><p>'+row[2]+'</p></div>'+
-           saveHtml+'</button>';
-      });
-      h+='</div>';
-      h+='<p style="color:var(--dim-2);margin-top:16px;font-size:.82rem;max-width:52ch">La formule complète est notre soin le plus demandé : le véhicule repris intégralement, dedans comme dehors.</p>';
+      if(state.need==='quiz'){
+        var qs=quizSteps();
+        if(state.quizIdx<qs.length){
+          var qq=qs[state.quizIdx];
+          var cur=state.quiz[qq.key];
+          h+='<div class="plabel"><span class="mono">Question 0'+(state.quizIdx+1)+' / 0'+qs.length+'</span><span class="mono">Besoin</span></div>';
+          h+='<h4>'+qq.q+'</h4>';
+          h+='<div class="qopts" role="'+(qq.multi?'group':'radiogroup')+'" aria-label="'+qq.q.replace(/"/g,'')+'">';
+          qq.opts.forEach(function(o){
+            var on=qq.multi?((cur||[]).indexOf(o[0])>-1):(cur===o[0]);
+            h+='<button type="button" class="qopt'+(on?' sel':'')+'" data-q="'+qq.key+'" data-v="'+o[0]+'"'+
+               (qq.multi?' aria-pressed="'+(on?'true':'false')+'"':' role="radio" aria-checked="'+(on?'true':'false')+'"')+'>'+
+               '<span class="qo-mark">'+(on?'✓':'')+'</span>'+
+               '<span class="qo-body"><b>'+o[1]+'</b>'+(o[2]?'<span>'+o[2]+'</span>':'')+'</span>'+
+               (o[3]?'<span class="qo-tag">'+o[3]+'</span>':'')+'</button>';
+          });
+          h+='</div>';
+          if(qq.multi) h+='<p class="veh-note">Plusieurs réponses possibles — passez si rien ne correspond.</p>';
+        } else {
+          var r=state.reco||computeReco();
+          var rf=CLEAN[r.clean].formules[r.form];
+          var rprice=priceFor(r.clean,r.form,state.gab);
+          h+='<div class="plabel"><span class="mono">Notre recommandation</span><span class="mono">Besoin</span></div>';
+          h+='<h4>Notre recommandation pour votre '+(vehLabel()||GABARITS[state.gab||'citadine'].label)+'</h4>';
+          h+='<div class="reco-card">'+
+             '<div class="rc-head"><div><div class="rc-k">'+rf.k+'</div><div class="rc-sub">'+TIER_SUB[rf.k]+'</div>'+
+             '<div class="rc-area">'+CLEAN[r.clean].label+'</div></div>'+
+             '<div class="rc-price">'+euro(rprice)+'<span class="rc-ttc">TTC</span></div></div>'+
+             '<p class="rc-pitch">'+rf.pitch+'</p>';
+          if(r.why.length){
+            h+='<div class="rc-why"><span class="mono">Pourquoi cette recommandation ?</span><ul>'+
+               r.why.map(function(w){return '<li><span class="tk">—</span>'+w+'</li>';}).join('')+'</ul></div>';
+          }
+          h+='</div>';
+          h+='<div class="reco-cta"><button type="button" class="btn solid" id="recoTake">Choisir '+rf.k+' — '+rprice+' €</button>'+
+             '<button type="button" class="btn ghost" id="recoOther">Voir les autres formules</button></div>';
+        }
+      } else {
+        h+=head+'<h4>Comment souhaitez-vous avancer ?</h4>';
+        h+='<div class="need2">'+
+           '<button type="button" class="needcard" data-need="direct">'+
+             '<span class="nk">Je sais ce que je veux</span>'+
+             '<b>Voir directement les soins REYCE</b>'+
+             '<span class="nd">Confort, Premium ou Expérience — avec le tarif de votre véhicule.</span></button>'+
+           '<button type="button" class="needcard" data-need="quiz">'+
+             '<span class="nk">Conseillez-moi</span>'+
+             '<b>30 secondes pour trouver la prestation adaptée</b>'+
+             '<span class="nd">Quelques questions simples, puis notre recommandation.</span></button>'+
+           '</div>';
+      }
     }
+    /* ---------- 03 · SOIN ----------
+       Prestation (intérieur / extérieur / complet) + niveau de soin.
+       Tous les prix affichés proviennent de priceFor() : le questionnaire
+       et le parcours direct passent exactement par le même moteur. */
     else if(step===2){
       var fs=CLEAN[state.clean].formules;
-      h+=head+'<h4>Choisissez votre formule — '+CLEAN[state.clean].label+'</h4>';
+      h+=head;
+      if(state.reco){
+        var rf0=CLEAN[state.reco.clean].formules[state.reco.form];
+        h+='<div class="reco-banner"><span class="mono">Recommandé pour votre '+(vehLabel()||'véhicule')+'</span>'+
+           '<b>'+rf0.k+' · '+CLEAN[state.reco.clean].label+'</b>'+
+           '<span class="rb-note">Vous pouvez choisir une autre formule à tout moment.</span></div>';
+      }
+      h+='<h4>Votre soin pour '+(vehLabel()||'votre véhicule')+'</h4>';
+      h+='<div class="areasel" role="radiogroup" aria-label="Prestation">';
+      [['interieur','Intérieur'],['exterieur','Extérieur'],['duo','Intérieur + Extérieur']].forEach(function(row){
+        var key=row[0], on=state.clean===key;
+        h+='<button type="button" role="radio" aria-checked="'+(on?'true':'false')+'" class="areabtn'+(on?' sel':'')+'" data-clean="'+key+'">'+
+           '<span class="ab-mark">'+(on?'✓':'')+'</span>'+
+           '<span class="ab-l">'+row[1]+'</span>'+
+           '<span class="ab-p">'+euroTxt(priceFor(key,state.form,state.gab))+'</span>'+
+           (key==='duo'?'<span class="ab-tag">Recommandé</span>':'')+'</button>';
+      });
+      h+='</div>';
       h+='<div class="forms">';
       fs.forEach(function(f,i){
+        var isReco=state.reco&&state.reco.form===i&&state.reco.clean===state.clean;
         var cls='formcard'+(state.form===i?' sel':'')+(f.reco?' reco':'')+(f.top?' top':'');
-        var tag=f.top?'<span class="tag alt">Signature REYCE</span>':(f.reco?'<span class="tag">Recommandé</span>':'');
+        var tag=isReco?'<span class="tag">Recommandé pour vous</span>'
+                      :(f.top?'<span class="tag alt">Signature REYCE</span>':(f.reco?'<span class="tag">Le plus choisi</span>':''));
         var hi='<ul>'+f.highlights.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul>';
         var detailHtml='';
         if(f.detailInt&&f.detailExt){
-          detailHtml='<details class="fdetail"><summary><span>Voir le détail complet</span><span class="pm"></span></summary>'+
+          detailHtml='<details class="fdetail"><summary><span>Voir tout ce qui est inclus</span><span class="pm"></span></summary>'+
             '<div class="fdetail-group"><h5>Intérieur</h5><ul>'+f.detailInt.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></div>'+
             '<div class="fdetail-group"><h5>Extérieur</h5><ul>'+f.detailExt.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></div>'+
             '</details>';
         } else if(f.detail){
-          detailHtml='<details class="fdetail"><summary><span>Voir le détail complet</span><span class="pm"></span></summary>'+
+          detailHtml='<details class="fdetail"><summary><span>Voir tout ce qui est inclus</span><span class="pm"></span></summary>'+
             '<ul>'+f.detail.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></details>';
         }
-        h+='<div class="'+cls+'" data-form="'+i+'">'+tag+
+        h+='<div class="'+cls+'" data-form="'+i+'" role="radio" tabindex="0" aria-checked="'+(state.form===i?'true':'false')+'">'+tag+
            '<div><div class="fk">'+f.k+'</div><h4>'+f.nom+'</h4><div class="fsub">'+TIER_SUB[f.k]+'</div></div>'+
-           '<div class="price"><span class="from">À partir de</span>'+euro(priceFor(state.clean,i,state.gab))+'</div>'+
+           '<div class="price">'+euro(priceFor(state.clean,i,state.gab))+'<span class="ttc">TTC</span></div>'+
            '<p class="fpitch">'+f.pitch+'</p>'+hi+detailHtml+
            (f.outro?'<p class="fnote">'+f.outro+'</p>':'')+
            '<div class="pick">'+(state.form===i?'Sélectionnée':(f.top?'Vivre l\'expérience':'Choisir'))+'</div></div>';
       });
-      h+='</div>';
-      h+='<div class="optsec"><div class="optsec-h"><h4 style="margin:0">Ajoutez des options</h4><span class="mono">Facultatif</span></div><div class="optgrid">';
-      var showVarNote=false;
-      visibleOptions().forEach(function(op){
-        var on=state.opts.indexOf(op.id)>-1;
-        if(on&&op.variable) showVarNote=true;
-        h+='<button type="button" class="optcard'+(on?' sel':'')+'" data-opt="'+op.id+'">'+
-           '<span class="optck">'+(on?'✓':'+')+'</span>'+
-           '<span class="optbody"><b>'+op.nom+'</b><span class="optd">'+op.desc+'</span></span>'+
-           '<span class="optp"><i>à partir de</i>'+op.prix+'&nbsp;€</span></button>';
-      });
-      h+='</div>';
-      if(showVarNote) h+='<p class="optnote">'+OPTS_VARIABLE_NOTE+'</p>';
       h+='</div>';
 
       var sv=duoSave(state.form);
@@ -528,45 +766,71 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
         else{h+='<div class="eco">Le soin le plus abouti, dedans comme dehors</div>';}
         h+='</div>';
       }
+    }
+    /* ---------- 04 · OPTIONS ----------
+       Jamais une option déjà comprise dans la formule retenue. */
+    else if(step===3){
+      h+=head+'<h4>Souhaitez-vous ajouter une option ?</h4>';
+      h+='<p class="veh-note" style="margin-bottom:18px">Facultatif — votre soin '+CLEAN[state.clean].formules[state.form].k+' est déjà complet sans elles.</p>';
+      h+='<div class="optgrid">';
+      var showVarNote=false;
+      visibleOptions().forEach(function(op){
+        var on=state.opts.indexOf(op.id)>-1;
+        if(on&&op.variable) showVarNote=true;
+        h+='<button type="button" class="optcard'+(on?' sel':'')+'" data-opt="'+op.id+'" aria-pressed="'+(on?'true':'false')+'">'+
+           '<span class="optck">'+(on?'✓':'+')+'</span>'+
+           '<span class="optbody"><b>'+op.nom+'</b><span class="optd">'+op.desc+'</span></span>'+
+           '<span class="optp"><i>à partir de</i>'+op.prix+'&nbsp;€</span></button>';
+      });
+      h+='</div>';
+      if(showVarNote) h+='<p class="optnote">'+OPTS_VARIABLE_NOTE+'</p>';
 
-      /* upsell Car Staging — discret sur Premium, plus visible sur Expérience,
-         quasi absent sur Confort. Aucune réservation directe : renvoie vers
-         le flux "projet" existant pour être conseillé par un technicien. */
-      if(state.form===1){
-        h+='<div class="staging-upsell"><p class="staging-hook">'+STAGING.hookPremium+'</p>'+
-           '<div class="staging-card">'+
-             '<div class="staging-body"><span class="staging-kicker">'+STAGING.kicker+'</span><h4>'+STAGING.titre+'</h4>'+
-             '<p>'+STAGING.lead+'</p></div>'+
+      /* Car Staging — proposé uniquement quand le besoin exprimé le
+         justifie. Jamais un « ajout au panier » : on renvoie vers le flux
+         projet existant pour échanger avec un technicien. */
+      if(stagingRelevant()){
+        var top=state.form===2;
+        h+='<div class="staging-upsell'+(top?' staging-upsell--top':'')+'">'+
+           '<p class="staging-hook">'+(top?STAGING.hookExperience:'Vous recherchez une remise à neuf encore plus complète ?')+'</p>'+
+           '<div class="staging-card'+(top?' staging-card--top':'')+'">'+
+             '<div class="staging-body"><span class="staging-kicker">'+STAGING.kicker+(top?' — Signature REYCE':'')+'</span><h4>'+STAGING.titre+'</h4>'+
+             '<p>'+STAGING.lead+'</p>'+(top?'<p class="staging-ceramique">'+STAGING.ceramique+'</p>':'')+'</div>'+
              '<div class="staging-cta"><span class="staging-price">À partir de '+STAGING.prix+'&nbsp;€</span>'+
-             '<button type="button" class="btn ghost" id="stagingBtn">Découvrir le Car Staging</button></div>'+
-           '</div></div>';
-      } else if(state.form===2){
-        h+='<div class="staging-upsell staging-upsell--top"><p class="staging-hook">'+STAGING.hookExperience+'</p>'+
-           '<div class="staging-card staging-card--top">'+
-             '<div class="staging-body"><span class="staging-kicker">'+STAGING.kicker+' — Signature REYCE</span><h4>'+STAGING.titre+'</h4>'+
-             '<p>'+STAGING.lead+'</p>'+
-             '<p class="staging-ceramique">'+STAGING.ceramique+'</p></div>'+
-             '<div class="staging-cta"><span class="staging-price">À partir de '+STAGING.prix+'&nbsp;€</span>'+
-             '<button type="button" class="btn" id="stagingBtn">Demander mon Car Staging</button></div>'+
+             '<button type="button" class="btn'+(top?'':' ghost')+'" id="stagingBtn">'+(top?'Parler de mon véhicule à un technicien':'Découvrir le Car Staging')+'</button></div>'+
            '</div></div>';
       }
     }
-    else if(step===3){
-      h+=head+'<h4>Choisissez un jour.</h4><div id="calWrap">'+calendar()+'</div>'+
-      '<div class="field" style="margin-top:24px"><label>Heure d\'arrivée</label><div class="chips" id="heureChips">';
-      times.forEach(function(t){h+='<div class="chip'+(state.heure===t?' sel':'')+'" data-t="'+t+'">'+t+'</div>'});h+='</div></div>';
-    }
+    /* ---------- 05 · CRÉNEAU + CONFIRMATION ----------
+       Les coordonnées n'apparaissent qu'une fois le créneau choisi :
+       aucune information déjà collectée n'est redemandée. */
     else if(step===4){
       var f=CLEAN[state.clean].formules[state.form];
-      h+=head+'<h4>Presque terminé.</h4>'+
-      '<div class="field"><label>Nom complet</label><input id="nom" placeholder="Votre nom" value="'+state.nom+'"></div>'+
-      '<div class="row2"><div class="field"><label>Téléphone</label><input id="tel" placeholder="06 …" value="'+state.tel+'"></div>'+
-      '<div class="field"><label>Email</label><input id="email" placeholder="vous@email.com" value="'+state.email+'"></div></div>';
+      h+=head;
+      h+='<div class="tunnel-done"><span class="mono">Votre soin est configuré</span>'+
+         '<b>'+f.k+' · '+CLEAN[state.clean].label+' · '+euroTxt(grandTotal())+'</b></div>';
+      h+='<h4>Choisissez quand nous confier votre véhicule.</h4>';
+      h+='<div id="calWrap">'+calendar()+'</div>'+
+      '<div class="field" style="margin-top:24px"><label id="heureLbl">Heure d\'arrivée</label><div class="chips" id="heureChips" role="radiogroup" aria-labelledby="heureLbl">';
+      times.forEach(function(t){h+='<div class="chip'+(state.heure===t?' sel':'')+'" data-t="'+t+'" role="radio" tabindex="0" aria-checked="'+(state.heure===t?'true':'false')+'">'+t+'</div>'});
+      h+='</div></div>';
+
+      if(state.jourISO&&state.heure){
+        h+='<div class="coord-block"><h4 style="margin-bottom:6px">Vos coordonnées</h4>'+
+           '<p class="veh-note" style="margin-bottom:18px">Dernière étape — nous avons déjà tout le reste.</p>'+
+           '<div class="row2">'+
+             '<div class="field"><label for="prenom">Prénom</label><input id="prenom" autocomplete="given-name" placeholder="Prénom" value="'+(state.prenom||'').replace(/"/g,'&quot;')+'"></div>'+
+             '<div class="field"><label for="nomFam">Nom</label><input id="nomFam" autocomplete="family-name" placeholder="Nom" value="'+(state.nomFam||'').replace(/"/g,'&quot;')+'"></div>'+
+           '</div>'+
+           '<div class="row2">'+
+             '<div class="field"><label for="tel">Téléphone</label><input id="tel" type="tel" autocomplete="tel" placeholder="06 …" value="'+(state.tel||'').replace(/"/g,'&quot;')+'"></div>'+
+             '<div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="vous@email.com" value="'+(state.email||'').replace(/"/g,'&quot;')+'"></div>'+
+           '</div></div>';
+      }
+
       h+='<div class="recap">'+
-        '<div class="rl"><span>Nettoyage</span><b>'+CLEAN[state.clean].label+'</b></div>'+
-        '<div class="rl"><span>Formule</span><b>'+f.k+'</b></div>'+
-        '<div class="rl"><span>Gabarit</span><b>'+(state.gab?GABARITS[state.gab].label:'—')+'</b></div>'+
-        '<div class="rl"><span>Véhicule</span><b>'+((state.marque||'—')+' '+state.modele)+'</b></div>'+
+        '<div class="rl"><span>Véhicule</span><b>'+(vehLabel()||'—')+(state.gab?' · '+GABARITS[state.gab].label:'')+'</b></div>'+
+        '<div class="rl"><span>Prestation</span><b>'+CLEAN[state.clean].label+'</b></div>'+
+        '<div class="rl"><span>Soin</span><b>'+f.k+'</b></div>'+
         '<div class="rl"><span>Créneau</span><b>'+(state.jourLabel?(state.jourLabel+' · '+(state.heure||'—')):'—')+'</b></div>'+
         (function(){var vis=visibleOptions();var noms=state.opts.map(function(id){var o=vis.find(function(x){return x.id===id});return o?o.nom:'';}).filter(Boolean);
           return noms.length?'<div class="rl"><span>Options</span><b>'+noms.join(', ')+'</b></div>':'';})()+
@@ -590,8 +854,19 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
     }
     var last=L.length-1;
     var lastLabel=STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer le rendez-vous';
+    /* Les écrans où le choix fait lui-même avancer (aiguillage, question à
+       réponse unique, recommandation) n'affichent pas de « Continuer » :
+       un seul geste par écran, le parcours paraît plus court. */
+    var showNext=true;
+    if(step===1){
+      if(state.need!=='quiz') showNext=false;
+      else{
+        var qsn=quizSteps();
+        showNext=(state.quizIdx<qsn.length)&&!!qsn[state.quizIdx].multi;
+      }
+    }
     h+='<div class="pnav"><button type="button" class="btn ghost" id="back" '+(step===0?'style="visibility:hidden"':'')+'>← Retour</button>'+
-       '<button type="button" class="btn" id="next">'+(step===last?lastLabel:'Continuer →')+'</button></div>';
+       (showNext?('<button type="button" class="btn" id="next">'+(step===last?lastLabel:'Continuer →')+'</button>'):'')+'</div>';
     setPanel(h);bindP(last);animateAmt();updateSticky();return;
   }
 
@@ -647,9 +922,7 @@ function showDoneScreen(title, msg){
   stepsEl.querySelectorAll('.s').forEach(function(s){s.className='s done';});
   panel.innerHTML='<div class="done-screen"><div class="mark">✓</div><h4 class="disp">'+title+'</h4><p>'+msg+'</p><p class="mono" style="margin-top:8px">Lyon</p><button type="button" class="btn" id="again" style="margin-top:16px">Nouvelle demande</button></div>';
   document.getElementById('again').addEventListener('click',function(){step=0;
-    state={type:state.type,clean:'duo',form:1,marque:'',modele:'',gab:null,gabAuto:false,manualGab:false,opts:[],promo:false,
-           calYear:today.getFullYear(),calMonth:today.getMonth(),jourISO:null,jourLabel:null,heure:null,
-           projet:[],photos:[],mode:null,nom:'',tel:'',email:'',msg:''};lastAmt=null;render();});
+    state=freshState(state.type);lastAmt=null;render();});
 }
 
 /* Résumé lisible des options sélectionnées (respecte l'exclusion ozone
@@ -668,7 +941,7 @@ function optsNotes(){
 function done(){
   if(state.type==='prestation'){
     var next=document.getElementById('next');
-    var nm=splitName(state.nom);
+    var nm={firstName:(state.prenom||'').trim(), lastName:(state.nomFam||'').trim()};
     var f=CLEAN[state.clean].formules[state.form];
 
     if(STRIPE_ENABLED){
@@ -694,13 +967,14 @@ function done(){
 
     // ---- paiement en pause : réservation directe, confirmée sans Stripe ----
     if(next){next.disabled=true;next.textContent='Confirmation…';}
-    var notesParts=[optsNotes(),utmNoteLine()].filter(Boolean);
+    var parcours='Parcours : '+(state.reco?'recommandation guidée':'sélection directe');
+    var notesParts=[optsNotes(),parcours,utmNoteLine()].filter(Boolean);
     fetch('/api/create-booking',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         service: serviceId(),
         vehicleType: state.gab,
-        vehicleModel: (state.marque+' '+state.modele).trim(),
+        vehicleModel: vehLabel(),
         date: state.jourISO,
         time: state.heure,
         client: {firstName: nm.firstName, lastName: nm.lastName, phone: state.tel, email: state.email, notes: notesParts.length?notesParts.join(' — '):undefined},
@@ -710,10 +984,15 @@ function done(){
       if(data.error){showError(data.error,'Confirmer le rendez-vous');return;}
       if(data.sessionId){
         /* booking_complete : conversion principale, déclenchée uniquement
-           ici — après confirmation réelle côté serveur, jamais au clic. */
+           ici — après confirmation réelle côté serveur, jamais au clic.
+           La valeur envoyée est le montant TTC réel de la réservation,
+           pour permettre une optimisation Google Ads au chiffre d'affaires. */
         pushEvt({
-          event:'booking_complete', service:serviceId(), formula:f.k, clean_type:state.clean,
-          vehicle_type:state.gab, value:grandTotal(), currency:'EUR'
+          event:'booking_complete', service:serviceId(), formula:f.k,
+          service_area:state.clean, clean_type:state.clean,
+          vehicle_type:state.gab, vehicle_label:vehLabel()||null,
+          journey:state.reco?'recommendation':'direct',
+          value:grandTotal(), currency:'EUR'
         });
         var qs='session_id='+encodeURIComponent(data.sessionId);
         var utm=utmQueryString();
@@ -787,9 +1066,18 @@ function bindCalendarNav(){
 function bindDateCells(){
   document.querySelectorAll('[data-iso]').forEach(function(b){b.onclick=function(){state.jourISO=b.dataset.iso;state.jourLabel=b.dataset.label;navDirection=null;render();};});
 }
+/* Retour arrière : à l'intérieur du questionnaire, on remonte question par
+   question avant de revenir à l'aiguillage, puis aux étapes précédentes. */
+function goBack(){
+  if(state.type==='prestation'&&step===1){
+    if(state.need==='quiz'&&state.quizIdx>0){state.quizIdx--;state.reco=null;navDirection='back';render();return;}
+    if(state.need){state.need=null;state.quizIdx=0;state.reco=null;navDirection='back';render();return;}
+  }
+  if(step>0){step--;navDirection='back';render();}
+}
 function bindCommon(){
   var back=document.getElementById('back');
-  if(back)back.addEventListener('click',function(){if(step>0){step--;navDirection='back';render()}});
+  if(back)back.addEventListener('click',goBack);
   bindCalendarNav();
   bindDateCells();
 }
@@ -808,16 +1096,24 @@ function flashEl(id){
   void el.offsetWidth;
   el.classList.add('field-flash');
 }
+function fieldError(id,msg){
+  flashEl(id);
+  var el=document.getElementById(id);
+  if(el){el.setAttribute('aria-invalid','true');try{el.focus();}catch(e){}}
+  if(msg) showError(msg);
+  return false;
+}
 function validPrestationStep(){
   if(step===0){ if(!state.gab){flashEl('gabbox');return false;} return true; }
-  if(step===3){
+  if(step===4){
     if(!state.jourISO){flashEl('calWrap');return false;}
     if(!state.heure){flashEl('heureChips');return false;}
-    return true;
-  }
-  if(step===4){
-    if(!state.nom.trim()){flashEl('nom');return false;}
-    if(!state.tel.trim()&&!state.email.trim()){flashEl('tel');flashEl('email');return false;}
+    /* Les quatre coordonnées sont exigées côté serveur : on le signale ici
+       plutôt que de laisser partir une requête vouée à échouer. */
+    if(!(state.prenom||'').trim()) return fieldError('prenom','Merci d\'indiquer votre prénom.');
+    if(!(state.nomFam||'').trim()) return fieldError('nomFam','Merci d\'indiquer votre nom.');
+    if(!(state.tel||'').trim()) return fieldError('tel','Merci d\'indiquer un téléphone pour vous joindre.');
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((state.email||'').trim())) return fieldError('email','Merci d\'indiquer une adresse email valide.');
     return true;
   }
   return true;
@@ -833,10 +1129,69 @@ function validProjetStep(){
   return true;
 }
 
+/* Une carte sélectionnable doit se comporter comme un vrai contrôle :
+   activable au clavier (Entrée / Espace) autant qu'à la souris. */
+function bindCard(el,fn){
+  el.addEventListener('click',fn);
+  el.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){e.preventDefault();fn();}
+  });
+}
+
 function bindP(last){
-  panel.querySelectorAll('[data-clean]').forEach(function(b){b.addEventListener('click',function(){state.clean=b.dataset.clean;pushEvt({event:'interior_exterior_selected', clean_type:state.clean});render()})});
-  panel.querySelectorAll('[data-form]').forEach(function(b){b.addEventListener('click',function(){state.form=+b.dataset.form;pushEvt({event:'formula_selected', formula:CLEAN[state.clean].formules[state.form].k});render()})});
+  panel.querySelectorAll('[data-clean]').forEach(function(b){b.addEventListener('click',function(){
+    state.clean=b.dataset.clean;
+    pushEvt({event:'service_area_selected', service_area:state.clean, vehicle_type:state.gab});
+    render();
+  })});
+  panel.querySelectorAll('[data-form]').forEach(function(b){bindCard(b,function(){
+    state.form=+b.dataset.form;
+    pushEvt({event:'formula_selected', formula:CLEAN[state.clean].formules[state.form].k,
+             service_area:state.clean, vehicle_type:state.gab, value:grandTotal(), currency:'EUR'});
+    render();
+  })});
   panel.querySelectorAll('.fdetail summary').forEach(function(s){s.addEventListener('click',function(e){e.stopPropagation();})});
+
+  /* ---- aiguillage « je sais / conseillez-moi » ---- */
+  panel.querySelectorAll('[data-need]').forEach(function(b){b.addEventListener('click',function(){
+    state.need=b.dataset.need;
+    if(state.need==='quiz'){
+      state.quizIdx=0;state.quiz={};state.reco=null;
+      pushEvt({event:'recommendation_start', vehicle_type:state.gab});
+      navDirection='fwd';render();
+    } else {
+      state.reco=null;
+      navDirection='fwd';step=2;render();
+    }
+  })});
+
+  /* ---- questionnaire guidé ---- */
+  panel.querySelectorAll('[data-q]').forEach(function(b){b.addEventListener('click',function(){
+    var key=b.dataset.q, val=b.dataset.v, qs=quizSteps(), qq=qs[state.quizIdx];
+    if(qq&&qq.multi){
+      var cur=state.quiz[key]||[];
+      if(val==='aucun'){ cur=[]; }
+      else { var i=cur.indexOf(val); if(i>-1)cur.splice(i,1); else {cur=cur.filter(function(x){return x!=='aucun';});cur.push(val);} }
+      state.quiz[key]=cur;
+      render();
+    } else {
+      state.quiz[key]=val;
+      /* Changer de zone rend caduques les réponses conditionnelles. */
+      if(key==='area'){state.quiz.intFlags=null;state.quiz.extFlags=null;}
+      state.quizIdx++;
+      if(state.quizIdx>=quizSteps().length) finishQuiz();
+      navDirection='fwd';render();
+    }
+  })});
+  var recoTake=document.getElementById('recoTake');
+  if(recoTake)recoTake.addEventListener('click',function(){
+    var r=state.reco;
+    pushEvt({event:'formula_selected', formula:CLEAN[r.clean].formules[r.form].k, source:'recommendation',
+             service_area:r.clean, vehicle_type:state.gab, value:grandTotal(), currency:'EUR'});
+    navDirection='fwd';step=2;render();
+  });
+  var recoOther=document.getElementById('recoOther');
+  if(recoOther)recoOther.addEventListener('click',function(){navDirection='fwd';step=2;render();});
   var stagingBtn=document.getElementById('stagingBtn');
   if(stagingBtn)stagingBtn.addEventListener('click',function(){pushEvt({event:'staging_click', formula:CLEAN[state.clean].formules[state.form].k});goToProjet(STAGING_PROJ_IDX);});
   panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){var id=b.dataset.opt;var k=state.opts.indexOf(id);if(k>-1){state.opts.splice(k,1);}else{state.opts.push(id);pushEvt({event:'option_selected', option:id});}render()})});
@@ -848,78 +1203,88 @@ function bindP(last){
     if(!promoEligible()){ if(hint){hint.textContent='Ce code est valable sur Premium et Expérience. Choisissez l\'une de ces formules pour en profiter.';hint.style.color='#fff';} return; }
     state.promo=true; render();
   });
-  panel.querySelectorAll('[data-t]').forEach(function(b){b.addEventListener('click',function(){
+  panel.querySelectorAll('[data-t]').forEach(function(b){bindCard(b,function(){
     if(b.classList.contains('taken'))return;
-    state.heure=b.dataset.t;pushEvt({event:'slot_selected', slot_time:state.heure});render()
+    state.heure=b.dataset.t;pushEvt({event:'slot_selected', slot_time:state.heure, slot_date:state.jourISO});render();
   })});
-  function bI(id,key){var el=document.getElementById(id);if(el)el.addEventListener('input',function(e){state[key]=e.target.value;})}
-  bI('nom','nom');bI('tel','tel');bI('email','email');
+  function bI(id,key){var el=document.getElementById(id);if(el)el.addEventListener('input',function(e){
+    state[key]=e.target.value; el.removeAttribute('aria-invalid');
+    var err=document.getElementById('bookErr'); if(err)err.remove();
+  })}
+  bI('prenom','prenom');bI('nomFam','nomFam');bI('tel','tel');bI('email','email');
 
-  /* ---- étape véhicule : autocomplétion + détection gabarit ---- */
+  /* ---- étape véhicule : recherche unifiée marque + modèle ---- */
   var acBox=document.getElementById('ac');
-  var acMk=document.getElementById('acMk');
-  var inpM=document.getElementById('marque'), inpMod=document.getElementById('modele');
-  var BRANDS=Object.keys(VDB);
-  function suggestMk(){
-    if(!acMk)return; var q=norm(state.marque);
-    var res=BRANDS.filter(function(m){return !q||norm(m).indexOf(q)>-1;});
-    if(!res.length){acMk.innerHTML='';acMk.classList.remove('on');return;}
-    if(res.length===1&&norm(res[0])===q&&state.gab){acMk.innerHTML='';acMk.classList.remove('on');return;}
-    acMk.innerHTML=res.slice(0,7).map(function(m){return '<button type="button" class="aci" data-mkonly="'+m+'"><b>'+m+'</b><span>'+Object.keys(VDB[m]).length+' modèles</span></button>';}).join('');
-    acMk.classList.add('on');
-    acMk.querySelectorAll('.aci').forEach(function(bt){bt.addEventListener('click',function(){
-      state.marque=bt.dataset.mkonly;state.modele='';refreshGab();render();
-      setTimeout(function(){var mm=document.getElementById('modele');if(mm)mm.focus();},30);
-    });});
+  var vehq=document.getElementById('vehq');
+  function closeAc(){ if(acBox){acBox.innerHTML='';acBox.classList.remove('on');} }
+  /* Après le véhicule : on passe à l'aiguillage, sauf si la campagne
+     Google Ads a déjà orienté la prestation (?service=…) — dans ce cas on
+     va droit aux soins, tout restant modifiable. */
+  function afterVehicle(){
+    navDirection='fwd';
+    step=(state.need==='direct')?2:1;
+    render();
   }
-  function refreshGab(){
-    var g=detectGab(state.marque,state.modele);
-    if(g){state.gab=g;state.gabAuto=true;}else{if(state.gabAuto){state.gab=null;state.gabAuto=false;}}
+  function pickVehicle(marque,modele,gab){
+    state.marque=marque;state.modele=modele;state.gab=gab;
+    state.gabAuto=true;state.vehUnknown=false;state.vehQuery=(marque+' '+modele).trim();
+    closeAc();
+    pushEvt({event:'vehicle_selected', vehicle_type:gab, vehicle_label:state.vehQuery, recognised:true});
+    afterVehicle();
   }
   function suggest(){
-    if(!acBox)return; var q=norm(state.modele), qm=norm(state.marque);
-    var exactBrand=null;
-    for(var bi=0;bi<BRANDS.length;bi++){if(norm(BRANDS[bi])===qm){exactBrand=BRANDS[bi];break;}}
-    var res;
-    if(exactBrand && q.length<1){
-      res=Object.keys(VDB[exactBrand]).map(function(md){return {marque:exactBrand,modele:md,gab:VDB[exactBrand][md]};}).slice(0,8);
-    } else {
-      if((state.modele||'').trim().length<1){acBox.innerHTML='';acBox.classList.remove('on');return;}
-      res=VLIST.filter(function(v){
-        var okM=!qm||norm(v.marque).indexOf(qm)>-1;
-        return okM && norm(v.modele).indexOf(q)>-1;
-      }).slice(0,8);
-    }
-    if(!res.length){acBox.innerHTML='';acBox.classList.remove('on');return;}
-    acBox.innerHTML=res.map(function(v){return '<button type="button" class="aci" data-mk="'+v.marque+'" data-md="'+v.modele+'"><b>'+v.marque+' '+v.modele+'</b><span>'+GABARITS[v.gab].label+'</span></button>';}).join('');
+    if(!acBox)return;
+    var res=searchVehicles(state.vehQuery,7);
+    if(!res.length){closeAc();return;}
+    acBox.innerHTML=res.map(function(v){
+      return '<button type="button" class="aci" data-mk="'+v.marque+'" data-md="'+v.modele+'" data-gb="'+v.gab+'">'+
+             '<b>'+v.marque+' '+v.modele+'</b><span>'+GABARITS[v.gab].label+'</span></button>';
+    }).join('');
     acBox.classList.add('on');
     acBox.querySelectorAll('.aci').forEach(function(bt){bt.addEventListener('click',function(){
-      state.marque=bt.dataset.mk;state.modele=bt.dataset.md;refreshGab();render();
+      pickVehicle(bt.dataset.mk,bt.dataset.md,bt.dataset.gb);
     });});
   }
-  if(inpM)inpM.addEventListener('focus',function(){suggestMk();});
-  if(inpM)inpM.addEventListener('input',function(e){state.marque=e.target.value;refreshGab();suggestMk();suggest();});
-  if(inpMod)inpMod.addEventListener('focus',function(){suggest();});
-  if(inpMod)inpMod.addEventListener('input',function(e){state.modele=e.target.value;refreshGab();suggest();});
-
+  if(vehq){
+    vehq.addEventListener('input',function(e){state.vehQuery=e.target.value;suggest();});
+    vehq.addEventListener('focus',suggest);
+    vehq.addEventListener('keydown',function(e){
+      if(e.key!=='Enter')return;
+      e.preventDefault();
+      var res=searchVehicles(state.vehQuery,1);
+      if(res.length) pickVehicle(res[0].marque,res[0].modele,res[0].gab);
+      else { state.vehUnknown=true; render(); }
+    });
+  }
   document.addEventListener('click',function(e){
-    if(acMk&&!e.target.closest('#acMk')&&e.target.id!=='marque'){acMk.classList.remove('on');}
-    if(acBox&&!e.target.closest('#ac')&&e.target.id!=='modele'){acBox.classList.remove('on');}
+    if(acBox&&!e.target.closest('#ac')&&e.target.id!=='vehq') closeAc();
   });
-  panel.querySelectorAll('[data-gab]').forEach(function(bt){bt.addEventListener('click',function(){
+  panel.querySelectorAll('[data-gab]').forEach(function(bt){bindCard(bt,function(){
     state.gab=bt.dataset.gab;state.gabAuto=false;
-    render();
-  });});
-  var gchange=document.getElementById('gchange');
-  if(gchange)gchange.addEventListener('click',function(){state.gabAuto=false;state.manualGab=true;render();});
+    logUnknownVehicle(state.vehQuery,state.gab);
+    pushEvt({event:'vehicle_selected', vehicle_type:state.gab, vehicle_label:state.vehQuery||null, recognised:false});
+    afterVehicle();
+  })});
   var noModel=document.getElementById('noModel');
-  if(noModel)noModel.addEventListener('change',function(){if(noModel.checked){state.manualGab=true;render();}});
+  if(noModel)noModel.addEventListener('click',function(){state.vehUnknown=true;render();});
+  var vehReset=document.getElementById('vehReset');
+  if(vehReset)vehReset.addEventListener('click',function(){
+    state.marque='';state.modele='';state.gab=null;state.gabAuto=false;
+    state.vehUnknown=false;state.vehQuery='';
+    render();
+    setTimeout(function(){var i=document.getElementById('vehq');if(i)i.focus();},40);
+  });
 
   bindCommon();
   var next=document.getElementById('next');
   if(next)next.addEventListener('click',function(){
     if(!validPrestationStep()){shakeNext();return;}
-    if(step===0) pushEvt({event:'vehicle_selected', vehicle_type:state.gab, vehicle_label:(state.marque+' '+state.modele).trim()||null});
+    /* Question à réponses multiples : « Continuer » vaut validation. */
+    if(step===1&&state.need==='quiz'){
+      state.quizIdx++;
+      if(state.quizIdx>=quizSteps().length) finishQuiz();
+      navDirection='fwd';render();return;
+    }
     if(step<last){step++;navDirection='fwd';render()}else{done()}
   });
   refreshSlotAvailability();
@@ -1015,101 +1380,80 @@ fetch('/api/public/pricing/car-staging').then(function(r){return r.ok?r.json():n
    CTA COLLANT MOBILE — évolue avec l'avancée du tunnel, masqué
    quand le bouton "Continuer" est déjà visible à l'écran.
    ============================================================ */
-var stickyEl=document.getElementById('lpSticky'), stickyCta=document.getElementById('lpStickyCta');
+var stickyEl=document.getElementById('lpSticky'), stickyCta=document.getElementById('lpStickyCta'),
+    stickyCall=document.getElementById('lpStickyCall'), stickyRecap=document.getElementById('lpStickyRecap'),
+    stickyVeh=document.getElementById('lpStickyVeh'), stickyPrice=document.getElementById('lpStickyPrice');
+function inTunnel(){return state.type==='prestation'&&step>=2&&!!state.gab;}
 function updateSticky(){
   if(!stickyEl||!stickyCta) return;
-  if(state.type==='prestation'){
-    var price=(step>=2)?(grandTotal()||basePrice()):0;
-    stickyCta.textContent=price>0?('Continuer — '+price+' €'):'Choisir mon soin';
+  var tunnel=inTunnel();
+  if(stickyCall) stickyCall.hidden=tunnel;
+  if(stickyRecap) stickyRecap.hidden=!tunnel;
+  if(tunnel){
+    var price=grandTotal()||basePrice();
+    if(stickyVeh) stickyVeh.textContent=vehLabel()||GABARITS[state.gab].label;
+    if(stickyPrice) stickyPrice.textContent=price>0?(price+' €'):'sur devis';
+    stickyCta.textContent='Continuer';
   } else {
-    stickyCta.textContent='Continuer ma demande';
+    stickyCta.textContent=state.type==='prestation'?'Configurer mon soin':'Continuer ma demande';
   }
   refreshStickyVisibility();
 }
+/* La barre ne doit jamais recouvrir le vrai bouton « Continuer » ni le
+   calendrier : elle s'efface dès que l'un des deux est à l'écran. */
 function refreshStickyVisibility(){
   if(!stickyEl) return;
   var hero=document.querySelector('.phero');
   var pastHero=window.scrollY>((hero?hero.offsetHeight:400)*0.85);
-  var nextBtn=document.getElementById('next');
-  var nextVisible=false;
-  if(nextBtn){var r=nextBtn.getBoundingClientRect();nextVisible=(r.top<window.innerHeight-24&&r.bottom>0);}
-  stickyEl.classList.toggle('on', pastHero&&!nextVisible);
+  var hide=false;
+  ['next','calWrap'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(!el) return;
+    var r=el.getBoundingClientRect();
+    if(r.top<window.innerHeight-24&&r.bottom>0) hide=true;
+  });
+  stickyEl.classList.toggle('on', pastHero&&!hide);
 }
 addEventListener('scroll',refreshStickyVisibility,{passive:true});
 addEventListener('resize',refreshStickyVisibility);
 if(stickyCta)stickyCta.addEventListener('click',function(e){
+  e.preventDefault();
   var panelEl=document.getElementById('panel');
-  if(panelEl){e.preventDefault();panelEl.scrollIntoView({behavior:'smooth',block:'center'});}
+  if(panelEl)panelEl.scrollIntoView({behavior:'smooth',block:'center'});
 });
+
+/* Détail du récapitulatif sur mobile — feuille glissante, fermée par
+   défaut, qui ne masque jamais le parcours. */
+var sheet=document.getElementById('recapSheet');
+if(stickyRecap&&sheet){
+  var sheetBody=document.getElementById('recapSheetBody');
+  var closeSheet=function(){sheet.hidden=true;};
+  stickyRecap.addEventListener('click',function(){
+    if(sheetBody) sheetBody.innerHTML='<div class="ws-title mono">Votre REYCE</div>'+recapHtml();
+    sheet.hidden=false;
+  });
+  sheet.addEventListener('click',function(e){
+    if(e.target===sheet||e.target.closest('[data-sheet-close]')) closeSheet();
+  });
+  addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet();});
+}
 updateSticky();
 
 /* ============================================================
-   QUIZ "JE NE SAIS PAS QUELLE FORMULE CHOISIR"
-   3 questions courtes -> recommandation de formule + type de nettoyage,
-   pré-remplit le state existant et saute directement à l'étape Formule.
-   Aucun nouveau système de tarification : reprend priceFor()/CLEAN déjà en place.
+   LANDING DYNAMIQUE GOOGLE ADS
+   rendez-vous.html?service=interieur | exterieur | complet |
+   confort | premium | experience — pré-oriente le parcours sans
+   jamais bloquer le choix : tout reste modifiable ensuite.
    ============================================================ */
 (function(){
-  var openBtn=document.getElementById('quizOpen'), overlay=document.getElementById('quizOverlay'),
-      closeBtn=document.getElementById('quizClose'), body=document.getElementById('quizBody');
-  if(!openBtn||!overlay||!body) return;
-
-  var Q=[
-    {q:'Quel est votre objectif ?', key:'obj', opts:[
-      ['entretien','Entretien courant'],['gros','Gros nettoyage'],['neuf','Remise à neuf'],['protec','Protection durable']]},
-    {q:'Quel est l\'état intérieur ?', key:'int', opts:[
-      ['propre','Propre'],['moyen','Moyen'],['sale','Très sale']]},
-    {q:'Quel est l\'état extérieur ?', key:'ext', opts:[
-      ['entretien','Entretien'],['terne','Terne / micro-rayé'],['protec','Besoin de protection']]}
-  ];
-  var answers={};
-
-  function recommend(){
-    var score=0; // 0 Confort, 1 Premium, 2 Expérience
-    if(answers.obj==='neuf')score+=2; else if(answers.obj==='gros'||answers.obj==='protec')score+=1;
-    if(answers.int==='sale')score+=2; else if(answers.int==='moyen')score+=1;
-    if(answers.ext==='protec')score+=2; else if(answers.ext==='terne')score+=1;
-    var formIdx=score>=4?2:(score>=2?1:0);
-    var clean='duo';
-    if(answers.int==='propre'&&answers.ext!=='entretien')clean='exterieur';
-    else if(answers.ext==='entretien'&&answers.int!=='propre')clean='interieur';
-    return {formIdx:formIdx, clean:clean};
-  }
-
-  function renderQuestion(i){
-    if(i>=Q.length){renderResult();return;}
-    var s=Q[i];
-    body.innerHTML='<span class="mono">Question '+(i+1)+' / '+Q.length+'</span><h4>'+s.q+'</h4><div class="quiz-choices">'+
-      s.opts.map(function(o){return '<button type="button" class="quiz-choice" data-v="'+o[0]+'">'+o[1]+'</button>';}).join('')+'</div>';
-    body.querySelectorAll('.quiz-choice').forEach(function(b){b.addEventListener('click',function(){
-      answers[s.key]=b.dataset.v; renderQuestion(i+1);
-    });});
-  }
-
-  function renderResult(){
-    var r=recommend();
-    var f=CLEAN[r.clean].formules[r.formIdx];
-    body.innerHTML='<div class="quiz-result"><span class="mono">Notre recommandation</span><h4>'+f.k+' — '+CLEAN[r.clean].label+'</h4>'+
-      '<p>'+f.pitch+'</p><div class="price">'+euro(priceFor(r.clean,r.formIdx,state.gab))+'</div>'+
-      '<button type="button" class="btn solid" id="quizApply">Choisir cette formule</button></div>';
-    document.getElementById('quizApply').addEventListener('click',function(){
-      state.type='prestation'; state.clean=r.clean; state.form=r.formIdx; step=2;
-      document.querySelectorAll('#rtype button').forEach(function(x){x.classList.toggle('sel', x.dataset.type==='prestation');});
-      pushEvt({event:'formula_selected', formula:f.k, source:'quiz'});
-      closeQuiz(); render();
-      var panelEl=document.getElementById('panel');
-      if(panelEl) setTimeout(function(){panelEl.scrollIntoView({behavior:'smooth',block:'center'});},60);
-    });
-  }
-
-  function openQuiz(){
-    answers={}; overlay.hidden=false; renderQuestion(0);
-    pushEvt({event:'quiz_start'});
-  }
-  function closeQuiz(){ overlay.hidden=true; }
-
-  openBtn.addEventListener('click',openQuiz);
-  closeBtn.addEventListener('click',closeQuiz);
-  overlay.addEventListener('click',function(e){ if(e.target===overlay) closeQuiz(); });
+  var want=(new URLSearchParams(location.search).get('service')||'').toLowerCase();
+  if(!want) return;
+  var areas={interieur:'interieur','interieur':'interieur',exterieur:'exterieur',complet:'duo',duo:'duo'};
+  var tiers={confort:0,premium:1,experience:2,'expérience':2};
+  var touched=false;
+  if(Object.prototype.hasOwnProperty.call(areas,want)){state.clean=areas[want];touched=true;}
+  if(Object.prototype.hasOwnProperty.call(tiers,want)){state.form=tiers[want];touched=true;}
+  if(touched){state.need='direct';render();}
 })();
+
 })();

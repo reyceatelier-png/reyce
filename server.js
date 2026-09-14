@@ -198,16 +198,19 @@ const OPTIONS_CENTS = {
   hydro:  8000
 };
 
-// L'option "ozone" est déjà incluse dans la formule Expérience (intérieur ou
-// complet) — ne pas la facturer une deuxième fois, même si un client
-// contournait l'interface et l'envoyait quand même. Miroir exact de la
-// règle appliquée côté wizard (visibleOptions()).
+// Les options "ozone" et "cuir" sont déjà comprises dans la formule
+// Expérience (intérieur ou complet) : son descriptif inclut le traitement à
+// l'ozone et le soin complet des cuirs (dégraissage, nettoyage, nourrissage,
+// protection). Elles ne sont donc jamais facturées par-dessus, même si un
+// client contournait l'interface et les envoyait quand même. Miroir exact de
+// la règle appliquée côté wizard (visibleOptions()).
 function computeOptsCents(serviceId, opts) {
   if (!Array.isArray(opts) || !opts.length) return 0;
-  const ozoneIncluded = /^nettoyage-(int|duo)-experience-/.test(serviceId || '');
+  const deepInterior = /^nettoyage-(int|duo)-experience-/.test(serviceId || '');
+  const included = deepInterior ? ['ozone', 'cuir'] : [];
   let total = 0;
   for (const id of opts) {
-    if (id === 'ozone' && ozoneIncluded) continue;
+    if (included.includes(id)) continue;
     if (Object.prototype.hasOwnProperty.call(OPTIONS_CENTS, id)) total += OPTIONS_CENTS[id];
   }
   return total;
@@ -1261,6 +1264,25 @@ app.get('/api/slots', async (req, res) => {
   const blockedSlots = blocked.slots[date] || [];
 
   res.json({ slots: SERVICES[service].slots.filter(s => !taken.includes(s) && !blockedSlots.includes(s)) });
+});
+
+// Modèle de véhicule non reconnu par la base embarquée : on journalise la
+// saisie (et le gabarit finalement choisi par le client) pour enrichir la
+// base plus tard. Aucune donnée personnelle, aucun blocage du parcours —
+// l'écriture est volontairement "best effort" : elle ne doit jamais faire
+// échouer la réservation en cours.
+app.post('/api/vehicle-unknown', publicLimiter, express.json({ limit: '4kb' }), async (req, res) => {
+  const query = typeof req.body?.query === 'string' ? req.body.query.trim().slice(0, 120) : '';
+  const category = typeof req.body?.category === 'string' ? req.body.category.trim().slice(0, 40) : null;
+  if (!query) return res.status(400).json({ error: 'Saisie manquante' });
+  try {
+    await prisma.eventLog.create({
+      data: { type: 'vehicle_unknown', payload: { query, category } }
+    });
+  } catch (err) {
+    console.error('[Vehicule] Journalisation impossible :', err.message);
+  }
+  res.json({ ok: true });
 });
 
 // Lecture publique d'un tarif "sur devis" affiché côté site (ex. Car Staging),

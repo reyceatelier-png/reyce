@@ -1081,19 +1081,165 @@ body[data-lp-service] .phero .lp-phone{margin-top:22px}
 }
 @media(prefers-reduced-motion:reduce){.lp-sticky{transition:none}}
 
-/* ===== Quiz "je ne sais pas quelle formule choisir" (rendez-vous.html) ===== */
-.quiz-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px}
-.quiz-overlay[hidden]{display:none}
-.quiz-box{position:relative;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;background:var(--card);border:1px solid var(--line);padding:clamp(28px,4vw,44px)}
-.quiz-close{position:absolute;top:16px;right:16px;background:transparent;border:1px solid var(--line);color:#fff;width:32px;height:32px;cursor:pointer;font-size:.9rem;transition:background-color .16s,color .16s}
-.quiz-close:hover{background:#fff;color:#000}
-.quiz-box h4{font-family:var(--disp);font-weight:600;text-transform:uppercase;font-size:1.3rem;letter-spacing:.01em;margin-bottom:22px;max-width:36ch}
-.quiz-choices{display:flex;flex-direction:column;gap:8px}
-.quiz-choice{display:block;width:100%;text-align:left;border:1px solid var(--line);background:transparent;color:#fff;padding:14px 16px;font-size:.9rem;cursor:pointer;transition:border-color .16s,background-color .16s}
-.quiz-choice:hover{border-color:#fff;background:var(--card-2)}
-.quiz-result .mono{color:var(--dim)}
-.quiz-result h4{margin-top:8px}
-.quiz-result p{color:var(--dim);font-size:.9rem;line-height:1.65;margin-top:10px}
-.quiz-result .price{font-family:var(--disp);font-weight:800;font-size:1.8rem;margin-top:16px}
-.quiz-result .btn{margin-top:20px}
-@media(max-width:600px){.quiz-box{padding:26px 20px}}
+/* ===== Tunnel de réservation « configurateur » (rendez-vous.html) ===== */
+.hero-sub{margin-top:14px;color:var(--dim-2);font-size:.62rem;letter-spacing:.18em;text-transform:uppercase}
+
+/* -- 01 véhicule -- */
+.vehsearch .field{position:relative}
+.veh-note{color:var(--dim-2);font-size:.82rem;line-height:1.6;margin-top:12px;max-width:52ch}
+.veh-picked{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  border:1px solid var(--line);background:var(--card-2);padding:20px 22px}
+.veh-picked .vp-main{display:flex;flex-direction:column;gap:4px}
+.veh-picked .mono{color:var(--dim-2)}
+.veh-picked b{font-family:var(--disp);font-weight:700;font-size:1.25rem;text-transform:uppercase;letter-spacing:.01em}
+.veh-picked .vp-cat{font-size:.82rem;color:var(--dim)}
+.veh-unknown{border-left:1px solid var(--line);padding-left:18px;margin-bottom:20px}
+.veh-unknown p{font-size:.92rem;line-height:1.6}
+.veh-unknown .vu-sub{color:var(--dim);font-size:.85rem;margin-top:6px}
+
+/* -- 02 aiguillage -- */
+.need2{display:grid;grid-template-columns:1fr 1fr;gap:2px;border:1px solid var(--line)}
+.needcard{display:flex;flex-direction:column;gap:10px;text-align:left;background:var(--card);border:0;
+  border-right:1px solid var(--line);color:#fff;padding:clamp(24px,3vw,34px);cursor:pointer;
+  transition:background-color .2s var(--ease)}
+.needcard:last-child{border-right:0}
+.needcard:hover{background:var(--card-2)}
+.needcard .nk{font-family:var(--disp);font-weight:500;font-size:.6rem;letter-spacing:.24em;text-transform:uppercase;color:var(--dim)}
+.needcard b{font-family:var(--disp);font-weight:700;font-size:1.15rem;text-transform:uppercase;line-height:1.15;letter-spacing:.005em}
+.needcard .nd{font-size:.85rem;color:var(--dim);line-height:1.55}
+@media(max-width:760px){.need2{grid-template-columns:1fr}.needcard{border-right:0;border-bottom:1px solid var(--line)}.needcard:last-child{border-bottom:0}}
+
+/* -- questionnaire -- */
+.qopts{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line)}
+.qopt{position:relative;display:flex;align-items:flex-start;gap:14px;width:100%;text-align:left;background:var(--card);
+  border:0;border-bottom:1px solid var(--line-soft);color:#fff;padding:18px 20px;cursor:pointer;
+  transition:background-color .18s var(--ease)}
+.qopt:last-child{border-bottom:0}
+.qopt:hover{background:var(--card-2)}
+.qopt.sel{background:var(--card-2);outline:1px solid #fff;outline-offset:-1px}
+.qo-mark{flex-shrink:0;width:22px;height:22px;border:1px solid var(--line);border-radius:50%;display:flex;
+  align-items:center;justify-content:center;font-size:.66rem;margin-top:2px}
+.qopt.sel .qo-mark{background:#fff;color:#000;border-color:#fff}
+.qo-body{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.qo-body b{font-family:var(--disp);font-weight:600;font-size:.98rem;letter-spacing:.005em}
+.qo-body span{font-size:.83rem;color:var(--dim);line-height:1.5}
+.qo-tag{flex-shrink:0;align-self:center;font-family:var(--disp);font-weight:600;font-size:.56rem;letter-spacing:.18em;
+  text-transform:uppercase;border:1px solid var(--line);padding:5px 9px;color:var(--dim)}
+
+/* -- recommandation -- */
+.reco-card{border:1px solid var(--line);background:var(--card-2);padding:clamp(24px,3vw,34px)}
+.rc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.rc-k{font-family:var(--disp);font-weight:800;font-size:clamp(1.5rem,3vw,2rem);text-transform:uppercase;line-height:1}
+.rc-sub{font-size:.85rem;color:var(--dim);margin-top:4px}
+.rc-area{font-family:var(--disp);font-weight:600;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;margin-top:10px}
+.rc-price{font-family:var(--disp);font-weight:800;font-size:clamp(1.8rem,4vw,2.4rem);line-height:1;white-space:nowrap}
+.rc-price .eur{font-size:.5em;margin-left:3px}
+.rc-ttc{display:block;font-size:.55rem;font-weight:500;letter-spacing:.18em;color:var(--dim);margin-top:6px;text-align:right}
+.rc-pitch{color:var(--dim);font-size:.92rem;line-height:1.7;margin-top:18px;max-width:56ch}
+.rc-why{margin-top:22px;border-top:1px solid var(--line-soft);padding-top:18px}
+.rc-why .mono{color:var(--dim-2)}
+.rc-why ul{margin-top:12px;display:flex;flex-direction:column;gap:9px}
+.rc-why li{display:flex;gap:12px;font-size:.88rem;color:rgba(255,255,255,.82);line-height:1.55}
+.rc-why .tk{color:var(--dim-2)}
+.reco-cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.reco-banner{display:flex;flex-direction:column;gap:4px;border-left:2px solid #fff;padding:12px 0 12px 16px;margin-bottom:24px}
+.reco-banner .mono{color:var(--dim-2)}
+.reco-banner b{font-family:var(--disp);font-weight:700;font-size:1rem;text-transform:uppercase;letter-spacing:.01em}
+.reco-banner .rb-note{font-size:.8rem;color:var(--dim)}
+
+/* -- 03 prestation intérieur / extérieur / complet -- */
+.areasel{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border:1px solid var(--line);margin-bottom:28px}
+.areabtn{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;background:var(--card);
+  border:0;border-right:1px solid var(--line);color:#fff;padding:18px 20px;cursor:pointer;text-align:left;
+  transition:background-color .18s var(--ease)}
+.areabtn:last-child{border-right:0}
+.areabtn:hover{background:var(--card-2)}
+.areabtn.sel{background:#fff;color:#000}
+.ab-mark{width:20px;height:20px;border:1px solid var(--line);border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:.62rem}
+.areabtn.sel .ab-mark{background:#000;color:#fff;border-color:#000}
+.ab-l{font-family:var(--disp);font-weight:600;font-size:.88rem;letter-spacing:.005em;line-height:1.2}
+.ab-p{font-family:var(--disp);font-weight:800;font-size:1.05rem}
+.areabtn.sel .ab-p{color:#000}
+.ab-tag{position:absolute;top:0;right:0;background:#fff;color:#000;font-family:var(--disp);font-weight:800;
+  font-size:.5rem;letter-spacing:.16em;text-transform:uppercase;padding:4px 8px}
+.areabtn.sel .ab-tag{background:#000;color:#fff}
+@media(max-width:760px){.areasel{grid-template-columns:1fr}.areabtn{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:center;justify-content:space-between}.areabtn:last-child{border-bottom:0}.ab-tag{position:static;margin-left:8px}}
+.formcard .price .ttc{display:block;font-size:.5rem;font-weight:500;letter-spacing:.18em;color:var(--dim);margin-top:4px}
+.formcard.sel .price .ttc{color:#555}
+
+/* -- 05 transition + coordonnées -- */
+.tunnel-done{display:flex;flex-direction:column;gap:5px;border:1px solid var(--line);background:var(--card-2);
+  padding:16px 20px;margin-bottom:26px}
+.tunnel-done .mono{color:var(--dim-2)}
+.tunnel-done b{font-family:var(--disp);font-weight:700;font-size:1rem;text-transform:uppercase;letter-spacing:.01em}
+.coord-block{margin-top:32px;border-top:1px solid var(--line);padding-top:26px}
+.panel input[aria-invalid="true"]{border-color:#fff;box-shadow:0 0 0 1px #fff}
+
+/* -- récapitulatif configurateur (aside desktop + feuille mobile) -- */
+.ws-title{color:var(--dim-2);margin-bottom:14px;display:block}
+.ws-veh{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  border:1px solid var(--line);background:var(--card-2);padding:14px 16px}
+.ws-veh .ws-k{display:block;font-family:var(--disp);font-weight:500;font-size:.56rem;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--dim-2);margin-bottom:4px}
+.ws-veh b{font-family:var(--disp);font-weight:700;font-size:1rem;letter-spacing:.005em;display:block}
+.ws-veh .ws-gab{font-size:.78rem;color:var(--dim);display:block;margin-top:2px}
+.ws-edit{flex-shrink:0;background:transparent;border:1px solid var(--line);color:#fff;font-family:var(--disp);
+  font-weight:600;font-size:.55rem;letter-spacing:.16em;text-transform:uppercase;padding:7px 10px;cursor:pointer;
+  transition:background-color .16s,color .16s}
+.ws-edit:hover{background:#fff;color:#000}
+.ws-rows{margin-top:6px}
+/* La feuille mobile réutilise le même récapitulatif que l'aside : ses lignes
+   doivent donc porter la même mise en forme, hors contexte .wiz-summary. */
+#recapSheetBody .ws-row{display:flex;justify-content:space-between;align-items:baseline;gap:18px;
+  padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:.85rem}
+#recapSheetBody .ws-row span{color:var(--dim)}
+#recapSheetBody .ws-row b{font-family:var(--disp);font-weight:600;letter-spacing:.01em;text-align:right}
+#wizSummary .ws-total,#recapSheetBody .ws-total{display:flex;justify-content:space-between;align-items:baseline;
+  border-top:1px solid var(--line);margin-top:12px;padding-top:14px}
+#wizSummary .ws-total span,#recapSheetBody .ws-total span{font-family:var(--disp);font-weight:500;font-size:.6rem;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+#wizSummary .ws-total b,#recapSheetBody .ws-total b{font-family:var(--disp);font-weight:800;font-size:1.35rem}
+
+/* -- barre mobile + feuille de détail -- */
+.lp-sticky .s-recap{flex:1;display:flex;flex-direction:column;gap:2px;align-items:flex-start;justify-content:center;
+  background:transparent;border:1px solid var(--line);color:#fff;padding:9px 12px;cursor:pointer;text-align:left;min-width:0}
+/* display:flex ci-dessus l'emporterait sinon sur [hidden] (spécificité
+   supérieure à la règle du navigateur) : le bouton resterait visible à vide. */
+.lp-sticky .s-recap[hidden]{display:none}
+.lp-sticky .s-recap b{font-family:var(--disp);font-weight:600;font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.lp-sticky .s-recap span{font-family:var(--disp);font-weight:800;font-size:.9rem}
+.lp-sticky .s-quote{flex:1;text-align:center;padding:14px 10px;font-family:var(--disp);font-weight:600;font-size:.6rem;
+  letter-spacing:.16em;text-transform:uppercase;background:#fff;color:#000;border:0;cursor:pointer}
+.recap-sheet{position:fixed;inset:0;z-index:210;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center}
+.recap-sheet[hidden]{display:none}
+.rs-box{position:relative;width:100%;max-width:560px;max-height:82vh;overflow-y:auto;background:#0a0a0a;
+  border:1px solid var(--line);padding:28px 22px calc(28px + env(safe-area-inset-bottom));
+  animation:rsUp .28s var(--ease)}
+@keyframes rsUp{from{transform:translateY(18px);opacity:0}to{transform:none;opacity:1}}
+.rs-close{position:absolute;top:14px;right:14px;background:transparent;border:1px solid var(--line);color:#fff;
+  width:32px;height:32px;cursor:pointer;font-size:.85rem}
+.rs-close:hover{background:#fff;color:#000}
+@media(prefers-reduced-motion:reduce){.rs-box{animation:none}}
+
+/* -- narration « comment ça se passe » -- */
+.story{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;border:1px solid var(--line)}
+.st-step{position:relative;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.st-step:last-child{border-right:0}
+.st-step img{width:100%;aspect-ratio:4/3;object-fit:cover;filter:brightness(.72);transition:filter .5s var(--ease)}
+.st-step:hover img{filter:brightness(.92)}
+.st-step figcaption{display:flex;flex-direction:column;gap:6px;padding:20px}
+.st-n{font-family:var(--disp);font-weight:800;font-size:.6rem;letter-spacing:.24em;color:var(--dim-2)}
+.st-step b{font-family:var(--disp);font-weight:700;font-size:.95rem;text-transform:uppercase;line-height:1.2;letter-spacing:.005em}
+.st-step figcaption span:last-child{font-size:.83rem;color:var(--dim);line-height:1.55}
+@media(max-width:900px){.story{grid-template-columns:1fr 1fr}.st-step:nth-child(2n){border-right:0}
+  .st-step:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+@media(max-width:560px){.story{grid-template-columns:1fr}.st-step{border-right:0;border-bottom:1px solid var(--line)}
+  .st-step:last-child{border-bottom:0}}
+
+/* -- accessibilité : focus clavier visible sur tous les contrôles du tunnel -- */
+.needcard:focus-visible,.qopt:focus-visible,.areabtn:focus-visible,.formcard:focus-visible,.optcard:focus-visible,
+.gabo:focus-visible,.chip:focus-visible,.ws-edit:focus-visible,.rs-close:focus-visible,.s-recap:focus-visible,
+.s-quote:focus-visible,.aci:focus-visible{outline:2px solid #fff;outline-offset:2px}

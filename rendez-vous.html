@@ -32,6 +32,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 .wiz-summary .ws-row span{color:var(--dim)}
 .wiz-summary .ws-row b{font-family:var(--disp);font-weight:600;letter-spacing:.01em}
 .wiz-summary .ws-total b{font-size:1.05rem}
+/* Configurateur : le récapitulatif véhicule reste visible à droite pendant
+   tout le parcours sur desktop ; sur mobile, la question passe en premier
+   et le récapitulatif compact vit dans la barre collante. */
+@media(min-width:1001px){
+  body[data-lp-service="rendezvous"] .resa{align-items:start}
+  body[data-lp-service="rendezvous"] .resa .aside{position:sticky;top:86px;align-self:start;
+    max-height:calc(100vh - 108px);overflow-y:auto;scrollbar-width:thin}
+}
+@media(max-width:1000px){
+  body[data-lp-service="rendezvous"] .resa{display:flex;flex-direction:column}
+  body[data-lp-service="rendezvous"] .resa .panel-wrap{order:1}
+  body[data-lp-service="rendezvous"] .resa .aside{order:2;border-bottom:0;border-top:1px solid var(--line)}
+  body[data-lp-service="rendezvous"] .resa .aside .wiz-media{display:none}
+}
 .panel-wrap{display:flex;flex-direction:column;min-width:0}
 .panel-wrap .panel{flex:1}
 .wiz-progress{height:2px;background:var(--line-soft);margin-bottom:1px;overflow:hidden}
@@ -151,14 +165,15 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <div class="pin">
     <span class="mono">Créneau confirmé immédiatement</span>
     <h1>Nettoyage automobile<br>premium à Lyon</h1>
-    <p>Choisissez votre véhicule, votre niveau de soin et votre créneau en quelques instants.</p>
+    <p>Configurez votre soin selon votre véhicule et consultez les créneaux disponibles.</p>
     <ul class="lp-usp">
       <li>400+ m² dédiés à l'esthétique automobile</li><li>Car Spa · La Mulatière, Lyon</li><li>Ouvert 7j/7</li>
     </ul>
     <div class="lp-cta-row">
-      <a href="#rtype" class="btn solid" data-cta="voir_disponibilites">Voir les disponibilités</a>
+      <a href="#rtype" class="btn solid" data-cta="configurer_mon_soin">Configurer mon soin</a>
     </div>
-    <p style="margin-top:22px"><a href="tel:+33763004385" class="lp-phone"><span class="dot"></span><span><small>Une question ?</small>07 63 00 43 85</span></a></p>
+    <p class="hero-sub mono">Tarif adapté à votre véhicule · Créneaux disponibles en ligne</p>
+    <p style="margin-top:18px"><a href="tel:+33763004385" class="lp-phone"><span class="dot"></span><span><small>Une question ?</small>07 63 00 43 85</span></a></p>
   </div>
 </section>
 
@@ -175,14 +190,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
 <section class="wrap" style="padding-top:clamp(50px,7vh,90px)">
   <div class="rtype stagger" id="rtype">
-    <button data-type="prestation" class="sel reveal"><span class="rk">Formule 01</span>
-      <div><h2>Réserver un soin</h2><p>Intérieur, extérieur ou complet. Détection automatique du gabarit, trois formules — Confort, Premium, Expérience — et un créneau confirmé immédiatement.</p></div></button>
-    <button data-type="projet" class="reveal"><span class="rk">Formule 02</span>
-      <div><h2>Parler de mon projet</h2><p>PPF, céramique, covering / customisation, vitres teintées, Car Staging, demande spécifique. On échange avant de chiffrer.</p></div></button>
+    <button data-type="prestation" class="sel reveal"><span class="rk">Je veux réserver</span>
+      <div><h2>Nettoyage &amp; entretien</h2><p>Intérieur, extérieur ou complet. Le tarif s'adapte à votre véhicule, et le créneau est confirmé immédiatement.</p></div></button>
+    <button data-type="projet" class="reveal"><span class="rk">J'ai un projet</span>
+      <div><h2>PPF · Céramique · Polissage · Car Staging · Covering</h2><p>Ces prestations se chiffrent après échange : décrivez votre projet, nous revenons vers vous sous 24 h.</p></div></button>
   </div>
-  <p class="reveal" style="margin-top:18px"><button type="button" id="quizOpen" class="btn-line">Je ne sais pas quelle formule choisir</button></p>
   <div class="resa reveal">
-    <div class="aside"><div><h3 id="asideTitle">Prenez date.</h3><p id="asideText">Quelques étapes, deux minutes. On confirme votre demande sous 24 h.</p>
+    <div class="aside"><div><h3 id="asideTitle">Configurez votre soin.</h3><p id="asideText">Le tarif dépend du véhicule : commençons par lui.</p>
       <div class="wiz-media" id="wizMedia" aria-hidden="true">
         <img class="wm active" data-key="prestation-0" src="assets/img/bmw-m4cs-atelier.jpg" alt="Atelier REYCE à La Mulatière">
         <img class="wm" data-key="prestation-1" src="assets/img/nettoyage-exterieur-detail-mousse-reyce-lyon.jpg" alt="Détail du nettoyage extérieur chez REYCE">
@@ -203,13 +217,35 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   </div>
 </section>
 
+<section class="wrap">
+  <div class="sec-head reveal" style="margin-bottom:40px"><h2><span class="uline">Comment</span><br>ça se passe</h2><span class="idx">Le jour J</span></div>
+  <div class="story reveal">
+    <figure class="st-step">
+      <img src="assets/img/atelier-reyce-logo-bmw-lyon.jpg" alt="Arrivée d'un véhicule à l'atelier REYCE de La Mulatière" loading="lazy" width="1200" height="900">
+      <figcaption><span class="st-n">01</span><b>Vous arrivez</b><span>À l'atelier, 47 chemin du Pras. On fait le point sur votre véhicule.</span></figcaption>
+    </figure>
+    <figure class="st-step">
+      <img src="assets/img/technicien-reyce-canon-a-mousse-lyon.jpg" alt="Technicien REYCE au canon à mousse sur un véhicule" loading="lazy" width="1200" height="900">
+      <figcaption><span class="st-n">02</span><b>Nous prenons en charge votre véhicule</b><span>Le soin choisi est réalisé à la main, zone par zone.</span></figcaption>
+    </figure>
+    <figure class="st-step">
+      <img src="assets/img/atelier-reyce-suv-porsche-911-lyon.jpg" alt="Espace atelier REYCE avec SUV et Porsche 911" loading="lazy" width="1200" height="900">
+      <figcaption><span class="st-n">03</span><b>Vous profitez du Car Spa</b><span>Lounge et espace client pendant l'intervention, ou revenez plus tard.</span></figcaption>
+    </figure>
+    <figure class="st-step">
+      <img src="assets/img/detailing-interieur-finition-m-performance-bmw-reyce-lyon.jpg" alt="Finition intérieure détaillée d'une BMW chez REYCE" loading="lazy" width="1200" height="900">
+      <figcaption><span class="st-n">04</span><b>Nous vous remettons votre véhicule</b><span>Contrôle final ensemble avant restitution.</span></figcaption>
+    </figure>
+  </div>
+</section>
+
 <section class="wrap ticks">
-  <div class="sec-head reveal" style="margin-bottom:40px"><h2><span class="uline">Votre rendez-vous</span><br>chez REYCE</h2></div>
+  <div class="sec-head reveal" style="margin-bottom:40px"><h2><span class="uline">Votre</span><br>réservation</h2></div>
   <div class="incl reveal">
-    <div><span class="tick">—</span><p>Prix affiché avant validation, aucune prestation supplémentaire sans votre accord</p></div>
-    <div><span class="tick">—</span><p>Atelier automobile de plus de 400 m² à La Mulatière</p></div>
-    <div><span class="tick">—</span><p>Car Spa, lounge et espace client sur place</p></div>
-    <div><span class="tick">—</span><p>Ouvert 7j/7, équipe joignable en cas de question</p></div>
+    <div><span class="tick">—</span><p>Le prix est connu avant validation, aucune prestation supplémentaire sans votre accord</p></div>
+    <div><span class="tick">—</span><p>Le créneau choisi est confirmé immédiatement, sans attente de validation</p></div>
+    <div><span class="tick">—</span><p>Règlement sur place le jour du rendez-vous, aucun acompte demandé en ligne</p></div>
+    <div><span class="tick">—</span><p>Une question avant de venir ? L'équipe est joignable au 07 63 00 43 85</p></div>
   </div>
 </section>
 
@@ -220,12 +256,16 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   </div>
 </section>
 </main>
-<div class="lp-sticky" id="lpSticky"><a href="tel:+33763004385" class="s-call">Appeler</a><a href="#rtype" class="s-quote" id="lpStickyCta" data-cta="devis_sticky">Choisir mon soin</a></div>
+<div class="lp-sticky" id="lpSticky">
+  <a href="tel:+33763004385" class="s-call" id="lpStickyCall">Appeler</a>
+  <button type="button" class="s-recap" id="lpStickyRecap" hidden aria-haspopup="dialog"><b id="lpStickyVeh"></b><span id="lpStickyPrice"></span></button>
+  <button type="button" class="s-quote" id="lpStickyCta" data-cta="configurer_sticky">Configurer mon soin</button>
+</div>
 
-<div id="quizOverlay" class="quiz-overlay" hidden>
-  <div class="quiz-box">
-    <button type="button" class="quiz-close" id="quizClose" aria-label="Fermer">✕</button>
-    <div id="quizBody"></div>
+<div id="recapSheet" class="recap-sheet" hidden role="dialog" aria-modal="true" aria-label="Récapitulatif de votre soin">
+  <div class="rs-box">
+    <button type="button" class="rs-close" data-sheet-close aria-label="Fermer">✕</button>
+    <div id="recapSheetBody"></div>
   </div>
 </div>
 <footer class="wrap">
