@@ -256,15 +256,15 @@ function addMinutes(time, minutes) {
 
 // ============================================================
 // Horaires de réservation en ligne — source de vérité unique
-// Ouverture du lundi au vendredi, arrivées de 09:00 à 17:00, et chaque
+// Ouverture du lundi au samedi, arrivées de 09:00 à 19:00, et chaque
 // rendez-vous immobilise l'atelier pendant au moins 3 heures : aucun
 // autre créneau ne peut être réservé sur cette plage, quelle que soit la
 // prestation. Les prestations plus longues que 3 h (Expérience) bloquent
 // leur durée réelle, sans quoi deux voitures se chevaucheraient.
 // ============================================================
-const OPEN_WEEKDAYS  = [1, 2, 3, 4, 5]; // 0 = dimanche … 6 = samedi
+const OPEN_WEEKDAYS  = [1, 2, 3, 4, 5, 6]; // 0 = dimanche … 6 = samedi
 const SLOT_FIRST_MIN = 9 * 60;          // 09:00
-const SLOT_LAST_MIN  = 17 * 60;         // 17:00 (dernière arrivée)
+const SLOT_LAST_MIN  = 19 * 60;         // 19:00 (dernière arrivée)
 const SLOT_STEP_MIN  = 60;
 const MIN_BLOCK_MIN  = 180;             // 3 h réservées par rendez-vous
 
@@ -1377,9 +1377,9 @@ app.post('/api/create-checkout-session', async (req, res) => {
   // contrôle, un appel direct à l'API pourrait poser un rendez-vous un
   // dimanche à 3 h du matin.
   if (!isOpenDay(date))
-    return res.status(400).json({ error: 'L\'atelier est ouvert à la réservation du lundi au vendredi.' });
+    return res.status(400).json({ error: 'L\'atelier est ouvert à la réservation du lundi au samedi.' });
   if (!slotGrid().includes(time))
-    return res.status(400).json({ error: 'Créneau indisponible : les arrivées se font entre 09:00 et 17:00.' });
+    return res.status(400).json({ error: 'Créneau indisponible : les arrivées se font entre 09:00 et 19:00.' });
 
   const catalog = await getServiceCatalog();
   if (!catalog[service].active)
@@ -1465,9 +1465,9 @@ app.post('/api/create-booking', async (req, res) => {
   // contrôle, un appel direct à l'API pourrait poser un rendez-vous un
   // dimanche à 3 h du matin.
   if (!isOpenDay(date))
-    return res.status(400).json({ error: 'L\'atelier est ouvert à la réservation du lundi au vendredi.' });
+    return res.status(400).json({ error: 'L\'atelier est ouvert à la réservation du lundi au samedi.' });
   if (!slotGrid().includes(time))
-    return res.status(400).json({ error: 'Créneau indisponible : les arrivées se font entre 09:00 et 17:00.' });
+    return res.status(400).json({ error: 'Créneau indisponible : les arrivées se font entre 09:00 et 19:00.' });
 
   const catalog = await getServiceCatalog();
   if (!catalog[service].active)

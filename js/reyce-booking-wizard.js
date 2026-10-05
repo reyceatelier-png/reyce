@@ -404,7 +404,7 @@ function duoSave(idx){
 }
 
 /* Créneaux — la grille horaire ET les disponibilités viennent du serveur
-   (ouverture du lundi au vendredi, arrivées de 09:00 à 17:00, chaque
+   (ouverture du lundi au samedi, arrivées de 09:00 à 19:00, chaque
    rendez-vous mobilisant l'atelier au moins 3 h). Le tunnel n'invente
    jamais d'horaire : c'est ce décalage entre une liste figée côté page et
    la vraie grille côté serveur qui rendait presque tous les créneaux
@@ -422,9 +422,9 @@ function slotChips(){
   }).join('');
 }
 function slotNote(){
-  if(!state.jourISO) return 'Choisissez d\'abord un jour — l\'atelier reçoit du lundi au vendredi.';
+  if(!state.jourISO) return 'Choisissez d\'abord un jour — l\'atelier reçoit du lundi au samedi.';
   if(slotState.loading) return '';
-  if(slotState.closed==='weekend') return 'L\'atelier ne prend pas de rendez-vous le week-end : choisissez un jour entre lundi et vendredi.';
+  if(slotState.closed==='weekend') return 'L\'atelier est fermé le dimanche : choisissez un jour entre lundi et samedi.';
   if(slotState.closed) return 'Aucun créneau ce jour-là. Choisissez une autre date.';
   if(!slotState.free.length) return 'Toutes les arrivées de ce jour sont déjà réservées. Choisissez une autre date.';
   /* « au moins » : l'Expérience immobilise l'atelier plus longtemps que
@@ -520,15 +520,15 @@ function calendar(){
     var dateObj=new Date(state.calYear,state.calMonth,d);
     var iso=state.calYear+'-'+String(state.calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     var wd=dateObj.getDay();
-    /* L'atelier ne reçoit pas le week-end : les samedis et dimanches sont
-       affichés mais non cliquables, plutôt que de laisser le client choisir
-       un jour qui sera refusé à l'étape suivante. */
-    var weekend=(wd===0||wd===6);
+    /* L'atelier est fermé le dimanche : ces jours restent affichés mais
+       non cliquables, plutôt que de laisser le client choisir une date qui
+       sera refusée à l'étape suivante. */
+    var weekend=(wd===0);
     var mut=dateObj<t0||weekend;
     h+='<div class="d'+(mut?' mut':'')+(weekend?' closed':'')+(state.jourISO===iso?' sel':'')+'" '+
-       (mut?(weekend?'title="Fermé le week-end"':''):'data-iso="'+iso+'" data-label="'+d+' '+MONTHS_FR[state.calMonth]+'"')+'>'+d+'</div>';
+       (mut?(weekend?'title="Fermé le dimanche"':''):'data-iso="'+iso+'" data-label="'+d+' '+MONTHS_FR[state.calMonth]+'"')+'>'+d+'</div>';
   }
-  h+='</div><p class="cal-legend mono">Du lundi au vendredi · arrivées de 09:00 à 17:00</p>';
+  h+='</div><p class="cal-legend mono">Du lundi au samedi · arrivées de 09:00 à 19:00</p>';
   return h;
 }
 
