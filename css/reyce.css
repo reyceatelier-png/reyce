@@ -1261,3 +1261,12 @@ body[data-lp-service] .phero .lp-phone{margin-top:22px}
 .needcard:focus-visible,.qopt:focus-visible,.areabtn:focus-visible,.formcard:focus-visible,.optcard:focus-visible,
 .gabo:focus-visible,.chip:focus-visible,.ws-edit:focus-visible,.rs-close:focus-visible,.s-recap:focus-visible,
 .s-quote:focus-visible,.aci:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* Emplacement photo réservé — affiché tant que le visuel réel n'a pas été
+   déposé. Jamais de photo générique sous une légende nommant un véhicule
+   précis : le lecteur verrait trois voitures différentes avec la même image. */
+.photo-slot{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  width:100%;aspect-ratio:3/2;background:var(--card-2);border:1px dashed var(--line);
+  color:var(--dim-2);text-align:center;padding:20px}
+.photo-slot .mono{font-family:var(--disp);font-weight:600;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase}
+.photo-slot .ps-name{font-size:.7rem;color:var(--dim-2);opacity:.6;word-break:break-all;max-width:90%}
