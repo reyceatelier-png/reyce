@@ -459,8 +459,13 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 .chip{border:1px solid var(--line);padding:11px 15px;cursor:pointer;font-family:var(--disp);font-weight:500;font-size:.72rem;letter-spacing:.08em;transition:background-color .18s ease,color .18s ease,border-color .18s ease,transform .12s var(--ease);text-transform:uppercase}
 .chip:hover{border-color:#fff}
 .chip.sel{background:#fff;color:#000;border-color:#fff}
-.chip.taken{opacity:.32;cursor:not-allowed;text-decoration:line-through;pointer-events:none}
+.chip.taken{opacity:.3;cursor:not-allowed;text-decoration:line-through;pointer-events:none}
 .chip.taken:hover{border-color:var(--line)}
+/* Créneaux : légende du calendrier, message d'état, chargement */
+.cal-legend{margin-top:12px;color:var(--dim-2);font-size:.6rem;letter-spacing:.16em}
+.cal .d.closed{opacity:.2;text-decoration:line-through}
+.slot-note{margin-top:12px;color:var(--dim);font-size:.8rem;line-height:1.55;max-width:52ch}
+.slot-loading{color:var(--dim-2);font-size:.72rem;letter-spacing:.14em}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px}
 .cal .d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:1px solid var(--line-soft);font-family:var(--disp);font-weight:500;font-size:.78rem;cursor:pointer;color:var(--dim);transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .12s var(--ease)}
 .cal .d:hover{border-color:#fff;color:#fff}

@@ -254,6 +254,82 @@ function addMinutes(time, minutes) {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
+// ============================================================
+// Horaires de réservation en ligne — source de vérité unique
+// Ouverture du lundi au vendredi, arrivées de 09:00 à 17:00, et chaque
+// rendez-vous immobilise l'atelier pendant au moins 3 heures : aucun
+// autre créneau ne peut être réservé sur cette plage, quelle que soit la
+// prestation. Les prestations plus longues que 3 h (Expérience) bloquent
+// leur durée réelle, sans quoi deux voitures se chevaucheraient.
+// ============================================================
+const OPEN_WEEKDAYS  = [1, 2, 3, 4, 5]; // 0 = dimanche … 6 = samedi
+const SLOT_FIRST_MIN = 9 * 60;          // 09:00
+const SLOT_LAST_MIN  = 17 * 60;         // 17:00 (dernière arrivée)
+const SLOT_STEP_MIN  = 60;
+const MIN_BLOCK_MIN  = 180;             // 3 h réservées par rendez-vous
+
+function timeToMin(time) {
+  const [h, m] = String(time || '').split(':').map(Number);
+  return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+}
+
+function minToTime(total) {
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+// Grille d'arrivées proposée chaque jour ouvré.
+function slotGrid() {
+  const out = [];
+  for (let t = SLOT_FIRST_MIN; t <= SLOT_LAST_MIN; t += SLOT_STEP_MIN) out.push(minToTime(t));
+  return out;
+}
+
+// Durée pendant laquelle un rendez-vous immobilise l'atelier.
+function blockMinutes(serviceId) {
+  const svc = SERVICES[serviceId];
+  const own = svc ? (svc.durationMin || 0) + (svc.prepBufferMin || 0) + (svc.postBufferMin || 0) : 0;
+  return Math.max(MIN_BLOCK_MIN, own);
+}
+
+// Le jour est-il ouvert à la réservation en ligne ?
+function isOpenDay(dateStr) {
+  const d = strToDate(dateStr);
+  return OPEN_WEEKDAYS.includes(d.getUTCDay());
+}
+
+// Deux rendez-vous se chevauchent-ils ? (comparaison en minutes, sur le
+// même jour — la grille ne propose jamais d'arrivée après 17:00.)
+function overlaps(startA, blockA, startB, blockB) {
+  const a = timeToMin(startA), b = timeToMin(startB);
+  return a < b + blockB && b < a + blockA;
+}
+
+// Créneaux réellement réservables pour une prestation et une date donnée.
+async function availableSlots(serviceId, dateStr) {
+  const grid = slotGrid();
+  if (!isOpenDay(dateStr)) return { all: grid, slots: [], closed: 'weekend' };
+
+  const blocked = await readBlocked();
+  if (blocked.dates.includes(dateStr)) return { all: grid, slots: [], closed: 'blocked' };
+
+  // Toutes les réservations actives du jour, toutes prestations confondues :
+  // l'atelier ne traite qu'un véhicule à la fois.
+  const rows = await prisma.appointment.findMany({
+    where: { date: strToDate(dateStr), status: { notIn: ['cancelled', 'no_show'] } },
+    select: { startTime: true, serviceId: true }
+  });
+
+  const blockedSlots = blocked.slots[dateStr] || [];
+  const wanted = blockMinutes(serviceId);
+
+  const slots = grid.filter(slot => {
+    if (blockedSlots.includes(slot)) return false;
+    return !rows.some(r => overlaps(slot, wanted, r.startTime, blockMinutes(r.serviceId)));
+  });
+
+  return { all: grid, slots, closed: null };
+}
+
 // Statuts pilotables par l'admin (le statut "pending_payment" est interne,
 // jamais exposé/settable depuis le dashboard : un rendez-vous n'existe pour
 // l'admin qu'une fois le paiement confirmé par Stripe côté serveur).
@@ -359,15 +435,15 @@ async function createDirectBooking({ service, svc, date, time, vehicleType, vehi
   // la nouvelle ligne : Postgres fait échouer l'une des deux transactions
   // concurrentes en cas de conflit, ce qui est rattrapé plus bas (409).
   const row = await prisma.$transaction(async (tx) => {
-    const conflict = await tx.appointment.findFirst({
-      where: {
-        serviceId: service,
-        date:      dateObj,
-        startTime: time,
-        status:    { notIn: ['cancelled', 'no_show'] }
-      },
-      select: { id: true }
+    // L'atelier ne traite qu'un véhicule à la fois : on refuse tout
+    // chevauchement avec une réservation active du même jour, quelle que
+    // soit la prestation (voir blockMinutes / overlaps).
+    const sameDay = await tx.appointment.findMany({
+      where: { date: dateObj, status: { notIn: ['cancelled', 'no_show'] } },
+      select: { startTime: true, serviceId: true }
     });
+    const wanted = blockMinutes(service);
+    const conflict = sameDay.some(r => overlaps(time, wanted, r.startTime, blockMinutes(r.serviceId)));
     if (conflict) {
       throw new Error('Créneau déjà réservé');
     }
@@ -1243,27 +1319,12 @@ app.get('/api/slots', async (req, res) => {
   }
 
   const catalog = await getServiceCatalog();
-  if (!catalog[service].active) return res.json({ slots: [] });
+  if (!catalog[service].active) return res.json({ all: slotGrid(), slots: [], closed: 'inactive' });
 
   const today = new Date().toISOString().split('T')[0];
-  if (date < today) return res.json({ slots: [] });
+  if (date < today) return res.json({ all: slotGrid(), slots: [], closed: 'past' });
 
-  const blocked = await readBlocked();
-
-  // Date entièrement bloquée
-  if (blocked.dates.includes(date)) return res.json({ slots: [] });
-
-  // Créneaux déjà pris : réservations actives (y compris les tenues
-  // "en attente de paiement" en cours de checkout Stripe).
-  const activeRows = await prisma.appointment.findMany({
-    where: { serviceId: service, date: strToDate(date), status: { notIn: ['cancelled', 'no_show'] } },
-    select: { startTime: true }
-  });
-  const taken = activeRows.map(r => r.startTime);
-
-  const blockedSlots = blocked.slots[date] || [];
-
-  res.json({ slots: SERVICES[service].slots.filter(s => !taken.includes(s) && !blockedSlots.includes(s)) });
+  res.json(await availableSlots(service, date));
 });
 
 // Modèle de véhicule non reconnu par la base embarquée : on journalise la
@@ -1312,6 +1373,13 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.status(400).json({ error: 'Coordonnées incomplètes' });
   if (!isValidEmail(client.email))
     return res.status(400).json({ error: 'Adresse email invalide' });
+  // Le créneau demandé doit appartenir aux horaires d'ouverture : sans ce
+  // contrôle, un appel direct à l'API pourrait poser un rendez-vous un
+  // dimanche à 3 h du matin.
+  if (!isOpenDay(date))
+    return res.status(400).json({ error: 'L\'atelier est ouvert à la réservation du lundi au vendredi.' });
+  if (!slotGrid().includes(time))
+    return res.status(400).json({ error: 'Créneau indisponible : les arrivées se font entre 09:00 et 17:00.' });
 
   const catalog = await getServiceCatalog();
   if (!catalog[service].active)
@@ -1393,6 +1461,13 @@ app.post('/api/create-booking', async (req, res) => {
     return res.status(400).json({ error: 'Coordonnées incomplètes' });
   if (!isValidEmail(client.email))
     return res.status(400).json({ error: 'Adresse email invalide' });
+  // Le créneau demandé doit appartenir aux horaires d'ouverture : sans ce
+  // contrôle, un appel direct à l'API pourrait poser un rendez-vous un
+  // dimanche à 3 h du matin.
+  if (!isOpenDay(date))
+    return res.status(400).json({ error: 'L\'atelier est ouvert à la réservation du lundi au vendredi.' });
+  if (!slotGrid().includes(time))
+    return res.status(400).json({ error: 'Créneau indisponible : les arrivées se font entre 09:00 et 17:00.' });
 
   const catalog = await getServiceCatalog();
   if (!catalog[service].active)

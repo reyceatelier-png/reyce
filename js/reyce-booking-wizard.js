@@ -403,7 +403,51 @@ function duoSave(idx){
   return null;
 }
 
-var times=['09:00','10:30','13:00','14:30','16:00','17:30'];
+/* Créneaux — la grille horaire ET les disponibilités viennent du serveur
+   (ouverture du lundi au vendredi, arrivées de 09:00 à 17:00, chaque
+   rendez-vous mobilisant l'atelier au moins 3 h). Le tunnel n'invente
+   jamais d'horaire : c'est ce décalage entre une liste figée côté page et
+   la vraie grille côté serveur qui rendait presque tous les créneaux
+   inaccessibles. */
+var slotState={date:null, svc:null, all:[], free:[], closed:null, loading:false};
+
+function slotChips(){
+  if(!state.jourISO) return '';
+  if(slotState.loading&&!slotState.all.length) return '<span class="slot-loading mono">Recherche des disponibilités…</span>';
+  return slotState.all.map(function(t){
+    var free=slotState.free.indexOf(t)>-1, sel=state.heure===t;
+    return '<div class="chip'+(sel?' sel':'')+(free?'':' taken')+'" data-t="'+t+'" role="radio"'+
+           ' tabindex="'+(free?'0':'-1')+'" aria-checked="'+(sel?'true':'false')+'"'+
+           ' aria-disabled="'+(free?'false':'true')+'">'+t+'</div>';
+  }).join('');
+}
+function slotNote(){
+  if(!state.jourISO) return 'Choisissez d\'abord un jour — l\'atelier reçoit du lundi au vendredi.';
+  if(slotState.loading) return '';
+  if(slotState.closed==='weekend') return 'L\'atelier ne prend pas de rendez-vous le week-end : choisissez un jour entre lundi et vendredi.';
+  if(slotState.closed) return 'Aucun créneau ce jour-là. Choisissez une autre date.';
+  if(!slotState.free.length) return 'Toutes les arrivées de ce jour sont déjà réservées. Choisissez une autre date.';
+  /* « au moins » : l'Expérience immobilise l'atelier plus longtemps que
+     trois heures, la formulation reste donc vraie quelle que soit la
+     formule retenue. */
+  return 'Un rendez-vous mobilise l\'atelier au moins 3 heures : les horaires grisés sont déjà pris.';
+}
+function paintSlots(){
+  var w=document.getElementById('heureChips');
+  if(w){w.innerHTML=slotChips();bindSlotChips();}
+  var n=document.getElementById('slotNote');
+  if(n)n.textContent=slotNote();
+}
+function bindSlotChips(){
+  var w=document.getElementById('heureChips');
+  if(!w) return;
+  w.querySelectorAll('[data-t]').forEach(function(b){bindCard(b,function(){
+    if(b.classList.contains('taken'))return;
+    state.heure=b.dataset.t;
+    pushEvt({event:'slot_selected', slot_time:state.heure, slot_date:state.jourISO});
+    render();
+  })});
+}
 var projets=[
   {label:'PPF (protection peinture)', img:'assets/img/30644946.jpg'},
   {label:'Covering / Wrap', img:'assets/img/8664307.jpg'},
@@ -475,10 +519,17 @@ function calendar(){
   for(var d=1;d<=dim;d++){
     var dateObj=new Date(state.calYear,state.calMonth,d);
     var iso=state.calYear+'-'+String(state.calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    var mut=dateObj<t0;
-    h+='<div class="d'+(mut?' mut':'')+(state.jourISO===iso?' sel':'')+'" '+(mut?'':'data-iso="'+iso+'" data-label="'+d+' '+MONTHS_FR[state.calMonth]+'"')+'>'+d+'</div>';
+    var wd=dateObj.getDay();
+    /* L'atelier ne reçoit pas le week-end : les samedis et dimanches sont
+       affichés mais non cliquables, plutôt que de laisser le client choisir
+       un jour qui sera refusé à l'étape suivante. */
+    var weekend=(wd===0||wd===6);
+    var mut=dateObj<t0||weekend;
+    h+='<div class="d'+(mut?' mut':'')+(weekend?' closed':'')+(state.jourISO===iso?' sel':'')+'" '+
+       (mut?(weekend?'title="Fermé le week-end"':''):'data-iso="'+iso+'" data-label="'+d+' '+MONTHS_FR[state.calMonth]+'"')+'>'+d+'</div>';
   }
-  return h+'</div>';
+  h+='</div><p class="cal-legend mono">Du lundi au vendredi · arrivées de 09:00 à 17:00</p>';
+  return h;
 }
 
 /* prix courant sélectionné (avant promo)
@@ -813,9 +864,9 @@ function render(){renderSteps();updateWizMedia();updateProgress();var h='';var L
          '<b>'+f.k+' · '+CLEAN[state.clean].label+' · '+euroTxt(grandTotal())+'</b></div>';
       h+='<h4>Choisissez quand nous confier votre véhicule.</h4>';
       h+='<div id="calWrap">'+calendar()+'</div>'+
-      '<div class="field" style="margin-top:24px"><label id="heureLbl">Heure d\'arrivée</label><div class="chips" id="heureChips" role="radiogroup" aria-labelledby="heureLbl">';
-      times.forEach(function(t){h+='<div class="chip'+(state.heure===t?' sel':'')+'" data-t="'+t+'" role="radio" tabindex="0" aria-checked="'+(state.heure===t?'true':'false')+'">'+t+'</div>'});
-      h+='</div></div>';
+      '<div class="field" style="margin-top:24px"><label id="heureLbl">Heure d\'arrivée</label>'+
+      '<div class="chips" id="heureChips" role="radiogroup" aria-labelledby="heureLbl">'+slotChips()+'</div>'+
+      '<p class="slot-note" id="slotNote">'+slotNote()+'</p></div>';
 
       if(state.jourISO&&state.heure){
         h+='<div class="coord-block"><h4 style="margin-bottom:6px">Vos coordonnées</h4>'+
@@ -1206,10 +1257,7 @@ function bindP(last){
     if(!promoEligible()){ if(hint){hint.textContent='Ce code est valable sur Premium et Expérience. Choisissez l\'une de ces formules pour en profiter.';hint.style.color='#fff';} return; }
     state.promo=true; render();
   });
-  panel.querySelectorAll('[data-t]').forEach(function(b){bindCard(b,function(){
-    if(b.classList.contains('taken'))return;
-    state.heure=b.dataset.t;pushEvt({event:'slot_selected', slot_time:state.heure, slot_date:state.jourISO});render();
-  })});
+  bindSlotChips();
   function bI(id,key){var el=document.getElementById(id);if(el)el.addEventListener('input',function(e){
     state[key]=e.target.value; el.removeAttribute('aria-invalid');
     var err=document.getElementById('bookErr'); if(err)err.remove();
@@ -1293,31 +1341,31 @@ function bindP(last){
   refreshSlotAvailability();
 }
 
-/* Interroge la disponibilité réelle des créneaux (réservations déjà en
-   base pour ce service et ce jour) pour ce même jour, une fois choisi —
-   les créneaux déjà pris sont grisés et non cliquables, jamais affichés
-   comme libres par défaut. */
+/* Interroge le serveur pour le jour choisi : il renvoie la grille complète
+   (`all`) et les arrivées réellement réservables (`slots`). La durée de la
+   prestation entre en compte, donc on réinterroge aussi quand la formule
+   change. */
 function refreshSlotAvailability(){
   if(state.type!=='prestation'||!state.jourISO)return;
-  var wrap=document.getElementById('heureChips');
-  if(!wrap)return;
+  if(!document.getElementById('heureChips'))return;
   var svc=serviceId(), date=state.jourISO;
+  if(slotState.date===date&&slotState.svc===svc&&!slotState.loading){paintSlots();return;}
+  slotState.date=date;slotState.svc=svc;slotState.loading=true;
+  paintSlots();
   fetch('/api/slots?service='+encodeURIComponent(svc)+'&date='+encodeURIComponent(date))
     .then(function(r){return r.ok?r.json():null;})
     .then(function(data){
-      if(!data||!data.slots)return;
-      var avail=data.slots;
-      var w=document.getElementById('heureChips');
-      if(!w)return;
-      w.querySelectorAll('[data-t]').forEach(function(b){
-        b.classList.toggle('taken', avail.indexOf(b.dataset.t)===-1);
-      });
-      if(state.heure && avail.indexOf(state.heure)===-1){
-        state.heure=null;
-        render();
-      }
+      if(slotState.date!==date||slotState.svc!==svc)return; // réponse devenue obsolète
+      slotState.loading=false;
+      slotState.all=(data&&data.all)||[];
+      slotState.free=(data&&data.slots)||[];
+      slotState.closed=(data&&data.closed)||null;
+      /* Le créneau retenu vient d'être pris par quelqu'un d'autre : on le
+         retire plutôt que de laisser le client valider dans le vide. */
+      if(state.heure&&slotState.free.indexOf(state.heure)===-1){state.heure=null;render();return;}
+      paintSlots();
     })
-    .catch(function(){});
+    .catch(function(){slotState.loading=false;paintSlots();});
 }
 function renderPhotoList(){
   var list=document.getElementById('photoList');
