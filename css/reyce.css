@@ -1246,7 +1246,11 @@ body[data-lp-service] .phero .lp-phone{margin-top:22px}
 .story{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;border:1px solid var(--line)}
 .st-step{position:relative;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column}
 .st-step:last-child{border-right:0}
-.st-step img{width:100%;aspect-ratio:4/3;object-fit:cover;filter:brightness(.72);transition:filter .5s var(--ease)}
+.st-step img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;filter:brightness(.72);transition:filter .5s var(--ease)}
+/* height:auto est indispensable : l'attribut height="" du HTML devient une
+   hauteur CSS qui l'emporterait sur aspect-ratio et étirerait l'image. */
+/* séries de photos verticales (téléphone) : cadrage portrait plutôt que 4/3 */
+.story--tall .st-step img{aspect-ratio:3/4}
 .st-step:hover img{filter:brightness(.92)}
 .st-step figcaption{display:flex;flex-direction:column;gap:6px;padding:20px}
 .st-n{font-family:var(--disp);font-weight:800;font-size:.6rem;letter-spacing:.24em;color:var(--dim-2)}
@@ -1281,3 +1285,9 @@ body[data-lp-service] .phero .lp-phone{margin-top:22px}
 @media(max-width:560px){.story.story--2,.story.story--3{grid-template-columns:1fr}
   .story.story--2 .st-step,.story.story--3 .st-step{border-right:0;border-bottom:1px solid var(--line)}
   .story.story--2 .st-step:last-child,.story.story--3 .st-step:last-child{border-bottom:0}}
+
+/* Filtres de galerie : [hidden] déclaré explicitement — une règle d'auteur
+   sur display battrait la règle de l'agent utilisateur (déjà vu deux fois). */
+.rcard[hidden]{display:none}
+.filters .chip{cursor:pointer}
+.filters .chip:focus-visible{outline:2px solid #fff;outline-offset:3px}

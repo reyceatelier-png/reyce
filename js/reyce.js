@@ -89,3 +89,34 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
   });},{rootMargin:'150px 0px'});
   vids.forEach(function(v){vio.observe(v);});
 })();
+
+// Filtres de la galerie Réalisations. Les pastilles existaient déjà en
+// façade mais ne filtraient rien : elles agissent maintenant sur les
+// cartes via data-cat. Sans JS, toutes les cartes restent visibles.
+(function(){
+  var bar=document.querySelector('.filters[data-gallery]');
+  if(!bar)return;
+  var grid=document.querySelector('.rgrid');
+  if(!grid)return;
+  var chips=[].slice.call(bar.querySelectorAll('[data-filter]'));
+  var cards=[].slice.call(grid.querySelectorAll('.rcard'));
+  chips.forEach(function(ch){ch.setAttribute('role','button');ch.tabIndex=0;
+    ch.setAttribute('aria-pressed', ch.classList.contains('sel')?'true':'false');});
+  function apply(f){
+    chips.forEach(function(c){var on=c.dataset.filter===f;
+      c.classList.toggle('sel',on);c.setAttribute('aria-pressed',on?'true':'false');});
+    cards.forEach(function(c){
+      var show=(f==='*'||c.dataset.cat===f);
+      c.hidden=!show;
+      /* la carte reste révélée : on ne rejoue pas l'animation d'entrée
+         à chaque changement de filtre, ce serait épileptique */
+      if(show)c.classList.add('in');
+    });
+  }
+  chips.forEach(function(ch){
+    ch.addEventListener('click',function(){apply(ch.dataset.filter)});
+    ch.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();apply(ch.dataset.filter);}
+    });
+  });
+})();
