@@ -1270,3 +1270,14 @@ body[data-lp-service] .phero .lp-phone{margin-top:22px}
   color:var(--dim-2);text-align:center;padding:20px}
 .photo-slot .mono{font-family:var(--disp);font-weight:600;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase}
 .photo-slot .ps-name{font-size:.7rem;color:var(--dim-2);opacity:.6;word-break:break-all;max-width:90%}
+
+/* Galerie de 2 ou 3 vues : on adapte le nombre de colonnes pour ne pas
+   laisser une case vide dans la grille à quatre colonnes par défaut. */
+.story.story--2{grid-template-columns:repeat(2,1fr)}
+.story.story--3{grid-template-columns:repeat(3,1fr)}
+.story.story--2 .st-step:nth-child(2),.story.story--3 .st-step:nth-child(3){border-right:0}
+@media(max-width:900px){.story.story--3{grid-template-columns:1fr 1fr}
+  .story.story--3 .st-step:nth-child(3){border-right:0;border-bottom:0}}
+@media(max-width:560px){.story.story--2,.story.story--3{grid-template-columns:1fr}
+  .story.story--2 .st-step,.story.story--3 .st-step{border-right:0;border-bottom:1px solid var(--line)}
+  .story.story--2 .st-step:last-child,.story.story--3 .st-step:last-child{border-bottom:0}}
