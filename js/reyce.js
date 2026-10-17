@@ -120,3 +120,16 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
     });
   });
 })();
+
+// Bandeau de contact rapide (téléphone). Un seul script pour tout le site ;
+// absent sur le tunnel de réservation et les pages techniques.
+(function(){
+  if(!matchMedia('(max-width:820px)').matches)return;
+  if(/rendez-vous|confirmation|cancel|admin|care-report|merci-devis|404/.test(location.pathname))return;
+  var bar=document.createElement('div');bar.className='mbar';bar.setAttribute('role','navigation');bar.setAttribute('aria-label','Contact rapide');
+  bar.innerHTML='<a class="mb-call" href="tel:+33763004385" data-ev="mbar_call">Appeler</a><a class="mb-book" href="rendez-vous.html" data-ev="mbar_book">Réserver</a>';
+  document.body.appendChild(bar);document.body.classList.add('has-mbar');
+  function sync(){bar.classList.toggle('on',window.scrollY>360)}
+  addEventListener('scroll',sync,{passive:true});sync();
+  bar.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&window.dataLayer)window.dataLayer.push({event:a.dataset.ev,page_path:location.pathname});});
+})();

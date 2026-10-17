@@ -4,7 +4,9 @@
 (function(){
   var seen = false;
   try { seen = sessionStorage.getItem('reyceIntro') === '1'; } catch(e){}
-  if (seen) {
+  var small = false;
+  try { small = matchMedia('(max-width:820px)').matches; } catch(e){}
+  if (seen || small) {  // téléphone : pas de rideau d'intro (2,6 s perdues)
     document.documentElement.classList.add('intro-seen');
     return; // #pre est masqué instantanément par CSS, rien à animer ni à minuter
   }
