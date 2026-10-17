@@ -1164,7 +1164,22 @@ app.use((req, res, next) => {
   if (isPublicDir || isPublicFile) return next();
   return res.status(404).type('text/plain').send('Not found');
 });
-app.use(express.static(path.join(__dirname)));
+// Cache navigateur. Sans lui, express.static envoie max-age=0 : chaque visite
+// retélécharge toutes les images, le CSS et le JS (mesuré en production).
+//  - images, polices, vidéos : 7 jours (une photo remplacée sous le même nom
+//    met au plus une semaine à se propager ; renommer le fichier l'évite)
+//  - CSS et JS : 1 h puis revalidation par ETag, car non empreints — un
+//    correctif doit atteindre les visiteurs rapidement
+//  - pages HTML : inchangées (max-age=0), un changement de contenu est immédiat
+app.use(express.static(path.join(__dirname), {
+  setHeaders(res, filePath) {
+    if (/\.(?:avif|webp|jpe?g|png|gif|svg|ico|woff2?|mp4|webm)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    } else if (/\.(?:css|js)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+    }
+  },
+}));
 
 // ============================================================
 // Routes API
