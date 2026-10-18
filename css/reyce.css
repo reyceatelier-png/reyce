@@ -1323,3 +1323,13 @@ html.intro-seen .hero-words .hw-mask:nth-child(3) .hw{animation-delay:.4s}
 /* photo verticale dans un bandeau pleine largeur : recadrage, jamais d'étirement */
 img.fig-crop{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;filter:brightness(.92)}
 @media(max-width:560px){img.fig-crop{aspect-ratio:4/5}}
+
+/* hero : ne jamais passer sous le menu.
+   Le hero faisait exactement 100svh avec le contenu aligné en bas : sur une fenêtre
+   basse (portable, petit téléphone) le contenu dépassait vers le haut et le surtitre
+   se retrouvait sous le logo. Le hero peut désormais grandir, et le titre se
+   dimensionne aussi sur la hauteur de l'écran. */
+.hero{height:auto;min-height:max(100svh,560px)}
+.hero-inner{padding-top:128px}
+.hero h1.hero-words{font-size:clamp(2.6rem,min(13vw,17vh),11rem)}
+@media(max-width:560px){.hero-inner{padding-top:104px}.hero h1.hero-words{font-size:clamp(2.4rem,min(14vw,12vh),4.4rem)}}
