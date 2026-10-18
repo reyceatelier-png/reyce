@@ -1319,3 +1319,7 @@ html.intro-seen .hero-words .hw-mask:nth-child(3) .hw{animation-delay:.4s}
 .mbar .mb-book{background:#fff;color:#000;border-color:#fff}
 @media(max-width:820px){.mbar{display:flex}body.has-mbar{padding-bottom:72px}}
 @media(prefers-reduced-motion:reduce){.mbar{transition:none}}
+
+/* photo verticale dans un bandeau pleine largeur : recadrage, jamais d'étirement */
+img.fig-crop{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;filter:brightness(.92)}
+@media(max-width:560px){img.fig-crop{aspect-ratio:4/5}}
