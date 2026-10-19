@@ -1,10 +1,19 @@
 /* REYCE — feuille de styles principale */
+/* Police de secours aux dimensions de Montserrat : quand Montserrat remplace la police provisoire, le texte ne se réorganise plus (décalage de mise en page).
+   Facteurs mesurés dans Chrome (largeur d'un texte courant, Montserrat / Arial). Montserrat : ascent 0,968, descent 0,251. Sans Arial (certains Android), on retombe sur sans-serif comme avant. */
+@font-face{font-family:"Montserrat Fallback";font-weight:200;src:local("Arial");size-adjust:107.03%;ascent-override:90.44%;descent-override:23.45%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:300;src:local("Arial");size-adjust:108.08%;ascent-override:89.56%;descent-override:23.22%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:400;src:local("Arial");size-adjust:109.38%;ascent-override:88.50%;descent-override:22.95%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:500;src:local("Arial");size-adjust:110.92%;ascent-override:87.27%;descent-override:22.63%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:600;src:local("Arial Bold");size-adjust:106.17%;ascent-override:91.17%;descent-override:23.64%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:700;src:local("Arial Bold");size-adjust:107.99%;ascent-override:89.64%;descent-override:23.24%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:800;src:local("Arial Bold");size-adjust:109.99%;ascent-override:88.01%;descent-override:22.82%;line-gap-override:0%}
 :root{
   --void:#000; --ink:#000; --card:#060606; --card-2:#0b0b0b;
   --white:#ffffff; --dim:rgba(255,255,255,.6); --dim-2:rgba(255,255,255,.38);
   --line:rgba(255,255,255,.14); --line-soft:rgba(255,255,255,.07);
   --gold:#c9b18a; --gold-dim:rgba(201,177,138,.5);
-  --disp:"Montserrat",sans-serif; --body:"Montserrat",sans-serif;
+  --disp:"Montserrat","Montserrat Fallback",sans-serif; --body:"Montserrat","Montserrat Fallback",sans-serif;
   --ease:cubic-bezier(.23,1,.32,1); --ease-io:cubic-bezier(.77,0,.175,1); --ease-open:cubic-bezier(.76,0,.24,1); --pad:clamp(20px,5vw,80px);
 }
 *{margin:0;padding:0;box-sizing:border-box}
