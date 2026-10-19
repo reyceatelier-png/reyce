@@ -34,11 +34,17 @@ app.use(helmet({
       // 'unsafe-inline' nécessaire pour le snippet GTM et le JSON-LD inline
       // présents sur les ~120 pages existantes — passer à des nonces
       // impliquerait de modifier chaque page, hors périmètre de ce lot.
-      scriptSrc: ["'self'", "'unsafe-inline'", 'https://www.googletagmanager.com'],
+      // Domaines exigés par Google pour GTM + GA4 + conversions Google Ads (guide CSP officiel
+      // de Google Tag Platform), et par le pixel Meta s'il est activé un jour dans GTM.
+      // Rien n'est chargé tant que la personne n'a pas accepté les cookies (voir js/reyce-consent.js).
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://www.googletagmanager.com', 'https://www.googleadservices.com', 'https://www.google.com', 'https://connect.facebook.net'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'https:'],
-      connectSrc: ["'self'", 'https://www.googletagmanager.com', 'https://www.google-analytics.com', 'https://region1.google-analytics.com', 'https://analytics.google.com'],
+      connectSrc: ["'self'", 'https://www.googletagmanager.com', 'https://*.google-analytics.com', 'https://analytics.google.com',
+        'https://*.google.com', 'https://*.google.fr', 'https://*.g.doubleclick.net', 'https://ad.doubleclick.net',
+        'https://pagead2.googlesyndication.com', 'https://www.googleadservices.com',
+        'https://www.facebook.com', 'https://connect.facebook.net'],
       frameSrc: ['https://www.googletagmanager.com'],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],

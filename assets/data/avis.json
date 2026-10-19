@@ -1,0 +1,7 @@
+{
+  "_lisez_moi": "Renseigner uniquement des valeurs réelles, relevées sur la fiche Google. Tant que note, nombre et lien sont vides (null), la section avis est masquée et aucune donnée d'avis n'apparaît dans le balisage. N'ajouter un avis dans 'avis' qu'avec l'accord du client, mot pour mot.",
+  "note": null,
+  "nombre": null,
+  "lien": null,
+  "avis": []
+}

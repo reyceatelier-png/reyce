@@ -1,10 +1,19 @@
 /* REYCE — feuille de styles principale */
+/* Police de secours aux dimensions de Montserrat : quand Montserrat remplace la police provisoire, le texte ne se réorganise plus (décalage de mise en page).
+   Facteurs mesurés dans Chrome (largeur d'un texte courant, Montserrat / Arial). Montserrat : ascent 0,968, descent 0,251. Sans Arial (certains Android), on retombe sur sans-serif comme avant. */
+@font-face{font-family:"Montserrat Fallback";font-weight:200;src:local("Arial");size-adjust:107.03%;ascent-override:90.44%;descent-override:23.45%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:300;src:local("Arial");size-adjust:108.08%;ascent-override:89.56%;descent-override:23.22%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:400;src:local("Arial");size-adjust:109.38%;ascent-override:88.50%;descent-override:22.95%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:500;src:local("Arial");size-adjust:110.92%;ascent-override:87.27%;descent-override:22.63%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:600;src:local("Arial Bold");size-adjust:106.17%;ascent-override:91.17%;descent-override:23.64%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:700;src:local("Arial Bold");size-adjust:107.99%;ascent-override:89.64%;descent-override:23.24%;line-gap-override:0%}
+@font-face{font-family:"Montserrat Fallback";font-weight:800;src:local("Arial Bold");size-adjust:109.99%;ascent-override:88.01%;descent-override:22.82%;line-gap-override:0%}
 :root{
   --void:#000; --ink:#000; --card:#060606; --card-2:#0b0b0b;
   --white:#ffffff; --dim:rgba(255,255,255,.6); --dim-2:rgba(255,255,255,.38);
   --line:rgba(255,255,255,.14); --line-soft:rgba(255,255,255,.07);
   --gold:#c9b18a; --gold-dim:rgba(201,177,138,.5);
-  --disp:"Montserrat",sans-serif; --body:"Montserrat",sans-serif;
+  --disp:"Montserrat","Montserrat Fallback",sans-serif; --body:"Montserrat","Montserrat Fallback",sans-serif;
   --ease:cubic-bezier(.23,1,.32,1); --ease-io:cubic-bezier(.77,0,.175,1); --ease-open:cubic-bezier(.76,0,.24,1); --pad:clamp(20px,5vw,80px);
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1333,3 +1342,59 @@ img.fig-crop{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:
 .hero-inner{padding-top:128px}
 .hero h1.hero-words{font-size:clamp(2.6rem,min(13vw,17vh),11rem)}
 @media(max-width:560px){.hero-inner{padding-top:104px}.hero h1.hero-words{font-size:clamp(2.4rem,min(14vw,12vh),4.4rem)}}
+
+/* ---- consentement aux cookies ---- */
+.cc{position:fixed;z-index:1100;left:24px;bottom:24px;width:min(460px,calc(100vw - 32px));max-height:min(86vh,640px);overflow:auto;
+  background:rgba(8,8,8,.97);backdrop-filter:blur(14px);border:1px solid var(--line);padding:24px 24px 22px;color:#fff;
+  opacity:0;transform:translateY(14px);transition:opacity .25s ease,transform .25s var(--ease)}
+.cc.on{opacity:1;transform:none}
+.cc:focus{outline:none}
+/* le conteneur reçoit le focus par script pour les lecteurs d'écran : pas d'anneau, les boutons gardent le leur */
+.cc:focus-visible{outline:none}
+.cc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.cc h2{font-family:var(--disp);font-weight:700;font-size:.82rem;letter-spacing:.2em;text-transform:uppercase;line-height:1.3}
+.cc-text{font-size:.84rem;line-height:1.65;color:var(--dim);margin-bottom:10px}
+.cc-text a{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.cc-actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 12px}
+.cc-btn{flex:1 1 120px;min-height:46px;padding:12px 14px;background:transparent;color:#fff;border:1px solid #fff;cursor:pointer;
+  font-family:var(--disp);font-weight:600;font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;transition:background .2s,color .2s}
+.cc-btn:hover,.cc-btn:focus-visible{background:#fff;color:#000}
+.cc-btn:focus-visible,.cc-link:focus-visible,.cc-x:focus-visible,.cc-text a:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.cc-link,.cc-x,.cc-manage{background:none;border:0;padding:6px 0;cursor:pointer;color:var(--dim);font-family:var(--disp);font-size:.66rem;
+  letter-spacing:.14em;text-transform:uppercase;text-decoration:underline;text-underline-offset:4px}
+.cc-link:hover,.cc-x:hover,.cc-manage:hover{color:#fff}
+.cc-x{text-decoration:none;white-space:nowrap}
+.cc-manage{display:inline;padding:0;font-size:inherit;letter-spacing:inherit;text-transform:none;color:inherit;font-family:inherit}
+.cc-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.cc-row-t{display:flex;flex-direction:column;gap:4px}
+.cc-row-t b{font-family:var(--disp);font-weight:600;font-size:.74rem;letter-spacing:.06em}
+.cc-row-t small{font-size:.76rem;line-height:1.5;color:var(--dim)}
+.cc-row input{position:absolute;opacity:0;width:1px;height:1px}
+.cc-sw{flex:0 0 auto;position:relative;width:42px;height:24px;border:1px solid #fff;border-radius:24px;transition:background .2s}
+.cc-sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s var(--ease),background .2s}
+.cc-row input:checked+.cc-sw{background:#fff}
+.cc-row input:checked+.cc-sw::after{transform:translateX(18px);background:#000}
+.cc-row input:disabled+.cc-sw{opacity:.45}
+.cc-row input:focus-visible+.cc-sw{outline:2px solid #fff;outline-offset:3px}
+.cc [hidden]{display:none}
+@media(max-width:560px){
+  .cc{left:0;right:0;bottom:0;width:auto;max-height:84vh;padding:20px 18px calc(18px + env(safe-area-inset-bottom));border-width:1px 0 0 0}
+  .cc-actions{flex-direction:column}.cc-btn{flex:1 1 auto}
+}
+@media(prefers-reduced-motion:reduce){.cc,.cc-sw,.cc-sw::after{transition:none}}
+
+/* ---- pages d'atterrissage PPF : garanties, WhatsApp, convoyage, avis ---- */
+.tier-grid.has-2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:560px){.tier-grid.has-2{grid-template-columns:1fr}}
+.lp-hero-note{margin-top:16px;font-family:var(--disp);font-weight:500;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.66);line-height:1.7}
+.lp-note{font-size:.84rem;line-height:1.65;color:var(--dim);border-left:2px solid #fff;padding:2px 0 2px 14px;margin:0 0 24px}
+.lp-wa{margin-top:16px;font-size:.84rem;line-height:1.65;color:var(--dim)}
+.lp-wa a{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.lp-sticky .s-wa{border:1px solid var(--line);color:#fff}
+@media(max-width:768px){body[data-lp-service]{padding-bottom:84px}}
+.avis-list{display:grid;gap:2px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-top:26px}
+.avis-card{border:1px solid var(--line);background:var(--card);padding:26px;display:flex;flex-direction:column;gap:14px}
+.avis-card blockquote{margin:0;color:#fff;font-size:.95rem;line-height:1.7}
+.avis-card cite{font-style:normal;font-family:var(--disp);font-weight:600;font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+[data-avis][hidden]{display:none}
+body[data-lp-service] .phero .lp-hero-note{max-width:none;font-size:.62rem;letter-spacing:.16em;color:rgba(255,255,255,.66);line-height:1.8}

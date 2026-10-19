@@ -2,3 +2,6 @@ node_modules/
 .env
 data/bookings.json
 .DS_Store
+
+# Dossier de travail Google Ads (guides, rapport, conteneur GTM) : le dépôt est public
+google-ads/
