@@ -43,7 +43,7 @@ function fichiers() {
 }
 
 const contextes = {
-  bloc_avant: /bloc avant[^<>"]{0,70}?(\d{1,2}(?:[   ]|&nbsp;|&thinsp;)?\d{3})(?:[   ]|&nbsp;|&thinsp;)*(?:€|&euro;)/gi,
+  bloc_avant: /bloc avant(?!\s*\+)[^<>"]{0,70}?(\d{1,2}(?:[   ]|&nbsp;|&thinsp;)?\d{3})(?:[   ]|&nbsp;|&thinsp;)*(?:€|&euro;)/gi,
   ppf_complet: /(?:ppf complet|v[ée]hicule complet|complet du v[ée]hicule)[^<>"]{0,70}?(\d{1,2}(?:[   ]|&nbsp;|&thinsp;)?\d{3})(?:[   ]|&nbsp;|&thinsp;)*(?:€|&euro;)/gi,
   pack_bloc_avant_ceramique: /pack[^<>"]{0,70}?(\d{1,2}(?:[   ]|&nbsp;|&thinsp;)?\d{3})(?:[   ]|&nbsp;|&thinsp;)*(?:€|&euro;)/gi,
 };
@@ -62,6 +62,11 @@ function check() {
         compte[cle] = (compte[cle] || 0) + 1;
         if (v !== prix[cle]) { problemes++; console.log(`✗ ${path.basename(f)} : « ${cle} » affiche ${v} au lieu de ${prix[cle]}`); }
       }
+    }
+    for (const m of t.matchAll(/data-prix="(\w+)"[^>]*>\s*(?:<span[^>]*>[^<]*<\/span>)?\s*([\d&;a-z\s]+?)\s*(?:€|&euro;)/gi)) {
+      const v = valeur(m[2].replace(/&[a-z]+;/g, ''));
+      compte['carte:' + m[1]] = (compte['carte:' + m[1]] || 0) + 1;
+      if (v !== prix[m[1]]) { problemes++; console.log(`✗ ${path.basename(f)} : carte « ${m[1]} » affiche ${v} au lieu de ${prix[m[1]]}`); }
     }
     for (const n of [prix.bloc_avant]) {
       const jl = [...t.matchAll(/"(?:price|minPrice)"\s*:\s*"(\d+)"/g)].map(m => parseInt(m[1], 10));
