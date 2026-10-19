@@ -17,10 +17,8 @@
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a, button');
     if (!a) return;
-    var href = a.getAttribute('href') || '';
-    if (href.indexOf('tel:') === 0) {
-      push({ event: 'tel_click', service: svcBody });
-    } else if (a.hasAttribute('data-cta')) {
+    // Les clics téléphone et WhatsApp sont suivis par js/reyce.js (click_phone, click_whatsapp).
+    if (a.hasAttribute('data-cta')) {
       push({ event: 'cta_click', cta: a.getAttribute('data-cta') || 'devis', service: svcBody });
     }
   }, true);
@@ -51,6 +49,20 @@
     if (errEl) { errEl.textContent = msg; errEl.classList.add('on'); }
     if (btn) { btn.disabled = false; btn.textContent = btnText; }
   }
+  var cible = document.body.getAttribute('data-cible') || (form.elements['cible'] && form.elements['cible'].value) || 'general';
+
+  /* ---------- attribution des annonces : champs cachés, remplis seulement avec le consentement ---------- */
+  var ATTR_FIELDS = ['gclid', 'utm_source', 'utm_campaign', 'utm_term', 'page_arrivee'];
+  function fillAttribution() {
+    var a = (window.reyceAttribution && window.reyceAttribution.get()) || null;
+    ATTR_FIELDS.forEach(function (k) {
+      var el = form.elements[k]; if (!el) return;
+      el.value = a ? (k === 'page_arrivee' ? (a.page || '') : (a[k] || '')) : '';
+    });
+  }
+  fillAttribution();
+  document.addEventListener('reyce:consent', fillAttribution);
+
   function val(name) {
     var el = form.elements[name];
     return el && el.value ? el.value.trim() : '';
@@ -91,7 +103,10 @@
 
     var subjectMap = { ppf: 'Devis PPF', polissage: 'Devis polissage', ceramique: 'Devis céramique' };
     var subject = subjectMap[service] || 'Demande de devis';
-    var sourceTag = 'Landing ' + service + (window.location.search || '');
+    // Jamais l'URL complète : seulement la page, la cible et, avec consentement, l'attribution.
+    var sourceParts = ['Landing ' + service + ' (' + window.location.pathname.replace(/^\//, '') + ')', 'cible=' + cible];
+    ATTR_FIELDS.forEach(function (k) { var v = val(k); if (v) sourceParts.push(k + '=' + v); });
+    var sourceTag = sourceParts.join(' | ');
 
     var files = form.elements['photos'] && form.elements['photos'].files;
     var done = function (ok) {
@@ -99,7 +114,12 @@
         showErr('L’envoi a échoué. Réessayez dans un instant, ou appelez-nous directement.');
         return;
       }
-      push({ event: 'generate_lead', service: service, form_location: 'landing_' + service, currency: 'EUR', value: 0 });
+      push({
+        event: 'generate_lead', service: service, form_location: 'landing_' + service, currency: 'EUR', value: 0,
+        lead_source: window.location.pathname.replace(/^\//, '') || 'index.html',
+        cible: cible,
+        formule: proteg ? proteg.value : ''
+      });
       var target = 'merci-devis.html?service=' + encodeURIComponent(service);
       setTimeout(function () { window.location.href = target; }, 250);
     };

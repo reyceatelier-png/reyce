@@ -135,3 +135,38 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
   addEventListener('scroll',sync,{passive:true});sync();
   bar.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&window.dataLayer)window.dataLayer.push({event:a.dataset.ev,page_path:location.pathname});});
 })();
+
+// Suivi des contacts : téléphone et WhatsApp, sur toutes les pages.
+// Aucune donnée personnelle : seulement l'événement, l'emplacement du lien, le type
+// de page et la cible de la page. Les événements restent sans effet tant que GTM
+// n'est pas chargé (c'est-à-dire tant que le consentement n'est pas donné).
+(function(){
+  window.dataLayer=window.dataLayer||[];
+  function pageType(){
+    var p=location.pathname.replace(/^\//,'')||'index.html';
+    if(p==='index.html')return 'accueil';
+    if(/^ppf-(voiture-neuve|tesla|sportives)\.html$/.test(p))return 'landing_ppf_cible';
+    if(p==='ppf.html')return 'landing_ppf';
+    if(/^(polissage|ceramique)\.html$/.test(p))return 'landing_service';
+    if(/^(ppf|polissage|ceramique|nettoyage|covering)-/.test(p))return 'page_locale';
+    if(/^(realisation|guide)/.test(p))return 'contenu';
+    return 'page';
+  }
+  function cible(){return document.body.getAttribute('data-cible')||'general';}
+  function emplacement(a){
+    if(a.closest('.lp-sticky,.mbar'))return 'sticky_bar';
+    if(a.closest('header,#drawer'))return 'header';
+    if(a.closest('footer'))return 'footer';
+    if(a.closest('form,.lp-form'))return 'form';
+    if(a.closest('.phero,.hero'))return 'hero';
+    return 'content';
+  }
+  document.addEventListener('click',function(e){
+    var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;
+    var h=a.getAttribute('href')||'',ev=null;
+    if(/^tel:/i.test(h))ev='click_phone';
+    else if(/^https?:\/\/(wa\.me|api\.whatsapp\.com)\//i.test(h))ev='click_whatsapp';
+    if(!ev)return;
+    window.dataLayer.push({event:ev,link_location:emplacement(a),page_type:pageType(),cible:cible()});
+  },true);
+})();
