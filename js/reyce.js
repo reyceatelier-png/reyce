@@ -126,6 +126,8 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
 (function(){
   if(!matchMedia('(max-width:820px)').matches)return;
   if(/rendez-vous|confirmation|cancel|admin|care-report|merci-devis|404/.test(location.pathname))return;
+  // Les pages PPF, polissage et céramique ont déjà leur propre barre collante : pas de seconde barre par-dessus.
+  if(document.querySelector('.lp-sticky'))return;
   var bar=document.createElement('div');bar.className='mbar';bar.setAttribute('role','navigation');bar.setAttribute('aria-label','Contact rapide');
   bar.innerHTML='<a class="mb-call" href="tel:+33763004385" data-ev="mbar_call">Appeler</a><a class="mb-book" href="rendez-vous.html" data-ev="mbar_book">Réserver</a>';
   document.body.appendChild(bar);document.body.classList.add('has-mbar');
