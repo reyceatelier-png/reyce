@@ -1,13 +1,21 @@
 {
-  "_lisez_moi": "Source unique des prix affichés sur le site. Pour changer un prix : node scripts/prix.js --set bloc_avant=2490 (met à jour ce fichier ET toutes les pages). Pour vérifier la cohérence : node scripts/prix.js --check",
+  "_lisez_moi": "Source unique des prix affichés sur le site. Pour changer un prix : node scripts/prix.js --set bloc_avant=2490 (met à jour ce fichier ET toutes les pages). Pour vérifier la cohérence : node scripts/prix.js --check. Les prix listés dans « portee » ne valent que pour une page : ils ne sont jamais touchés par un changement des prix généraux.",
   "devise": "EUR",
   "prix": {
     "bloc_avant": 1990,
     "pack_bloc_avant_ceramique": 3500,
-    "ppf_complet": 3990
+    "ppf_complet": 3990,
+    "tesla_brillant": 3990,
+    "tesla_mat": 4990
   },
   "mentions": {
     "bloc_avant": "à partir de, peut monter nettement plus selon le véhicule et le film",
-    "ppf_complet": "à partir de, pour les petits véhicules ; peut monter nettement plus selon le véhicule et le film"
+    "ppf_complet": "à partir de, pour les petits véhicules ; peut monter nettement plus selon le véhicule et le film",
+    "tesla_brillant": "à partir de ; Tesla Model 3 et Model Y, PPF complet brillant, film STEK. Doit rester identique à l'annonce Google « PPF Tesla brillant dès 3 990 € ».",
+    "tesla_mat": "à partir de ; Tesla Model 3 et Model Y, PPF complet mat, film STEK."
+  },
+  "portee": {
+    "tesla_brillant": "ppf-tesla.html",
+    "tesla_mat": "ppf-tesla.html"
   }
 }
