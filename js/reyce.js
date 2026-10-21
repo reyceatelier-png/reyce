@@ -129,7 +129,13 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
   // Les pages PPF, polissage et céramique ont déjà leur propre barre collante : pas de seconde barre par-dessus.
   if(document.querySelector('.lp-sticky'))return;
   var bar=document.createElement('div');bar.className='mbar';bar.setAttribute('role','navigation');bar.setAttribute('aria-label','Contact rapide');
+  var ppf=/^\/(ppf-|pourquoi-faire-un-ppf|pourquoi-proteger-une-voiture-neuve|realisation-ppf|guide-ppf)/.test(location.pathname);
+  if(ppf){
+    var wa='https://wa.me/33763004385?text=Bonjour%20Reyce%2C%20je%20souhaite%20un%20devis%20PPF%20pour%20mon%20v%C3%A9hicule%20%3A%20%5Bmod%C3%A8le%2C%20ann%C3%A9e%2C%20neuf%20ou%20non%5D.';
+    bar.innerHTML='<a class="mb-call" href="tel:+33763004385" data-ev="mbar_call">Appeler</a><a class="mb-wa" href="'+wa+'" target="_blank" rel="noopener" data-ev="mbar_wa">WhatsApp</a><a class="mb-book" href="ppf.html#devis" data-ev="mbar_devis">Devis PPF</a>';
+  }else{
   bar.innerHTML='<a class="mb-call" href="tel:+33763004385" data-ev="mbar_call">Appeler</a><a class="mb-book" href="rendez-vous.html" data-ev="mbar_book">Réserver</a>';
+  }
   document.body.appendChild(bar);document.body.classList.add('has-mbar');
   function sync(){bar.classList.toggle('on',window.scrollY>360)}
   addEventListener('scroll',sync,{passive:true});sync();

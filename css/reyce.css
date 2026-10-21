@@ -1427,3 +1427,44 @@ body[data-lp-service] .phero .lp-hero-note{max-width:none;font-size:.62rem;lette
 .story.story--clair .st-step img{filter:none}
 .story.story--clair .st-step:hover img{filter:none}
 .phero.has-car .pbg{filter:brightness(.36) contrast(1.03)}
+
+/* ---- atelier (accueil) : la photo entière, sans recadrage ni voile, le « 400+ » dessous ---- */
+.atl.atl--open{height:auto;overflow:visible}
+.atl.atl--open img{position:static;inset:auto;display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;filter:brightness(.96);will-change:auto}
+.atl.atl--open .atl-body{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(24px,5vw,72px);align-items:end;padding:clamp(24px,4vw,48px);border-top:1px solid var(--line)}
+.atl.atl--open .num{position:static;inset:auto;display:block}
+.atl.atl--open .num span{font-size:clamp(4.4rem,12vw,9.5rem);mix-blend-mode:normal}
+.atl.atl--open .cap{position:static;display:flex;flex-direction:column;align-items:flex-start;gap:18px;padding:0;background:none}
+.atl.atl--open .cap ul{display:flex}
+@media(max-width:820px){.atl.atl--open .atl-body{grid-template-columns:1fr;gap:14px}}
+
+/* en-tête réduit : les photos doivent apparaître tout de suite */
+.phero.phero--court{min-height:34vh}
+@media(max-width:600px){.phero.phero--court{min-height:26vh}}
+
+.mbar .mb-wa{background:transparent}
+
+/* ---- hero large (photo de présentation en paysage) ---- */
+.phero.has-car.has-car--wide{grid-template-columns:minmax(0,1fr) clamp(320px,42vw,600px)}
+.hero-car--wide img{aspect-ratio:3/2}
+@media(max-width:1024px){.phero.has-car.has-car--wide{grid-template-columns:1fr}.hero-car--wide img{aspect-ratio:3/2}}
+/* ---- parcours client : une étape, une photo ---- */
+.parcours{display:grid;gap:clamp(56px,9vw,120px);margin-top:clamp(20px,4vw,40px)}
+.pc-step{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:clamp(24px,5vw,76px);align-items:center}
+.pc-step:nth-child(even){grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}
+.pc-step:nth-child(even) .pc-fig{order:2}
+.pc-step--full{grid-template-columns:1fr!important}
+.pc-fig{margin:0;border:1px solid var(--line);background:#000}
+.pc-fig img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover}
+.pc-fig.tall img{aspect-ratio:4/5}
+.pc-fig figcaption{padding:12px 16px;border-top:1px solid var(--line);font-size:.74rem;letter-spacing:.04em;color:var(--dim)}
+.pc-n{display:block;font-family:var(--disp);font-weight:800;font-size:.72rem;letter-spacing:.26em;color:var(--dim-2);margin-bottom:14px}
+.pc-txt h3{font-family:var(--disp);font-weight:700;font-size:clamp(1.35rem,2.6vw,2rem);line-height:1.12;text-transform:uppercase;letter-spacing:.01em;margin-bottom:16px}
+.pc-txt p{color:var(--dim);line-height:1.75;max-width:54ch}
+.pc-txt .pc-chips{margin-top:20px}
+.pc-step--full .pc-txt p{max-width:68ch}
+.pc-step--full .price-table-wrap{margin-top:26px}
+@media(max-width:820px){.pc-step,.pc-step:nth-child(even){grid-template-columns:1fr;gap:20px}.pc-step:nth-child(even) .pc-fig{order:0}}
+
+/* « Plus qu'un lavage » : le fond doit rester lisible sans écraser le texte */
+.hist-media img{filter:brightness(.66) contrast(1.05)}
