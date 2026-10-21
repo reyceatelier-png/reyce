@@ -1410,3 +1410,20 @@ body[data-lp-service] .phero .lp-hero-note{max-width:none;font-size:.62rem;lette
 .price-table .is-price td{font-family:var(--disp);font-weight:700;font-size:1.3rem;letter-spacing:.01em}
 .price-table .from{font-weight:500;font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-right:4px}
 @media(max-width:560px){.price-table th,.price-table td{padding:14px 16px}.price-table th{width:40%;font-size:.62rem}.price-table .is-price td{font-size:1.1rem}}
+
+/* ---- hero des pages PPF : la voiture en pleine lumière, à côté du texte ---- */
+.phero.has-car{display:grid;grid-template-columns:minmax(0,1fr) clamp(280px,31vw,430px);column-gap:clamp(28px,5vw,84px);align-items:end}
+.phero.has-car .pin{max-width:none}
+.hero-car{position:relative;z-index:3;margin:0;border:1px solid var(--line);background:#000}
+.hero-car img{display:block;width:100%;height:auto;aspect-ratio:3/4;object-fit:cover}
+.hero-car figcaption{padding:12px 16px;border-top:1px solid var(--line);font-size:.72rem;letter-spacing:.05em;line-height:1.4;color:var(--dim)}
+@media(max-width:1024px){
+  .phero.has-car{grid-template-columns:1fr;row-gap:24px}
+  .hero-car{order:-1}
+  .hero-car img{aspect-ratio:16/9}
+}
+@media(max-width:560px){.hero-car figcaption{padding:9px 12px;font-size:.66rem}}
+/* photos de chantier : aucune teinte sombre, on doit voir le véhicule et le geste */
+.story.story--clair .st-step img{filter:none}
+.story.story--clair .st-step:hover img{filter:none}
+.phero.has-car .pbg{filter:brightness(.36) contrast(1.03)}
