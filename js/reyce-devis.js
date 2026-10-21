@@ -117,6 +117,8 @@
       push({
         event: 'generate_lead', service: service, form_location: 'landing_' + service, currency: 'EUR', value: 0,
         lead_source: window.location.pathname.replace(/^\//, '') || 'index.html',
+        link_location: 'form',
+        page_type: (window.reyceTrack && window.reyceTrack.pageType()) || 'landing_ppf',
         cible: cible,
         formule: proteg ? proteg.value : ''
       });

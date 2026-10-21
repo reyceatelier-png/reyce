@@ -161,12 +161,13 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
     if(a.closest('.phero,.hero'))return 'hero';
     return 'content';
   }
+  window.reyceTrack={pageType:pageType,cible:cible};   // réutilisé par js/reyce-devis.js pour generate_lead
   document.addEventListener('click',function(e){
     var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;
     var h=a.getAttribute('href')||'',ev=null;
     if(/^tel:/i.test(h))ev='click_phone';
     else if(/^https?:\/\/(wa\.me|api\.whatsapp\.com)\//i.test(h))ev='click_whatsapp';
     if(!ev)return;
-    window.dataLayer.push({event:ev,link_location:emplacement(a),page_type:pageType(),cible:cible()});
+    window.dataLayer.push({event:ev,link_location:emplacement(a),page_type:pageType(),cible:cible(),lead_source:(location.pathname.replace(/^\//,'')||'index.html')});
   },true);
 })();
