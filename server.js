@@ -859,10 +859,13 @@ function isValidEmail(str) {
 }
 
 // ── Envoi via Gmail REST API (HTTPS port 443) ─────────────────
-async function sendEmail(to, subject, html, attachments) {
+async function sendEmail(to, subject, html, attachments, opts) {
   const accessToken = await getAccessToken();
   const from        = `"REYCE" <${sanitizeHeaderValue(process.env.GMAIL_USER)}>`;
   const toSafe      = sanitizeHeaderValue(to);
+  // Reply-To : n'est ajouté que pour une adresse valide (jamais de saut de ligne dans un en-tête).
+  const replyTo      = opts && opts.replyTo && isValidEmail(opts.replyTo) ? sanitizeHeaderValue(opts.replyTo) : null;
+  const replyHdr     = replyTo ? [`Reply-To: ${replyTo}`] : [];
   const subjectHdr  = `Subject: =?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
 
   let raw;
@@ -871,6 +874,7 @@ async function sendEmail(to, subject, html, attachments) {
     const parts = [
       `From: ${from}`,
       `To: ${toSafe}`,
+      ...replyHdr,
       subjectHdr,
       'MIME-Version: 1.0',
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
@@ -900,6 +904,7 @@ async function sendEmail(to, subject, html, attachments) {
     raw = [
       `From: ${from}`,
       `To: ${toSafe}`,
+      ...replyHdr,
       subjectHdr,
       'MIME-Version: 1.0',
       'Content-Type: text/html; charset=UTF-8',
@@ -926,6 +931,62 @@ async function sendEmail(to, subject, html, attachments) {
   }
 
   return res.json();
+}
+
+// ── Accusé de réception automatique d'une demande de devis ────
+// Message court envoyé au client juste après sa demande : il sait que la demande est
+// bien arrivée et peut répondre tout de suite (photos, précisions). Contenu fixe,
+// sans publicité ni suivi. Aucun délai de réponse n'est promis, seulement les horaires.
+// Un même destinataire ne reçoit qu'un accusé toutes les 6 h : l'envoi ne peut pas servir
+// à inonder la boîte de quelqu'un d'autre avec son adresse saisie dans le formulaire.
+const ACK_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const ackRecents = new Map();
+const CIBLES = { tesla: 'votre Tesla', neuve: 'votre voiture neuve', sportive: 'votre véhicule sportif' };
+function cibleFromSource(source) {
+  const m = /(?:^|\|\s*)cible=([a-z-]+)/i.exec(String(source || ''));
+  return m ? m[1].toLowerCase() : '';
+}
+function buildLeadAck(firstName, vehicleInfo, cible) {
+  const first = escapeHtml(String(firstName || '').trim().slice(0, 60));
+  const veh = vehicleInfo ? escapeHtml(String(vehicleInfo).slice(0, 120)) : '';
+  const about = CIBLES[cible] || 'votre véhicule';
+  const wa = 'https://wa.me/33763004385?text=' + encodeURIComponent('Bonjour Reyce, je viens de faire une demande de devis PPF sur votre site.');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{background:#080808;margin:0;padding:40px 20px;font-family:sans-serif;}
+  .wrap{max-width:560px;margin:0 auto;background:#111;padding:40px;color:#e0e0e0;}
+  .logo{font-size:18px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#fff;margin-bottom:28px;}
+  h1{font-size:20px;font-weight:500;color:#fff;margin:0 0 16px;}
+  p{font-size:14px;line-height:1.7;margin:0 0 14px;}
+  .btn{display:block;text-align:center;padding:13px 28px;background:#fff;color:#080808;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;margin:24px 0 8px;}
+  .small{font-size:12px;color:#888;line-height:1.6;}
+  .foot{font-size:11px;color:#555;text-align:center;margin-top:28px;}
+</style></head><body>
+<div class="wrap">
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
+  <h1>Bonjour ${first}, votre demande est bien reçue.</h1>
+  <p>Merci de l'intérêt que vous portez au PPF pour ${about}${veh && !CIBLES[cible] ? ` (${veh})` : ''}. Nous étudions votre demande et revenons vers vous par téléphone ou par e-mail.</p>
+  <p>Nous sommes joignables du lundi au samedi, de 9 h à 19 h. Pour aller plus vite, vous pouvez répondre directement à cet e-mail avec quelques photos de votre véhicule, ou nous écrire sur WhatsApp.</p>
+  <a class="btn" href="${wa}">Écrire sur WhatsApp</a>
+  <p class="small">Atelier REYCE — La Mulatière (Lyon)<br>Téléphone : <a href="tel:+33763004385" style="color:#bfc8d0;">07 63 00 43 85</a></p>
+  <p class="foot">Cet e-mail confirme la demande que vous venez de faire sur reyce.fr. Si vous n'en êtes pas à l'origine, ignorez-le : aucune suite ne sera donnée.</p>
+</div></body></html>`;
+  return { subject: 'REYCE — votre demande de devis est bien reçue', html };
+}
+// Meilleur effort : une erreur ici ne doit jamais empêcher l'envoi de la demande à l'atelier.
+async function sendLeadAck(email, firstName, vehicleInfo, source) {
+  try {
+    const key = String(email).trim().toLowerCase();
+    const last = ackRecents.get(key);
+    if (last && Date.now() - last < ACK_COOLDOWN_MS) { console.log('[Accusé] déjà envoyé récemment — ignoré'); return; }
+    ackRecents.set(key, Date.now());
+    if (ackRecents.size > 5000) { for (const [k, t] of ackRecents) if (Date.now() - t > ACK_COOLDOWN_MS) ackRecents.delete(k); }
+    const m = buildLeadAck(firstName, vehicleInfo, cibleFromSource(source));
+    await sendEmail(email, m.subject, m.html);
+    console.log('[Accusé] ✓ envoyé au client');
+  } catch (err) {
+    console.error('[Accusé] ✗', err.message);
+  }
 }
 
 // ── Envoi des deux emails de confirmation ─────────────────────
@@ -1212,8 +1273,9 @@ app.post('/api/contact', async (req, res) => {
 
   const safeFirst = escapeHtml(firstName), safeLast = escapeHtml(lastName);
   const isDevis   = type === 'devis';
+  const cibleLbl = { tesla: 'Tesla', neuve: 'Voiture neuve', sportive: 'Sportive' }[cibleFromSource(source)];
   const subjectLine = isDevis
-    ? `[Devis] ${subject || 'Demande de devis'} — ${firstName} ${lastName}`
+    ? `[Devis${cibleLbl ? ' ' + cibleLbl : ''}] ${subject || 'Demande de devis'} — ${firstName} ${lastName}`
     : `[Contact] ${subject || 'Message'} — ${firstName} ${lastName}`;
 
   const vehicleBlock = vehicleInfo
@@ -1252,9 +1314,10 @@ app.post('/api/contact', async (req, res) => {
 
   console.log(`[Contact] Envoi → to: ${ownerEmail}`);
   try {
-    await sendEmail(ownerEmail, subjectLine, html);
+    await sendEmail(ownerEmail, subjectLine, html, null, { replyTo: email });
     console.log('[Contact] ✓ Email envoyé');
     res.json({ ok: true });
+    if (isDevis) sendLeadAck(email, firstName, vehicleInfo, source);
   } catch (err) {
     console.error('[Contact] ✗ Erreur Brevo :', err.message);
     res.status(500).json({ error: err.message });
@@ -1265,7 +1328,7 @@ app.post('/api/contact', async (req, res) => {
 // Demande de devis "projet" avec photos jointes (jusqu'à 3)
 // ============================================================
 app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (req, res) => {
-  const { firstName, lastName, email, phone, subject, message, vehicleInfo } = req.body;
+  const { firstName, lastName, email, phone, subject, message, vehicleInfo, source } = req.body;
 
   if (!email || !firstName) {
     return res.status(400).json({ error: 'Champs obligatoires manquants' });
@@ -1281,7 +1344,8 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
 
   const ownerEmail = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
   const safeFirst = escapeHtml(firstName), safeLast = escapeHtml(lastName);
-  const subjectLine = `[Devis] ${subject || 'Discuter d\'un projet'} — ${firstName} ${lastName || ''}`.trim();
+  const cibleLbl = { tesla: 'Tesla', neuve: 'Voiture neuve', sportive: 'Sportive' }[cibleFromSource(source)];
+  const subjectLine = `[Devis${cibleLbl ? ' ' + cibleLbl : ''}] ${subject || 'Discuter d\'un projet'} — ${firstName} ${lastName || ''}`.trim();
 
   const files = Array.isArray(req.files) ? req.files : [];
   const photoNote = files.length
@@ -1290,6 +1354,8 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
     ? `<tr><td class="lbl">Véhicule</td><td>${escapeHtml(vehicleInfo)}</td></tr>` : '';
   const messageBlock = message
     ? `<tr><td class="lbl">Message</td><td style="white-space:pre-wrap">${escapeHtml(message)}</td></tr>` : '';
+  const sourceBlock = source
+    ? `<tr><td class="lbl">Source</td><td>${escapeHtml(source)}</td></tr>` : '';
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
@@ -1309,7 +1375,7 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
     <tr><td class="lbl">Nom</td><td>${safeFirst} ${safeLast || ''}</td></tr>
     <tr><td class="lbl">Email</td><td>${escapeHtml(email)}</td></tr>
     <tr><td class="lbl">Téléphone</td><td>${escapeHtml(phone) || '—'}</td></tr>
-    ${vehicleBlock}${messageBlock}${photoNote}
+    ${vehicleBlock}${messageBlock}${photoNote}${sourceBlock}
   </table>
   <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${safeFirst}</p>
   <p class="foot">Reçu via le site reyce.fr</p>
@@ -1323,9 +1389,10 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
 
   console.log(`[Devis photos] Envoi → to: ${ownerEmail} (${files.length} photo(s))`);
   try {
-    await sendEmail(ownerEmail, subjectLine, html, attachments);
+    await sendEmail(ownerEmail, subjectLine, html, attachments, { replyTo: email });
     console.log('[Devis photos] ✓ Email envoyé');
     res.json({ ok: true });
+    sendLeadAck(email, firstName, vehicleInfo, source);
   } catch (err) {
     console.error('[Devis photos] ✗ Erreur :', err.message);
     res.status(500).json({ error: err.message });
