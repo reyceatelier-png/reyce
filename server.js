@@ -946,42 +946,103 @@ function cibleFromSource(source) {
   const m = /(?:^|\|\s*)cible=([a-z-]+)/i.exec(String(source || ''));
   return m ? m[1].toLowerCase() : '';
 }
-function buildLeadAck(firstName, vehicleInfo, cible) {
+function buildLeadAck(firstName, vehicleInfo, cible, subject) {
   const first = escapeHtml(String(firstName || '').trim().slice(0, 60));
   const veh = vehicleInfo ? escapeHtml(String(vehicleInfo).slice(0, 120)) : '';
+  const prestation = escapeHtml(String(subject || 'Demande de devis').slice(0, 80));
   const about = CIBLES[cible] || 'votre véhicule';
   const wa = 'https://wa.me/33763004385?text=' + encodeURIComponent('Bonjour Reyce, je viens de faire une demande de devis PPF sur votre site.');
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  // Même charte que l'e-mail de confirmation de rendez-vous (buildClientEmail).
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  body{background:#080808;margin:0;padding:40px 20px;font-family:sans-serif;}
-  .wrap{max-width:560px;margin:0 auto;background:#111;padding:40px;color:#e0e0e0;}
-  .logo{font-size:18px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#fff;margin-bottom:28px;}
-  h1{font-size:20px;font-weight:500;color:#fff;margin:0 0 16px;}
-  p{font-size:14px;line-height:1.7;margin:0 0 14px;}
-  .btn{display:block;text-align:center;padding:13px 28px;background:#fff;color:#080808;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;margin:24px 0 8px;}
-  .small{font-size:12px;color:#888;line-height:1.6;}
-  .foot{font-size:11px;color:#555;text-align:center;margin-top:28px;}
-</style></head><body>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#070707; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#e0e0e0; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:560px; margin:0 auto; padding:56px 32px; }
+  .logo { font-size:18px; font-weight:600; letter-spacing:0.38em; text-transform:uppercase; color:#fff; margin-bottom:56px; }
+  .check { width:48px; height:48px; border:1px solid rgba(191,200,208,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:28px; }
+  .title { font-size:30px; font-weight:300; color:#fff; line-height:1.2; margin-bottom:10px; font-style:italic; }
+  .sub { font-size:14px; color:#777; margin-bottom:48px; line-height:1.75; }
+  .badge { display:inline-block; border:1px solid #222; padding:5px 14px; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#bfc8d0; margin-bottom:28px; }
+  .table { width:100%; border-collapse:collapse; margin-bottom:28px; }
+  .table td { padding:14px 0; border-bottom:1px solid #181818; font-size:14px; vertical-align:top; line-height:1.5; }
+  .table td.lbl { color:#555; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; width:40%; padding-top:16px; }
+  .table td.val { color:#e0e0e0; }
+  .box { background:#0f0f0f; border:1px solid #1c1c1c; padding:20px 24px; margin-bottom:28px; }
+  .box p { font-size:13px; color:#666; line-height:1.8; }
+  .box strong { color:#999; }
+  .btn { display:block; text-align:center; padding:14px 28px; background:#fff; color:#080808 !important; font-size:11px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; text-decoration:none; margin-bottom:8px; }
+  .divider { border:none; border-top:1px solid #181818; margin:32px 0; }
+  .addr-title { font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#555; margin-bottom:12px; }
+  .addr-val { font-size:13px; color:#888; line-height:1.9; }
+  .addr-val a { color:#999; text-decoration:none; }
+  .footer { border-top:1px solid #141414; padding-top:24px; margin-top:40px; }
+  .footer p { font-size:11px; color:#444; line-height:1.8; }
+</style>
+</head>
+<body>
 <div class="wrap">
+
   <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
-  <h1>Bonjour ${first}, votre demande est bien reçue.</h1>
-  <p>Merci de l'intérêt que vous portez au PPF pour ${about}${veh && !CIBLES[cible] ? ` (${veh})` : ''}. Nous étudions votre demande et revenons vers vous par téléphone ou par e-mail.</p>
-  <p>Nous sommes joignables du lundi au samedi, de 9 h à 19 h. Pour aller plus vite, vous pouvez répondre directement à cet e-mail avec quelques photos de votre véhicule, ou nous écrire sur WhatsApp.</p>
+
+  <div class="check">
+    <svg width="16" height="13" viewBox="0 0 16 13" fill="none"><path d="M1 6.5l4.5 4.5L15 1" stroke="#bfc8d0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+
+  <p class="title">Votre demande<br>est bien reçue.</p>
+  <p class="sub">
+    Bonjour ${first},<br>
+    merci de l'intérêt que vous portez au PPF pour ${about}. Nous étudions votre demande et revenons vers vous par téléphone ou par e-mail.
+  </p>
+
+  <div class="badge">Récapitulatif de votre demande</div>
+
+  <table class="table">
+    <tr><td class="lbl">Demande</td><td class="val">${prestation}</td></tr>
+    ${veh ? `<tr><td class="lbl">Véhicule</td><td class="val">${veh}</td></tr>` : ''}
+    <tr><td class="lbl">Notre disponibilité</td><td class="val">Du lundi au samedi, de 9 h à 19 h</td></tr>
+  </table>
+
+  <div class="box">
+    <p><strong>Pour aller plus vite :</strong> répondez directement à cet e-mail avec quelques photos de votre véhicule, ou écrivez-nous sur WhatsApp.</p>
+  </div>
+
   <a class="btn" href="${wa}">Écrire sur WhatsApp</a>
-  <p class="small">Atelier REYCE — La Mulatière (Lyon)<br>Téléphone : <a href="tel:+33763004385" style="color:#bfc8d0;">07 63 00 43 85</a></p>
-  <p class="foot">Cet e-mail confirme la demande que vous venez de faire sur reyce.fr. Si vous n'en êtes pas à l'origine, ignorez-le : aucune suite ne sera donnée.</p>
-</div></body></html>`;
+
+  <hr class="divider">
+
+  <p class="addr-title">Où nous trouver</p>
+  <p class="addr-val">
+    47 chemin du Pras · La Mulatière, Lyon<br>
+    <a href="tel:+33763004385">07 63 00 43 85</a><br>
+    reyceatelier@gmail.com
+  </p>
+
+  <div class="footer">
+    <p>
+      REYCE · Atelier automobile premium · Lyon<br>
+      www.reyce.fr · @reyce.lyon<br><br>
+      Cet e-mail confirme la demande que vous venez de faire sur reyce.fr. Si vous n'en êtes pas à l'origine, ignorez-le : aucune suite ne sera donnée.
+    </p>
+  </div>
+
+</div>
+</body>
+</html>`;
   return { subject: 'REYCE — votre demande de devis est bien reçue', html };
 }
 // Meilleur effort : une erreur ici ne doit jamais empêcher l'envoi de la demande à l'atelier.
-async function sendLeadAck(email, firstName, vehicleInfo, source) {
+async function sendLeadAck(email, firstName, vehicleInfo, source, subject) {
   try {
     const key = String(email).trim().toLowerCase();
     const last = ackRecents.get(key);
     if (last && Date.now() - last < ACK_COOLDOWN_MS) { console.log('[Accusé] déjà envoyé récemment — ignoré'); return; }
     ackRecents.set(key, Date.now());
     if (ackRecents.size > 5000) { for (const [k, t] of ackRecents) if (Date.now() - t > ACK_COOLDOWN_MS) ackRecents.delete(k); }
-    const m = buildLeadAck(firstName, vehicleInfo, cibleFromSource(source));
+    const m = buildLeadAck(firstName, vehicleInfo, cibleFromSource(source), subject);
     await sendEmail(email, m.subject, m.html);
     console.log('[Accusé] ✓ envoyé au client');
   } catch (err) {
@@ -1240,6 +1301,11 @@ app.use((req, res, next) => {
 //  - pages HTML : inchangées (max-age=0), un changement de contenu est immédiat
 app.use(express.static(path.join(__dirname), {
   setHeaders(res, filePath) {
+    // Le logo est affiché dans les e-mails envoyés aux clients : il doit pouvoir être
+    // chargé depuis une autre origine (helmet envoie same-origin par défaut).
+    if (/[\\/]assets[\\/]images[\\/]logo\.png$/.test(filePath)) {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    }
     if (/\.(?:avif|webp|jpe?g|png|gif|svg|ico|woff2?|mp4|webm)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=604800');
     } else if (/\.(?:css|js)$/i.test(filePath)) {
@@ -1317,7 +1383,7 @@ app.post('/api/contact', async (req, res) => {
     await sendEmail(ownerEmail, subjectLine, html, null, { replyTo: email });
     console.log('[Contact] ✓ Email envoyé');
     res.json({ ok: true });
-    if (isDevis) sendLeadAck(email, firstName, vehicleInfo, source);
+    if (isDevis) sendLeadAck(email, firstName, vehicleInfo, source, subject);
   } catch (err) {
     console.error('[Contact] ✗ Erreur Brevo :', err.message);
     res.status(500).json({ error: err.message });
@@ -1392,7 +1458,7 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
     await sendEmail(ownerEmail, subjectLine, html, attachments, { replyTo: email });
     console.log('[Devis photos] ✓ Email envoyé');
     res.json({ ok: true });
-    sendLeadAck(email, firstName, vehicleInfo, source);
+    sendLeadAck(email, firstName, vehicleInfo, source, subject);
   } catch (err) {
     console.error('[Devis photos] ✗ Erreur :', err.message);
     res.status(500).json({ error: err.message });
