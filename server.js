@@ -382,6 +382,46 @@ async function findBookingBySessionId(sessionId) {
   return row ? toBooking(row) : null;
 }
 
+// ── Prestations manquantes en base ────────────────────────────
+// Chaque rendez-vous référence une ligne de la table Service (clé étrangère). Le
+// catalogue SERVICES ci-dessus contient les déclinaisons par gabarit
+// (citadine, berline, suv, van) qui n'ont jamais été créées en base : sans cette
+// ligne, l'enregistrement du rendez-vous est refusé par la base de données.
+// On crée donc toute prestation absente (création seule, jamais de mise à jour :
+// les réglages faits depuis l'admin sont conservés).
+function serviceRowData(id) {
+  const svc = SERVICES[id];
+  const bookable = !!(svc.slots && svc.slots.length);
+  return {
+    id,
+    name:          svc.name,
+    category:      id.split('-')[0],
+    durationMin:   svc.durationMin,
+    priceCents:    svc.priceCents,
+    depositCents:  svc.depositCents,
+    active:        bookable,
+    bookableOnline: bookable
+  };
+}
+async function ensureServiceRow(id) {
+  if (!SERVICES[id]) return;
+  await prisma.service.upsert({ where: { id }, update: {}, create: serviceRowData(id) });
+}
+async function ensureAllServices() {
+  const have = new Set((await prisma.service.findMany({ select: { id: true } })).map(r => r.id));
+  const missing = Object.keys(SERVICES).filter(id => !have.has(id));
+  if (!missing.length) return 0;
+  await prisma.service.createMany({ data: missing.map(serviceRowData), skipDuplicates: true });
+  return missing.length;
+}
+
+// Un vrai conflit de créneau se distingue d'une panne technique : seul le premier
+// doit afficher « créneau déjà réservé ».
+class SlotConflictError extends Error {}
+function isSlotConflict(err) {
+  return err instanceof SlotConflictError || (err && (err.code === 'P2034' || err.code === 'P2002'));
+}
+
 // Pose une réservation "en attente de paiement" avant la création de la
 // session Stripe (créneau tenu / soft-hold). La contrainte EXCLUDE en base
 // (voir migration 20260101000001_no_overlap_constraint) rejette toute
@@ -389,6 +429,7 @@ async function findBookingBySessionId(sessionId) {
 // vérification applicative déjà faite plus haut dans la route.
 async function holdSlot({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, paymentType, totalCents, depositCents }) {
   const placeholder = `pending_${crypto.randomUUID()}`;
+  await ensureServiceRow(service);
   const row = await prisma.appointment.create({
     data: {
       serviceId:       service,
@@ -431,6 +472,7 @@ async function releaseHold(appointmentId) {
 async function createDirectBooking({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, totalCents }) {
   const localId = `local_${crypto.randomUUID()}`;
   const dateObj = strToDate(date);
+  await ensureServiceRow(service);
 
   // Protection anti-double-réservation au niveau applicatif : une tentative
   // d'ajouter une contrainte unique en base (date + heure) a échoué en
@@ -451,7 +493,7 @@ async function createDirectBooking({ service, svc, date, time, vehicleType, vehi
     const wanted = blockMinutes(service);
     const conflict = sameDay.some(r => overlaps(time, wanted, r.startTime, blockMinutes(r.serviceId)));
     if (conflict) {
-      throw new Error('Créneau déjà réservé');
+      throw new SlotConflictError('Créneau déjà réservé');
     }
     return tx.appointment.create({
       data: {
@@ -1515,6 +1557,40 @@ app.get('/api/public/pricing/:id', async (req, res) => {
   res.json({ id, priceCents: catalog[id].priceCents });
 });
 
+// Réponse à une réservation qui échoue. Un conflit de créneau reste un 409 ; toute autre
+// erreur est journalisée en entier (elle n'est plus déguisée en « créneau réservé ») et la
+// demande est transmise par e-mail à l'atelier pour qu'aucun client ne soit perdu.
+async function bookingFailure(res, err, ctx) {
+  if (isSlotConflict(err)) {
+    console.error('[Booking] Conflit de créneau :', err.message);
+    return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
+  }
+  console.error('[Booking] ERREUR TECHNIQUE (pas un conflit) :', err);
+  let transmitted = false;
+  try { transmitted = await notifyOwnerBookingFailure(ctx, err); } catch (e) { console.error('[Booking] Alerte atelier impossible :', e.message); }
+  return res.status(503).json({
+    error: transmitted
+      ? 'Un problème technique empêche l\'enregistrement automatique de votre réservation, mais votre demande a bien été transmise à l\'atelier, qui vous confirme le créneau directement.'
+      : 'Un problème technique empêche l\'enregistrement de votre réservation. Appelez-nous au 07 63 00 43 85 ou écrivez-nous sur WhatsApp : nous vous réservons le créneau.',
+    technical: true
+  });
+}
+async function notifyOwnerBookingFailure(ctx, err) {
+  if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) return false;
+  const c = ctx.client || {};
+  const rows = [['Nom', `${c.firstName || ''} ${c.lastName || ''}`.trim()], ['Téléphone', c.phone], ['E-mail', c.email],
+    ['Prestation', ctx.svcName || ctx.service], ['Véhicule', [ctx.vehicleType, ctx.vehicleModel].filter(Boolean).join(' — ')],
+    ['Date', ctx.date], ['Heure', ctx.time], ['Erreur technique', String(err && err.message || err).slice(0, 300)]]
+    .filter(r => r[1]).map(r => `<tr><td style="padding:8px 0;color:#666;font-size:11px;text-transform:uppercase;width:36%">${escapeHtml(r[0])}</td><td style="padding:8px 0;color:#e0e0e0;font-size:13px">${escapeHtml(r[1])}</td></tr>`).join('');
+  const html = `<!DOCTYPE html><html><body style="background:#080808;margin:0;padding:32px 16px;font-family:sans-serif"><div style="max-width:560px;margin:0 auto;background:#111;padding:32px;color:#e0e0e0">
+<p style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#e0a040;margin:0 0 20px">Réservation non enregistrée — à rappeler</p>
+<p style="font-size:14px;line-height:1.7;margin:0 0 20px">Un client a voulu réserver en ligne, mais l'enregistrement a échoué pour une raison technique. <strong>Rappelez-le pour confirmer le créneau.</strong></p>
+<table style="width:100%;border-collapse:collapse">${rows}</table></div></body></html>`;
+  const owner = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com';
+  await sendEmail(owner, `[Réservation à confirmer] ${ctx.svcName || ctx.service} — ${c.firstName || ''} ${c.lastName || ''} · ${ctx.date} ${ctx.time}`.trim(), html, null, { replyTo: c.email });
+  return true;
+}
+
 app.use('/api/create-checkout-session', publicLimiter, express.json());
 app.post('/api/create-checkout-session', async (req, res) => {
   const { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType, opts } = req.body;
@@ -1561,8 +1637,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       depositCents: svc.depositCents
     });
   } catch (err) {
-    console.error('[Slots] Conflit de réservation :', err.message);
-    return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
+    return bookingFailure(res, err, { service, svcName: svc.name, vehicleType, vehicleModel, date, time, client });
   }
 
   try {
@@ -1636,8 +1711,7 @@ app.post('/api/create-booking', async (req, res) => {
   try {
     booking = await createDirectBooking({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, totalCents });
   } catch (err) {
-    console.error('[Booking] Conflit de réservation :', err.message);
-    return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
+    return bookingFailure(res, err, { service, svcName: svc.name, vehicleType, vehicleModel, date, time, client });
   }
 
   const data = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: 'on_site', totalCents };
@@ -1736,8 +1810,12 @@ app.post('/api/admin/bookings', async (req, res) => {
   try {
     booking = await createDirectBooking({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, totalCents });
   } catch (err) {
-    console.error('[Admin] Conflit de réservation manuelle :', err.message);
-    return res.status(409).json({ error: 'Ce créneau est déjà pris.' });
+    if (isSlotConflict(err)) {
+      console.error('[Admin] Conflit de réservation manuelle :', err.message);
+      return res.status(409).json({ error: 'Ce créneau est déjà pris.' });
+    }
+    console.error('[Admin] ERREUR TECHNIQUE à la création manuelle :', err);
+    return res.status(500).json({ error: 'Erreur technique : la réservation n\'a pas été enregistrée (' + String(err.message).split('\n').pop().slice(0, 160) + ').' });
   }
 
   const data = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: 'on_site', totalCents };
@@ -2372,6 +2450,10 @@ process.on('uncaughtException', (err) => {
 });
 
 // ============================================================
+ensureAllServices()
+  .then(n => { if (n) console.log(`[Catalogue] ${n} prestation(s) manquante(s) créée(s) en base.`); })
+  .catch(err => console.error('[Catalogue] Création des prestations impossible :', err.message));
+
 app.listen(PORT, () => {
   console.log(`\n  REYCE — Serveur démarré`);
   console.log(`  → http://localhost:${PORT}\n`);
