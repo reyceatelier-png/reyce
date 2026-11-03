@@ -310,13 +310,33 @@ function overlaps(startA, blockA, startB, blockB) {
   return a < b + blockB && b < a + blockA;
 }
 
+// Heure actuelle à Paris (le serveur tourne en UTC) : sert à retirer les créneaux déjà passés.
+function parisNow() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    .formatToParts(new Date()).map(x => [x.type, x.value]));
+  return { ymd: `${p.year}-${p.month}-${p.day}`, min: (+p.hour) * 60 + (+p.minute) };
+}
+// Un créneau est « passé » si son jour est révolu, ou s'il commence à l'heure actuelle ou avant (aujourd'hui).
+function isSlotPast(dateStr, time) {
+  const n = parisNow();
+  return dateStr < n.ymd || (dateStr === n.ymd && timeToMin(time) <= n.min);
+}
+
 // Créneaux réellement réservables pour une prestation et une date donnée.
 async function availableSlots(serviceId, dateStr) {
-  const grid = slotGrid();
+  let grid = slotGrid();
+  const nowP = parisNow();
+  if (dateStr < nowP.ymd) return { all: [], slots: [], closed: 'past' };
   if (!isOpenDay(dateStr)) return { all: grid, slots: [], closed: 'weekend' };
 
   const blocked = await readBlocked();
   if (blocked.dates.includes(dateStr)) return { all: grid, slots: [], closed: 'blocked' };
+
+  // Aujourd'hui : on retire les arrivées déjà passées (il est 14 h → plus de créneau avant 14 h).
+  if (dateStr === nowP.ymd) {
+    grid = grid.filter(t => timeToMin(t) > nowP.min);
+    if (!grid.length) return { all: [], slots: [], closed: 'late' };
+  }
 
   // Toutes les réservations actives du jour, toutes prestations confondues :
   // l'atelier ne traite qu'un véhicule à la fois.
@@ -637,6 +657,91 @@ setInterval(cleanupAbandonedHolds, 5 * 60000);
 // Emails — Resend
 // ============================================================
 
+// ── Agenda : lien Google Agenda et fichier .ics ───────────────
+// Les rendez-vous sont saisis à l'heure de Paris ; on convertit en UTC pour que le lien et le
+// fichier .ics s'affichent à la bonne heure dans l'agenda du client, quel que soit son fuseau.
+function parisToUtc(dateStr, timeStr) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const [hh, mm]  = String(timeStr || '09:00').split(':').map(Number);
+  const guess = Date.UTC(y, m - 1, d, hh, mm || 0);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Paris', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+  }).formatToParts(new Date(guess)).map(p => [p.type, p.value]));
+  const asParis = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+  const offsetMs = asParis - guess;
+  return new Date(guess - offsetMs);
+}
+const pad2 = n => String(n).padStart(2, '0');
+function icsStamp(dt) {
+  return `${dt.getUTCFullYear()}${pad2(dt.getUTCMonth() + 1)}${pad2(dt.getUTCDate())}T${pad2(dt.getUTCHours())}${pad2(dt.getUTCMinutes())}${pad2(dt.getUTCSeconds())}Z`;
+}
+const REYCE_PLACE = 'REYCE — 47 chemin du Pras, 69350 La Mulatière';
+function calendarEvent(data, svc) {
+  const start = parisToUtc(data.date, data.time);
+  const minutes = Math.max(60, (svc && svc.durationMin) || 60);
+  const end = new Date(start.getTime() + minutes * 60000);
+  const veh = [data.vehicleType, data.vehicleModel].filter(Boolean).join(' — ');
+  const title = `REYCE — ${svc ? svc.name : 'Rendez-vous'}`;
+  const details = `Rendez-vous à l'atelier REYCE.${veh ? '\nVéhicule : ' + veh : ''}\nRèglement sur place.\nUne question ou un empêchement : 07 63 00 43 85.`;
+  return { start, end, title, details };
+}
+function googleCalendarUrl(data, svc) {
+  const ev = calendarEvent(data, svc);
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent(ev.title)
+    + '&dates=' + icsStamp(ev.start) + '/' + icsStamp(ev.end)
+    + '&details=' + encodeURIComponent(ev.details)
+    + '&location=' + encodeURIComponent(REYCE_PLACE);
+}
+function icsEscape(t) { return String(t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); }
+function buildIcs(data, svc, uid) {
+  const ev = calendarEvent(data, svc);
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//REYCE//Reservation//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid || crypto.randomUUID()}@reyce.fr`,
+    `DTSTAMP:${icsStamp(new Date())}`,
+    `DTSTART:${icsStamp(ev.start)}`,
+    `DTEND:${icsStamp(ev.end)}`,
+    `SUMMARY:${icsEscape(ev.title)}`,
+    `DESCRIPTION:${icsEscape(ev.details)}`,
+    `LOCATION:${icsEscape(REYCE_PLACE)}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Rendez-vous REYCE demain', 'TRIGGER:-P1D', 'END:VALARM',
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:Rendez-vous REYCE dans 2 heures', 'TRIGGER:-PT2H', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR'
+  ].join('\r\n');
+}
+// Bloc « Ajouter à l'agenda » commun aux e-mails de confirmation et de rappel.
+function calendarButtonHtml(data, svc) {
+  const url = googleCalendarUrl(data, svc);
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px;width:100%"><tr><td>
+    <a href="${url}" target="_blank" style="display:block;text-align:center;padding:14px 24px;background:#ffffff;color:#080808;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;">Ajouter à Google Agenda</a>
+    <p style="font-size:11px;color:#666;line-height:1.7;margin:10px 0 0;text-align:center;">Apple Agenda, Outlook : ouvrez la pièce jointe « rendez-vous-reyce.ics ».</p>
+  </td></tr></table>`;
+}
+
+// ── Jeton de confirmation de venue (rappel de la veille) ──────
+// Jeton signé (HMAC) sans stockage : identifiant du rendez-vous + date limite. La page reçoit le
+// jeton dans l'adresse ; seul un clic sur le bouton de cette page enregistre la confirmation, ce qui
+// évite qu'un antivirus ou un aperçu de messagerie « confirme » à la place du client.
+function apptTokenSecret() { return process.env.APP_SECRET || process.env.ADMIN_TOKEN || 'reyce-dev-secret'; }
+function signApptToken(id, expMs) {
+  const p = Buffer.from(`${id}.${expMs}`).toString('base64url');
+  const sig = crypto.createHmac('sha256', apptTokenSecret()).update(p).digest('base64url').slice(0, 32);
+  return `${p}.${sig}`;
+}
+function verifyApptToken(token) {
+  try {
+    const [p, sig] = String(token || '').split('.');
+    if (!p || !sig) return null;
+    const expect = crypto.createHmac('sha256', apptTokenSecret()).update(p).digest('base64url').slice(0, 32);
+    if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
+    const [id, exp] = Buffer.from(p, 'base64url').toString().split('.');
+    if (!id || !(Number(exp) > Date.now())) return null;
+    return { id };
+  } catch (e) { return null; }
+}
+
 // ── Email client : confirmation de réservation ────────────────
 function buildClientEmail(data, svc) {
   const tintLine = data.tintOption
@@ -711,6 +816,8 @@ function buildClientEmail(data, svc) {
     ${notesLine}
     ${paymentRow}
   </table>
+
+  ${calendarButtonHtml(data, svc)}
 
   <div class="box">
     <p>${cancelBoxText}</p>
@@ -1109,7 +1216,8 @@ async function sendConfirmationEmails(data, svc) {
   const ownerEmail = process.env.OWNER_EMAIL || process.env.GMAIL_USER;
 
   try {
-    await sendEmail(data.client.email, clientMail.subject, clientMail.html);
+    const ics = [{ filename: 'rendez-vous-reyce.ics', contentType: 'text/calendar; charset=UTF-8; method=PUBLISH', buffer: Buffer.from(buildIcs(data, svc, data.sessionId || undefined), 'utf8') }];
+    await sendEmail(data.client.email, clientMail.subject, clientMail.html, ics);
     console.log(`[Email] ✓ Client → ${data.client.email}`);
   } catch (err) {
     console.error(`[Email] ✗ Client → ${data.client.email} | ${err.message}`);
@@ -1517,8 +1625,7 @@ app.get('/api/slots', async (req, res) => {
   const catalog = await getServiceCatalog();
   if (!catalog[service].active) return res.json({ all: slotGrid(), slots: [], closed: 'inactive' });
 
-  const today = new Date().toISOString().split('T')[0];
-  if (date < today) return res.json({ all: slotGrid(), slots: [], closed: 'past' });
+  if (date < parisNow().ymd) return res.json({ all: [], slots: [], closed: 'past' });
 
   res.json(await availableSlots(service, date));
 });
@@ -1610,6 +1717,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
     return res.status(400).json({ error: 'L\'atelier est ouvert à la réservation du lundi au samedi.' });
   if (!slotGrid().includes(time))
     return res.status(400).json({ error: 'Créneau indisponible : les arrivées se font entre 09:00 et 19:00.' });
+  if (isSlotPast(date, time))
+    return res.status(400).json({ error: 'Ce créneau est déjà passé. Choisissez un autre horaire.' });
 
   const catalog = await getServiceCatalog();
   if (!catalog[service].active)
@@ -1697,6 +1806,8 @@ app.post('/api/create-booking', async (req, res) => {
     return res.status(400).json({ error: 'L\'atelier est ouvert à la réservation du lundi au samedi.' });
   if (!slotGrid().includes(time))
     return res.status(400).json({ error: 'Créneau indisponible : les arrivées se font entre 09:00 et 19:00.' });
+  if (isSlotPast(date, time))
+    return res.status(400).json({ error: 'Ce créneau est déjà passé. Choisissez un autre horaire.' });
 
   const catalog = await getServiceCatalog();
   if (!catalog[service].active)
@@ -2399,6 +2510,143 @@ app.post('/api/admin/send-review', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ============================================================
+// Rappel automatique de la veille + confirmation de venue
+// Chaque jour vers 17 h (heure de Paris), les clients dont le rendez-vous est demain reçoivent un
+// e-mail avec le lien Google Agenda et un bouton « Je confirme ma venue ». La confirmation est
+// inscrite dans les notes internes du rendez-vous (visible dans l'administration). Un rappel n'est
+// jamais envoyé deux fois (journal EventLog) ; REMINDERS_DISABLED=1 désactive l'envoi.
+// ============================================================
+function parisYmd(date) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hourCycle: 'h23', hour: '2-digit' })
+    .formatToParts(date).map(x => [x.type, x.value]));
+  return { ymd: `${p.year}-${p.month}-${p.day}`, hour: +p.hour };
+}
+function addDaysYmd(ymd, n) {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + n));
+  return `${t.getUTCFullYear()}-${pad2(t.getUTCMonth() + 1)}-${pad2(t.getUTCDate())}`;
+}
+function buildReminderEmail(booking, svc, token) {
+  const first = escapeHtml(booking.client?.firstName || '');
+  const data = { date: booking.date, time: booking.time, vehicleType: booking.vehicleType, vehicleModel: booking.vehicleModel };
+  const vehicle = escapeHtml([booking.vehicleType, booking.vehicleModel].filter(Boolean).join(' — ') || '—');
+  const confirmUrl = `${process.env.BASE_URL}/rdv-confirmation.html?t=${encodeURIComponent(token)}`;
+  const html = `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#070707; font-family:'Helvetica Neue',Helvetica,Arial,sans-serif; color:#e0e0e0; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:560px; margin:0 auto; padding:56px 32px; }
+  .logo { font-size:18px; font-weight:600; letter-spacing:0.38em; text-transform:uppercase; color:#fff; margin-bottom:56px; }
+  .title { font-size:30px; font-weight:300; color:#fff; line-height:1.2; margin-bottom:10px; font-style:italic; }
+  .sub { font-size:14px; color:#777; margin-bottom:40px; line-height:1.75; }
+  .table { width:100%; border-collapse:collapse; margin-bottom:28px; }
+  .table td { padding:14px 0; border-bottom:1px solid #181818; font-size:14px; vertical-align:top; line-height:1.5; }
+  .table td.lbl { color:#555; font-size:10px; letter-spacing:0.18em; text-transform:uppercase; width:40%; padding-top:16px; }
+  .box { background:#0f0f0f; border:1px solid #1c1c1c; padding:20px 24px; margin-bottom:28px; }
+  .box p { font-size:13px; color:#666; line-height:1.8; }
+  .btn { display:block; text-align:center; padding:15px 24px; background:#fff; color:#080808 !important; font-size:11px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; text-decoration:none; margin-bottom:16px; }
+  .divider { border:none; border-top:1px solid #181818; margin:32px 0; }
+  .addr-title { font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#555; margin-bottom:12px; }
+  .addr-val { font-size:13px; color:#888; line-height:1.9; }
+  .footer { border-top:1px solid #141414; padding-top:24px; margin-top:40px; }
+  .footer p { font-size:11px; color:#444; line-height:1.8; }
+</style></head>
+<body><div class="wrap">
+  <div class="logo"><img src="${process.env.BASE_URL}/assets/images/logo.png" width="30" height="36" alt="REYCE" style="display:block;margin:0 0 12px;border:0;"><span>REYCE</span></div>
+  <p class="title">Rendez-vous<br>demain.</p>
+  <p class="sub">Bonjour ${first},<br>nous vous attendons demain à <b style="color:#fff">${escapeHtml(booking.time)}</b> à l'atelier.</p>
+  <table class="table">
+    <tr><td class="lbl">Prestation</td><td>${escapeHtml(svc ? svc.name : booking.serviceName)}</td></tr>
+    <tr><td class="lbl">Date</td><td>${formatDate(booking.date)}</td></tr>
+    <tr><td class="lbl">Heure</td><td>${escapeHtml(booking.time)}</td></tr>
+    <tr><td class="lbl">Véhicule</td><td>${vehicle}</td></tr>
+  </table>
+  <a class="btn" href="${confirmUrl}">Je confirme ma venue</a>
+  ${calendarButtonHtml(data, svc)}
+  <div class="box"><p><strong style="color:#999">Un empêchement ?</strong> Répondez simplement à cet e-mail ou appelez-nous au 07 63 00 43 85 : nous décalons votre rendez-vous.</p></div>
+  <hr class="divider">
+  <p class="addr-title">Où nous trouver</p>
+  <p class="addr-val">47 chemin du Pras · La Mulatière, Lyon<br>07 63 00 43 85<br>reyceatelier@gmail.com</p>
+  <div class="footer"><p>REYCE · Atelier automobile premium · Lyon<br>www.reyce.fr · @reyce.lyon</p></div>
+</div></body></html>`;
+  return { subject: `REYCE — rendez-vous demain à ${booking.time}`, html };
+}
+
+let remindersRunning = false;
+async function runReminders(opts) {
+  opts = opts || {};
+  if (process.env.REMINDERS_DISABLED === '1') return { skipped: 'désactivé' };
+  if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) return { skipped: 'e-mail non configuré' };
+  if (remindersRunning) return { skipped: 'déjà en cours' };
+  const now = opts.now || new Date();
+  const { ymd, hour } = parisYmd(now);
+  if (!opts.force && (hour < 17 || hour >= 21)) return { skipped: 'hors fenêtre (17 h – 21 h, heure de Paris)' };
+  remindersRunning = true;
+  const result = { date: addDaysYmd(ymd, 1), envoyes: 0, deja: 0, ignores: 0, erreurs: 0 };
+  try {
+    const rows = await prisma.appointment.findMany({ where: { date: strToDate(result.date), status: 'confirmed' } });
+    const catalog = await getServiceCatalog();
+    for (const row of rows) {
+      if (!isValidEmail(row.guestEmail)) { result.ignores++; continue; }
+      const already = await prisma.eventLog.findFirst({ where: { type: 'rdv_reminder', appointmentId: row.id } });
+      if (already) { result.deja++; continue; }
+      const log = await prisma.eventLog.create({ data: { type: 'rdv_reminder', appointmentId: row.id, payload: { to: row.guestEmail } } });
+      try {
+        const booking = toBooking(row);
+        const token = signApptToken(row.id, strToDate(result.date).getTime() + 3 * 86400000);
+        const mail = buildReminderEmail(booking, catalog[row.serviceId] || SERVICES[row.serviceId], token);
+        const ics = [{ filename: 'rendez-vous-reyce.ics', contentType: 'text/calendar; charset=UTF-8; method=PUBLISH', buffer: Buffer.from(buildIcs(booking, catalog[row.serviceId] || SERVICES[row.serviceId], row.stripeSessionId), 'utf8') }];
+        await sendEmail(row.guestEmail, mail.subject, mail.html, ics, { replyTo: process.env.OWNER_EMAIL || process.env.GMAIL_USER });
+        result.envoyes++;
+        console.log(`[Rappel] ✓ ${row.guestEmail} · ${result.date} ${row.startTime}`);
+      } catch (err) {
+        result.erreurs++;
+        await prisma.eventLog.delete({ where: { id: log.id } }).catch(() => {});   // sera retenté au prochain passage
+        console.error('[Rappel] ✗', err.message);
+      }
+    }
+  } finally { remindersRunning = false; }
+  return result;
+}
+
+/* Page « Je confirme ma venue » : lecture des détails puis confirmation (POST). */
+app.get('/api/rdv/:token', publicLimiter, async (req, res) => {
+  const t = verifyApptToken(req.params.token);
+  if (!t) return res.status(400).json({ error: 'Lien invalide ou expiré.' });
+  const row = await prisma.appointment.findUnique({ where: { id: t.id } });
+  if (!row) return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+  const cat = SERVICES[row.serviceId];
+  res.json({ firstName: row.guestFirstName, serviceName: cat ? cat.name : row.serviceId, date: dateToStr(row.date), time: row.startTime,
+             cancelled: row.status === 'cancelled', confirmed: /Présence confirmée par le client/.test(row.internalNotes || '') });
+});
+app.post('/api/rdv/confirm', publicLimiter, express.json({ limit: '2kb' }), async (req, res) => {
+  const t = verifyApptToken(req.body && req.body.token);
+  if (!t) return res.status(400).json({ error: 'Lien invalide ou expiré.' });
+  const row = await prisma.appointment.findUnique({ where: { id: t.id } });
+  if (!row) return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+  if (row.status === 'cancelled') return res.status(409).json({ error: 'Ce rendez-vous a été annulé. Appelez-nous au 07 63 00 43 85.' });
+  const notes = row.internalNotes || '';
+  if (!/Présence confirmée par le client/.test(notes)) {
+    const stamp = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' }).format(new Date());
+    await prisma.appointment.update({ where: { id: row.id }, data: { internalNotes: (notes ? notes + '\n' : '') + `[auto] Présence confirmée par le client le ${stamp}` } });
+    await prisma.eventLog.create({ data: { type: 'rdv_presence_confirmee', appointmentId: row.id } }).catch(() => {});
+  }
+  const cat = SERVICES[row.serviceId];
+  res.json({ ok: true, firstName: row.guestFirstName, serviceName: cat ? cat.name : row.serviceId, date: dateToStr(row.date), time: row.startTime });
+});
+
+/* Déclenchement manuel par l'administrateur : POST /api/admin/run-reminders { force: true, now: "2026-11-02T17:30:00+01:00" } */
+app.post('/api/admin/run-reminders', async (req, res) => {
+  const b = req.body || {};
+  res.json(await runReminders({ force: !!b.force, now: b.now ? new Date(b.now) : undefined }));
+});
+if (process.env.REMINDERS_DISABLED !== '1') {
+  setInterval(() => runReminders().catch(err => console.error('[Rappel] erreur du passage :', err.message)), 30 * 60 * 1000).unref();
+  setTimeout(() => runReminders().catch(err => console.error('[Rappel] erreur du passage :', err.message)), 90 * 1000).unref();
+}
 
 // ============================================================
 // 404 — page introuvable

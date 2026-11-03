@@ -360,6 +360,7 @@ function fetchSlots(cb){
 }
 function slotNote(){
   if(slotState.closed==='weekend') return 'L\'atelier est fermé le dimanche : choisissez un jour entre lundi et samedi.';
+  if(slotState.closed==='late') return 'Il n\'y a plus d\'arrivée possible aujourd\'hui : choisissez un autre jour.';
   if(slotState.closed==='error') return 'Impossible de charger les disponibilités. Réessayez dans un instant.';
   if(slotState.closed) return 'Aucun créneau ce jour-là. Choisissez une autre date.';
   if(!slotState.free.length) return 'Toutes les arrivées de ce jour sont déjà réservées. Choisissez une autre date.';
