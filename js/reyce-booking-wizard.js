@@ -1,11 +1,10 @@
-/* REYCE — assistant de réservation simplifié : un seul écran de départ, nettoyage réservable, le reste sur devis */
+/* REYCE — réservation en étapes : une question par écran, avance automatique */
 (function(){
 /* Le paiement Stripe (acompte) est mis en pause pour l'instant : le parcours
    se termine par un écran de confirmation local. Le code de paiement reste
    en place, prêt à être réactivé — repasser ce flag à true suffira. */
 var STRIPE_ENABLED=false;
-var panel=document.getElementById('panel'),stepsEl=document.getElementById('steps'),
-asideTitle=document.getElementById('asideTitle'),asideText=document.getElementById('asideText');
+var panel=document.getElementById('panel');
 if(!panel) return;
 
 /* ============================================================
@@ -234,20 +233,19 @@ function visibleOptions(){
 var PROMO={active:true, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', formules:['Premium','Expérience']};
 
 /* ============================================================
-   TRACKING GOOGLE ADS / GTM / GA4
-   booking_complete (soin réservé) et generate_lead (demande de devis)
-   ne partent qu'après confirmation réelle du serveur, jamais au clic.
+   RÉSERVATION EN ÉTAPES — une question par écran, avance automatique
+   Nettoyage : prestation → véhicule → zone → formule → jour → heure → coordonnées
+   Autres    : prestation → (précision) → véhicule → détails → coordonnées
    ============================================================ */
 window.dataLayer=window.dataLayer||[];
 function pushEvt(o){try{window.dataLayer.push(o);}catch(e){}}
-var _bookingStarted=false;
-function trackBookingStart(){
-  if(_bookingStarted)return;_bookingStarted=true;
-  pushEvt({event:'booking_start', booking_type:state.type});
+var _started=false;
+function trackStart(){
+  if(_started)return;_started=true;
+  pushEvt({event:'booking_start', booking_type:flowType()});
 }
 
-/* UTM / gclid — capturés à l'arrivée, transmis à la page de remerciement
-   et ajoutés aux notes pour l'attribution côté admin. */
+/* UTM / gclid — capturés à l'arrivée, transmis à la page de remerciement et ajoutés aux notes. */
 var UTM_KEYS=['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid'];
 var UTM_PARAMS=(function(){
   var sp=new URLSearchParams(location.search),out={};
@@ -265,131 +263,57 @@ function utmNoteLine(){
   return 'Source : '+keys.map(function(k){return k+'='+UTM_PARAMS[k];}).join(' · ');
 }
 
-function euro(n){return n>0?(n+'<span class="eur">€</span>'):'___<span class="eur">€</span>';}
-function euroTxt(n){return n>0?(n+' €'):'___ €';}
-function duoSave(idx){
-  var i=priceFor('interieur',idx,state.gab), e=priceFor('exterieur',idx,state.gab), d=priceFor('duo',idx,state.gab);
-  if(i>0&&e>0&&d>0) return {sep:i+e, duo:d, save:(i+e-d)};
-  return null;
-}
+var MONTHS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+var EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-/* Créneaux — la grille horaire ET les disponibilités viennent du serveur
-   (ouverture du lundi au samedi, arrivées de 09:00 à 19:00, chaque
-   rendez-vous mobilisant l'atelier au moins 3 h). */
-var slotState={date:null, svc:null, all:[], free:[], closed:null, loading:false};
-function slotChips(){
-  if(!state.jourISO) return '';
-  if(slotState.loading&&!slotState.all.length) return '<span class="slot-loading mono">Recherche des disponibilités…</span>';
-  return slotState.all.map(function(t){
-    var free=slotState.free.indexOf(t)>-1, sel=state.heure===t;
-    return '<div class="chip'+(sel?' sel':'')+(free?'':' taken')+'" data-t="'+t+'" role="radio"'+
-           ' tabindex="'+(free?'0':'-1')+'" aria-checked="'+(sel?'true':'false')+'"'+
-           ' aria-disabled="'+(free?'false':'true')+'">'+t+'</div>';
-  }).join('');
-}
-function slotNote(){
-  if(!state.jourISO) return 'Choisissez d\'abord un jour — l\'atelier reçoit du lundi au samedi.';
-  if(slotState.loading) return '';
-  if(slotState.closed==='weekend') return 'L\'atelier est fermé le dimanche : choisissez un jour entre lundi et samedi.';
-  if(slotState.closed) return 'Aucun créneau ce jour-là. Choisissez une autre date.';
-  if(!slotState.free.length) return 'Toutes les arrivées de ce jour sont déjà réservées. Choisissez une autre date.';
-  return 'Un rendez-vous mobilise l\'atelier au moins 3 heures : les horaires grisés sont déjà pris.';
-}
-function paintSlots(){
-  var w=document.getElementById('heureChips');
-  if(w){w.innerHTML=slotChips();bindSlotChips();}
-  var n=document.getElementById('slotNote');
-  if(n)n.textContent=slotNote();
-}
-function bindSlotChips(){
-  var w=document.getElementById('heureChips');
-  if(!w) return;
-  w.querySelectorAll('[data-t]').forEach(function(b){bindCard(b,function(){
-    if(b.classList.contains('taken'))return;
-    state.heure=b.dataset.t;
-    pushEvt({event:'slot_selected', slot_time:state.heure, slot_date:state.jourISO});
-    render();
-  })});
-}
-
-/* ============================================================
-   PARCOURS UNIQUE
-   Écran 1 : le client coche ce qu'il souhaite et indique son véhicule.
-   • Nettoyage seul   -> Soin (tarif exact) -> Créneau + coordonnées
-   • Tout le reste    -> Demande (détails + coordonnées) -> devis
-   ============================================================ */
-var SERV=[
-  {k:'nettoyage', label:'Nettoyage & entretien', sub:'Intérieur, extérieur ou complet, au tarif de votre véhicule', tag:'Réservation immédiate'},
+var SVC=[
+  {k:'nettoyage', label:'Nettoyage & entretien', sub:'Intérieur, extérieur ou complet', tag:'Réservation immédiate', book:true},
   {k:'ppf',       label:'PPF',                   sub:'Film de protection de la peinture', tag:'Sur devis'},
-  {k:'ceramique', label:'Céramique',             sub:'Protection durable, brillance et entretien facilité', tag:'Sur devis'},
-  {k:'polissage', label:'Polissage',             sub:'Correction du vernis, micro-rayures effacées', tag:'Sur devis'},
-  {k:'covering',  label:'Covering',              sub:'Changement de teinte ou de finition', tag:'Sur devis'},
-  {k:'vitres',    label:'Vitres teintées',       sub:'Film teinté, teinte au choix', tag:'Sur devis'},
-  {k:'jantes',    label:'Rénovation de jantes',  sub:'Décapage, réparation et remise en peinture', tag:'Sur devis'},
-  {k:'staging',   label:'Car Staging',           sub:'Remise à neuf en une journée', tag:'Sur devis'},
-  {k:'autre',     label:'Autre projet',          sub:'Dites-nous ce que vous avez en tête', tag:'Sur devis'}
+  {k:'ceramique', label:'Céramique',             sub:'Protection durable et brillance', tag:'Sur devis'},
+  {k:'polissage', label:'Polissage',             sub:'Correction du vernis', tag:'Sur devis'},
+  {k:'autre',     label:'Autre prestation',      sub:'Covering, vitres teintées, jantes, Car Staging…', tag:'Sur devis'}
 ];
-function svcLabel(k){for(var i=0;i<SERV.length;i++){if(SERV[i].k===k)return SERV[i].label;}return k;}
-
-var LAB={
-  prestation:['Besoin','Soin','Créneau'],
-  projet:['Besoin','Demande']
-};
+var AUTRE=[
+  {k:'covering', label:'Covering',             sub:'Changement de teinte ou de finition'},
+  {k:'vitres',   label:'Vitres teintées',      sub:'Film teinté, teinte au choix'},
+  {k:'jantes',   label:'Rénovation de jantes', sub:'Décapage, réparation, remise en peinture'},
+  {k:'staging',  label:'Car Staging',          sub:'Remise à neuf en une journée'},
+  {k:'autre',    label:'Autre projet',         sub:'Dites-nous ce que vous avez en tête'}
+];
+function svcLabel(k){
+  var i;for(i=0;i<SVC.length;i++){if(SVC[i].k===k)return SVC[i].label;}
+  for(i=0;i<AUTRE.length;i++){if(AUTRE[i].k===k)return AUTRE[i].label;}
+  return k;
+}
+var ZONES=[['interieur','Intérieur'],['exterieur','Extérieur'],['duo','Intérieur + Extérieur']];
 
 var today=new Date();
-function freshState(){
-  return {type:'projet',sel:[],clean:'duo',form:1,marque:'',modele:'',gab:null,gabAuto:false,
-          vehQuery:'',vehUnknown:false,opts:[],optsOpen:false,promo:false,
+function fresh(){
+  return {svc:null,group:null,more:[],marque:'',modele:'',gab:null,gabAuto:false,vehQuery:'',vehUnknown:false,
+          clean:null,form:null,opts:[],optsOpen:false,promo:false,promoOpen:false,
           calYear:today.getFullYear(),calMonth:today.getMonth(),jourISO:null,jourLabel:null,heure:null,
-          photos:[],etat:'',prenom:'',nomFam:'',tel:'',email:'',msg:''};
+          photos:[],etat:'',prenom:'',nomFam:'',tel:'',email:'',msg:'',skip:{}};
 }
-var state=freshState();
-var step=0;
-/* Le type de parcours se déduit du choix : nettoyage seul = réservation
-   immédiate, tout autre choix = demande de devis. */
-function syncType(){state.type=(state.sel.length===1&&state.sel[0]==='nettoyage')?'prestation':'projet';}
-syncType();
-var MONTHS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+var state=fresh();
+var idx=0;
+var navDirection=null;
+function flowType(){return state.svc==='nettoyage'?'prestation':'projet';}
 
-/* booking_start : première interaction réelle avec l'assistant. */
-document.addEventListener('click',function(e){
-  if(!_bookingStarted && e.target.closest('.resa')) trackBookingStart();
-},true);
-
-/* click_phone : tout lien tel: cliqué sur la page (hero, sticky, aside). */
-document.addEventListener('click',function(e){
-  var a=e.target.closest('a[href^="tel:"]');
-  if(a) pushEvt({event:'click_phone', booking_type:state.type});
-},true);
-
-function renderSteps(){var L=LAB[state.type];stepsEl.innerHTML='';for(var i=0;i<L.length;i++){var d=document.createElement('div');
-  d.className='s'+(i===step?' active':i<step?' done':'');d.innerHTML='<span class="dot"></span>0'+(i+1)+' — '+L[i];stepsEl.appendChild(d);}}
-
-function calendar(){
-  var dow=['L','M','M','J','V','S','D'];
-  var h='<div class="cal-nav"><button type="button" class="cal-nav__btn" id="calPrev">‹</button><span class="mono">'+MONTHS_FR[state.calMonth]+' '+state.calYear+'</span><button type="button" class="cal-nav__btn" id="calNext">›</button></div>';
-  h+='<div class="cal">';
-  dow.forEach(function(d){h+='<div class="dow">'+d+'</div>'});
-  var first=new Date(state.calYear,state.calMonth,1);
-  var off=(first.getDay()+6)%7;
-  var dim=new Date(state.calYear,state.calMonth+1,0).getDate();
-  var t0=new Date();t0.setHours(0,0,0,0);
-  for(var i=0;i<off;i++)h+='<div class="d mut"></div>';
-  for(var d=1;d<=dim;d++){
-    var dateObj=new Date(state.calYear,state.calMonth,d);
-    var iso=state.calYear+'-'+String(state.calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    var wd=dateObj.getDay();
-    var weekend=(wd===0);
-    var mut=dateObj<t0||weekend;
-    h+='<div class="d'+(mut?' mut':'')+(weekend?' closed':'')+(state.jourISO===iso?' sel':'')+'" '+
-       (mut?(weekend?'title="Fermé le dimanche"':''):'data-iso="'+iso+'" data-label="'+d+' '+MONTHS_FR[state.calMonth]+'"')+'>'+d+'</div>';
-  }
-  h+='</div><p class="cal-legend mono">Du lundi au samedi · arrivées de 09:00 à 19:00</p>';
-  return h;
+function stepsList(){
+  var s=[];
+  if(!state.skip.svc) s.push('svc');
+  if(state.group==='autre') s.push('autre');
+  s.push('veh');
+  if(state.svc==='nettoyage'){
+    if(!state.skip.zone) s.push('zone');
+    if(!state.skip.form) s.push('formule');
+    s.push('jour','heure','coord');
+  } else s.push('details','coord');
+  return s;
 }
 
-/* prix courant sélectionné (avant promo) — seul endroit qui calcule un prix
-   de formule : « sportive » = base citadine + supplément dédié. */
+/* ---------- prix : moteur unique ---------- */
 function priceFor(cleanKey,formIdx,gab){
   var f=CLEAN[cleanKey].formules[formIdx];
   if(!f||f.prix<=0)return 0;
@@ -399,474 +323,114 @@ function priceFor(cleanKey,formIdx,gab){
 }
 function formuleKey(f){return f.k==='Confort'?'confort':(f.k==='Premium'?'premium':'experience');}
 function optsTotal(){var visible=visibleOptions();var t=0;state.opts.forEach(function(id){var o=visible.find(function(x){return x.id===id});if(o)t+=o.prix;});return t;}
-function promoEligible(){return PROMO.active && PROMO.formules.indexOf(CLEAN[state.clean].formules[state.form].k)>-1;}
+function chosenForm(){return (state.clean&&state.form!==null)?CLEAN[state.clean].formules[state.form]:null;}
+function promoEligible(){var f=chosenForm();return !!f&&PROMO.active&&PROMO.formules.indexOf(f.k)>-1;}
+function basePrice(){if(flowType()!=='prestation'||!chosenForm())return 0;return priceFor(state.clean,state.form,state.gab);}
 function subTotal(){var bp=basePrice();if(bp<=0)return 0;return bp+optsTotal();}
 function grandTotal(){var st=subTotal();if(st<=0)return 0;return (state.promo&&promoEligible())?Math.round(st*(1-PROMO.rate)):st;}
-function basePrice(){if(state.type!=='prestation')return 0;return priceFor(state.clean,state.form,state.gab);}
 function serviceId(){
-  var f=CLEAN[state.clean].formules[state.form];
+  var f=chosenForm();
   var gabForPricing=state.gab==='sportive'?'citadine':(state.gab||'citadine');
   return 'nettoyage-'+CLEAN[state.clean].svc+'-'+formuleKey(f)+'-'+gabForPricing;
 }
-
-var navDirection=null;
-function setPanel(html){
-  panel.classList.remove('panel-fade','panel-fwd','panel-back');
-  void panel.offsetWidth;
-  panel.innerHTML=html;
-  var cls=navDirection==='fwd'?'panel-fwd':(navDirection==='back'?'panel-back':'panel-fade');
-  panel.classList.add(cls);
-  navDirection=null;
-}
-
-var lastAmt=null;
-function animateAmt(){
-  var el=document.getElementById('amtNum');
-  if(!el) return;
-  var target=parseInt(el.dataset.target,10);
-  if(isNaN(target)){lastAmt=null;return;}
-  var start=(lastAmt===null)?target:lastAmt;
-  lastAmt=target;
-  if(start===target){el.textContent=target;return;}
-  var t0=null,dur=500;
-  function stepFn(ts){
-    if(!t0)t0=ts;
-    var p=Math.min((ts-t0)/dur,1);
-    var eased=1-Math.pow(1-p,3);
-    el.textContent=Math.round(start+(target-start)*eased);
-    if(p<1)requestAnimationFrame(stepFn);else el.textContent=target;
-  }
-  requestAnimationFrame(stepFn);
-}
-
-function updateWizMedia(){
-  var key=state.type+'-'+step;
-  document.querySelectorAll('.wiz-media .wm').forEach(function(img){
-    img.classList.toggle('active', img.dataset.key===key);
-  });
-}
-
-/* Cohérence des promesses : un nettoyage est confirmé immédiatement sur un
-   créneau réellement disponible ; le reste est une demande de devis. */
-var ASIDE_TXT={
-  prestation:['Nettoyage et entretien : le tarif dépend du véhicule, le créneau est confirmé tout de suite.',
-    'Trois niveaux de soin, au tarif exact de votre véhicule.',
-    'Créneau confirmé immédiatement, règlement sur place.'],
-  projet:['PPF, céramique, polissage… : dites-nous ce qu\'il vous faut et pour quel véhicule.',
-    'Nous revenons vers vous sous 24 h avec une proposition chiffrée.']
-};
-
-function updateProgress(){
-  var fill=document.getElementById('wizProgressFill');
-  if(!fill) return;
-  var L=LAB[state.type];
-  fill.style.width=(((step+1)/L.length)*100)+'%';
-}
-
 function vehLabel(){
   var v=(state.marque+' '+state.modele).trim();
   return v||(state.vehQuery||'').trim()||'';
 }
-/* Récapitulatif : le véhicule reste visible pendant tout le parcours. */
-function recapHtml(){
-  var f=CLEAN[state.clean].formules[state.form];
-  var h='<div class="ws-veh"><div><span class="ws-k">Véhicule</span>'+
-        '<b>'+(vehLabel()||'À renseigner')+'</b>'+
-        (state.gab?'<span class="ws-gab">'+GABARITS[state.gab].label+'</span>':'')+'</div>'+
-        (state.gab?'<button type="button" class="ws-edit" data-goto="0">Modifier</button>':'')+'</div>';
-  if(step<1) return h;
-  h+='<div class="ws-rows">';
-  h+='<div class="ws-row"><span>Soin</span><b>'+f.k+'</b></div>';
-  h+='<div class="ws-row"><span>Prestation</span><b>'+CLEAN[state.clean].label+'</b></div>';
-  var vis=visibleOptions();
-  var chosen=state.opts.map(function(id){return vis.find(function(o){return o.id===id});}).filter(Boolean);
-  if(chosen.length) h+='<div class="ws-row"><span>Options</span><b>'+chosen.map(function(o){return o.nom;}).join(', ')+'</b></div>';
-  if(state.jourLabel&&state.heure) h+='<div class="ws-row"><span>Créneau</span><b>'+state.jourLabel+' · '+state.heure+'</b></div>';
-  h+='</div>';
-  var gt=grandTotal();
-  h+='<div class="ws-total"><span>Total</span><b>'+(gt>0?(gt+' € TTC'):'sur devis')+'</b></div>';
-  return h;
+function minPrice(zone){
+  var m=0;CLEAN[zone].formules.forEach(function(f,i){var p=priceFor(zone,i,state.gab);if(p>0&&(m===0||p<m))m=p;});return m;
 }
 
-function updateAsideSummary(){
-  var el=document.getElementById('wizSummary');
-  if(!el) return;
-  if(state.type==='prestation'){
-    if(step<1&&!state.gab){el.innerHTML='';el.style.display='none';return;}
-    el.innerHTML='<div class="ws-title mono">Votre REYCE</div>'+recapHtml();
-    el.style.display='block';
-    el.querySelectorAll('[data-goto]').forEach(function(b){
-      b.addEventListener('click',function(){step=+b.dataset.goto;navDirection='back';render();});
-    });
-    return;
+/* ---------- créneaux : grille et disponibilités viennent du serveur ---------- */
+var slotState={date:null, svc:null, all:[], free:[], closed:null, loading:false};
+function fetchSlots(cb){
+  var svc=serviceId(), date=state.jourISO;
+  slotState.date=date;slotState.svc=svc;slotState.loading=true;
+  fetch('/api/slots?service='+encodeURIComponent(svc)+'&date='+encodeURIComponent(date))
+    .then(function(r){return r.ok?r.json():null;})
+    .then(function(data){
+      if(slotState.date!==date||slotState.svc!==svc)return;
+      slotState.loading=false;
+      slotState.all=(data&&data.all)||[];
+      slotState.free=(data&&data.slots)||[];
+      slotState.closed=(data&&data.closed)||null;
+      cb&&cb();
+    })
+    .catch(function(){slotState.loading=false;slotState.all=[];slotState.free=[];slotState.closed='error';cb&&cb();});
+}
+function slotNote(){
+  if(slotState.closed==='weekend') return 'L\'atelier est fermé le dimanche : choisissez un jour entre lundi et samedi.';
+  if(slotState.closed==='error') return 'Impossible de charger les disponibilités. Réessayez dans un instant.';
+  if(slotState.closed) return 'Aucun créneau ce jour-là. Choisissez une autre date.';
+  if(!slotState.free.length) return 'Toutes les arrivées de ce jour sont déjà réservées. Choisissez une autre date.';
+  return '';
+}
+
+/* ---------- structure de l'écran ---------- */
+var elBack=document.getElementById('wzBack'), elFill=document.getElementById('wzFill'),
+    elCount=document.getElementById('wzCount'), elSum=document.getElementById('wzSum');
+
+function setPanel(html){
+  panel.classList.remove('panel-fade','panel-fwd','panel-back');
+  void panel.offsetWidth;
+  panel.innerHTML=html;
+  panel.classList.add(navDirection==='fwd'?'panel-fwd':(navDirection==='back'?'panel-back':'panel-fade'));
+  navDirection=null;
+}
+function passed(name){var L=stepsList(),i=L.indexOf(name);return i===-1?!!state.skip[name==='formule'?'form':name]:i<idx;}
+function summaryText(){
+  var parts=[], f=chosenForm();
+  if(state.svc) parts.push(svcLabel(state.svc)+(state.more.length?' +'+state.more.length:''));
+  if(vehLabel()&&passed('veh')) parts.push(vehLabel());
+  if(state.svc==='nettoyage'){
+    if(state.clean&&passed('zone')) parts.push(CLEAN[state.clean].label);
+    if(f&&passed('formule')) parts.push(f.k);
+    var cur=stepsList()[idx];
+    if(state.jourLabel&&cur==='heure') parts.push(state.jourLabel);
+    if(state.jourLabel&&state.heure&&cur==='coord') parts.push(state.jourLabel+' · '+state.heure);
+    var gt=grandTotal(); if(f&&gt>0&&passed('formule')) parts.push(gt+' €');
   }
-  var prows='';
-  if(state.sel.length){prows+='<div class="ws-row"><span>Souhait</span><b>'+state.sel.map(svcLabel).join(', ')+'</b></div>';}
-  if(vehLabel()){prows+='<div class="ws-row"><span>Véhicule</span><b>'+vehLabel()+'</b></div>';}
-  if(!prows||step<1){el.innerHTML='';el.style.display='none';return;}
-  el.innerHTML=prows;
-  el.style.display='block';
+  return parts.join(' · ');
 }
-
-function needGab(){return state.type==='prestation';}
+function goNext(){idx++;navDirection='fwd';render();scrollToStage();}
+function goPrev(){if(idx>0){idx--;navDirection='back';render();scrollToStage();}}
+function scrollToStage(){
+  var st=document.getElementById('resa'); if(!st) return;
+  var top=st.getBoundingClientRect().top;
+  if(top<-4||top>window.innerHeight*0.5){try{window.scrollTo({top:window.scrollY+top-8,behavior:'smooth'});}catch(e){window.scrollTo(0,window.scrollY+top-8);}}
+}
 
 function render(){
-  syncType();
-  var L=LAB[state.type];
-  if(step>=L.length) step=L.length-1;
-  renderSteps();updateWizMedia();updateProgress();
-  var h='';
-  asideTitle.textContent=!state.sel.length?'Que souhaitez-vous ?':(state.type==='prestation'?'Composez votre soin.':'Parlons de votre projet.');
-  asideText.textContent=ASIDE_TXT[state.type][step]||ASIDE_TXT[state.type][0];
-  updateAsideSummary();
-  var head='<div class="plabel"><span class="mono">Étape 0'+(step+1)+' / 0'+L.length+'</span><span class="mono">'+L[step]+'</span></div>';
-  var last=L.length-1;
-
-  /* ---------- 01 · BESOIN + VÉHICULE (écran unique) ---------- */
-  if(step===0){
-    h+=head+'<h4>Que souhaitez-vous faire ?</h4>';
-    h+='<p class="veh-note" style="margin-bottom:16px">Cochez une ou plusieurs prestations. Le nettoyage se réserve en ligne ; le reste se chiffre sur votre véhicule.</p>';
-    h+='<div class="qopts qopts--grid" id="svcbox" role="group" aria-label="Prestations souhaitées">';
-    SERV.forEach(function(s){
-      var on=state.sel.indexOf(s.k)>-1;
-      h+='<button type="button" class="qopt'+(on?' sel':'')+'" data-svc="'+s.k+'" aria-pressed="'+(on?'true':'false')+'">'+
-         '<span class="qo-mark">'+(on?'✓':'')+'</span>'+
-         '<span class="qo-body"><b>'+s.label+'</b><span>'+s.sub+'</span></span>'+
-         '<span class="qo-tag">'+s.tag+'</span></button>';
-    });
-    h+='</div>';
-
-    h+='<h4 style="margin-top:34px">Votre véhicule</h4><div id="vehbox">';
-    if(state.gab&&!state.vehUnknown&&state.gabAuto){
-      h+='<div class="veh-picked"><div class="vp-main"><span class="mono">Véhicule identifié</span>'+
-         '<b>'+vehLabel()+'</b><span class="vp-cat">'+GABARITS[state.gab].label+'</span></div>'+
-         '<button type="button" class="btn-line" id="vehReset">Modifier</button></div>';
-      if(needGab()) h+='<p class="veh-note">Le tarif affiché ensuite correspondra exactement à ce gabarit.</p>';
-    } else if(state.vehUnknown){
-      h+='<div class="veh-unknown">'+
-         (state.vehQuery?'<span class="mono">Modèle non identifié</span><p><b>'+state.vehQuery.replace(/</g,'&lt;')+'</b> ne figure pas encore dans notre base.</p>'
-                        :'<span class="mono">Gabarit du véhicule</span><p>Indiquez le gabarit de votre véhicule.</p>')+
-         '<p class="vu-sub">C\'est lui qui détermine le tarif du nettoyage.</p></div>';
-      h+='<div class="qopts" id="gabbox" role="radiogroup" aria-label="Gabarit du véhicule">';
-      for(var gk in GABARITS){
-        var gsel=state.gab===gk;
-        h+='<button type="button" role="radio" aria-checked="'+(gsel?'true':'false')+'" class="qopt'+(gsel?' sel':'')+'" data-gab="'+gk+'">'+
-           '<span class="qo-mark">'+(gsel?'✓':'')+'</span>'+
-           '<span class="qo-body"><b>'+GABARITS[gk].label+'</b><span>'+GABARITS[gk].desc+'</span></span></button>';
-      }
-      h+='</div><p class="veh-back"><button type="button" class="link-soft" id="vehReset">Rechercher un autre modèle</button></p>';
-    } else {
-      h+='<div class="vehsearch"><div class="field">'+
-         '<label for="vehq">Marque ou modèle</label>'+
-         '<input id="vehq" autocomplete="off" placeholder="BMW X3 M, Clio, Cayenne, Model 3…" value="'+(state.vehQuery||'').replace(/"/g,'&quot;')+'">'+
-         '<div class="ac" id="ac"></div></div></div>'+
-         '<p class="veh-note">Tapez les premières lettres et choisissez votre modèle dans la liste.'+
-         (needGab()?' <button type="button" class="link-soft" id="noModel">Je ne le trouve pas : choisir le gabarit</button>':'')+'</p>';
-    }
-    h+='</div>';
-  }
-  /* ---------- NETTOYAGE · 02 SOIN ---------- */
-  else if(state.type==='prestation'&&step===1){
-    var fs=CLEAN[state.clean].formules;
-    h+=head+'<h4>Votre soin pour '+(vehLabel()||'votre véhicule')+'</h4>';
-    h+='<div class="areasel" role="radiogroup" aria-label="Prestation">';
-    [['interieur','Intérieur'],['exterieur','Extérieur'],['duo','Intérieur + Extérieur']].forEach(function(row){
-      var key=row[0], on=state.clean===key;
-      h+='<button type="button" role="radio" aria-checked="'+(on?'true':'false')+'" class="areabtn'+(on?' sel':'')+'" data-clean="'+key+'">'+
-         '<span class="ab-mark">'+(on?'✓':'')+'</span>'+
-         '<span class="ab-l">'+row[1]+'</span>'+
-         '<span class="ab-p">'+euroTxt(priceFor(key,state.form,state.gab))+'</span>'+
-         (key==='duo'?'<span class="ab-tag">Recommandé</span>':'')+'</button>';
-    });
-    h+='</div>';
-    h+='<div class="forms">';
-    fs.forEach(function(f,i){
-      var cls='formcard'+(state.form===i?' sel':'')+(f.reco?' reco':'')+(f.top?' top':'');
-      var tag=f.top?'<span class="tag alt">Signature REYCE</span>':(f.reco?'<span class="tag">Le plus choisi</span>':'');
-      var hi='<ul>'+f.highlights.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul>';
-      var detailHtml='';
-      if(f.detailInt&&f.detailExt){
-        detailHtml='<details class="fdetail"><summary><span>Voir tout ce qui est inclus</span><span class="pm"></span></summary>'+
-          '<div class="fdetail-group"><h5>Intérieur</h5><ul>'+f.detailInt.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></div>'+
-          '<div class="fdetail-group"><h5>Extérieur</h5><ul>'+f.detailExt.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></div>'+
-          '</details>';
-      } else if(f.detail){
-        detailHtml='<details class="fdetail"><summary><span>Voir tout ce qui est inclus</span><span class="pm"></span></summary>'+
-          '<ul>'+f.detail.map(function(x){return '<li><span class="tk">—</span>'+x+'</li>'}).join('')+'</ul></details>';
-      }
-      h+='<div class="'+cls+'" data-form="'+i+'" role="radio" tabindex="0" aria-checked="'+(state.form===i?'true':'false')+'">'+tag+
-         '<div><div class="fk">'+f.k+'</div><h4>'+f.nom+'</h4><div class="fsub">'+TIER_SUB[f.k]+'</div></div>'+
-         '<div class="price">'+euro(priceFor(state.clean,i,state.gab))+'<span class="ttc">TTC</span></div>'+
-         '<p class="fpitch">'+f.pitch+'</p>'+hi+detailHtml+
-         (f.outro?'<p class="fnote">'+f.outro+'</p>':'')+
-         '<div class="pick">'+(state.form===i?'Sélectionnée':(f.top?'Vivre l\'expérience':'Choisir'))+'</div></div>';
-    });
-    h+='</div>';
-    var sv=duoSave(state.form);
-    if(state.clean==='duo'){
-      h+='<div class="combo">';
-      if(sv){h+='<div class="l"><span>Les deux soins séparément</span><s>'+sv.sep+' €</s></div>';}
-      h+='<div class="tot"><span>Formule complète '+fs[state.form].k+'</span><span class="v">'+euroTxt(priceFor('duo',state.form,state.gab))+'</span></div>';
-      if(sv){h+='<div class="eco">Le complet vous fait économiser '+sv.save+' €</div>';}
-      h+='</div>';
-    }
-    /* Options : repliées par défaut — facultatives, jamais un écran à part. */
-    h+='<details class="fdetail opt-fold" style="margin-top:22px"'+((state.opts.length||state.optsOpen)?' open':'')+'><summary><span>Ajouter une option (facultatif)'+(state.opts.length?' · '+state.opts.length+' choisie'+(state.opts.length>1?'s':''):'')+'</span><span class="pm"></span></summary>';
-    h+='<div class="optgrid" style="margin-top:12px">';
-    var showVarNote=false;
-    visibleOptions().forEach(function(op){
-      var on=state.opts.indexOf(op.id)>-1;
-      if(on&&op.variable) showVarNote=true;
-      h+='<button type="button" class="optcard'+(on?' sel':'')+'" data-opt="'+op.id+'" aria-pressed="'+(on?'true':'false')+'">'+
-         '<span class="optck">'+(on?'✓':'+')+'</span>'+
-         '<span class="optbody"><b>'+op.nom+'</b><span class="optd">'+op.desc+'</span></span>'+
-         '<span class="optp"><i>à partir de</i>'+op.prix+'&nbsp;€</span></button>';
-    });
-    h+='</div>';
-    if(showVarNote) h+='<p class="optnote">'+OPTS_VARIABLE_NOTE+'</p>';
-    h+='</details>';
-    h+='<div class="pricebar"><span class="lbl">Total estimé</span><span class="amt"><span id="amtNum" data-target="'+subTotal()+'">'+subTotal()+'</span> €</span></div>';
-  }
-  /* ---------- NETTOYAGE · 03 CRÉNEAU + COORDONNÉES ---------- */
-  else if(state.type==='prestation'&&step===2){
-    var f=CLEAN[state.clean].formules[state.form];
-    h+=head;
-    h+='<div class="tunnel-done"><span class="mono">Votre soin est configuré</span>'+
-       '<b>'+f.k+' · '+CLEAN[state.clean].label+' · '+euroTxt(grandTotal())+'</b></div>';
-    h+='<h4>Choisissez quand nous confier votre véhicule.</h4>';
-    h+='<div id="calWrap">'+calendar()+'</div>'+
-    '<div class="field" style="margin-top:24px"><label id="heureLbl">Heure d\'arrivée</label>'+
-    '<div class="chips" id="heureChips" role="radiogroup" aria-labelledby="heureLbl">'+slotChips()+'</div>'+
-    '<p class="slot-note" id="slotNote">'+slotNote()+'</p></div>';
-    if(state.jourISO&&state.heure){
-      h+='<div class="coord-block"><h4 style="margin-bottom:6px">Vos coordonnées</h4>'+
-         '<p class="veh-note" style="margin-bottom:18px">Dernière étape — nous avons déjà tout le reste.</p>'+contactFields()+'</div>';
-    }
-    h+='<div class="recap">'+
-      '<div class="rl"><span>Véhicule</span><b>'+(vehLabel()||'—')+(state.gab?' · '+GABARITS[state.gab].label:'')+'</b></div>'+
-      '<div class="rl"><span>Prestation</span><b>'+CLEAN[state.clean].label+'</b></div>'+
-      '<div class="rl"><span>Soin</span><b>'+f.k+'</b></div>'+
-      '<div class="rl"><span>Créneau</span><b>'+(state.jourLabel?(state.jourLabel+' · '+(state.heure||'—')):'—')+'</b></div>'+
-      (function(){var vis=visibleOptions();var noms=state.opts.map(function(id){var o=vis.find(function(x){return x.id===id});return o?o.nom:'';}).filter(Boolean);
-        return noms.length?'<div class="rl"><span>Options</span><b>'+noms.join(', ')+'</b></div>':'';})()+
-    '</div>';
-    if(PROMO.active){
-      if(state.promo && promoEligible()){
-        h+='<div class="promo-ok">✓ Code '+PROMO.code+' appliqué — <span class="x">−10 %</span></div>';
-      } else {
-        h+='<div class="promo-field"><input id="promoInput" placeholder="Code promo" value=""><button type="button" id="promoBtn">Appliquer</button></div>';
-        h+='<p class="promo-hint" id="promoHint">Code −10 % valable sur les formules Premium et Expérience.</p>';
-      }
-    }
-    h+='<div class="pricebar"><span class="lbl">Total estimé</span><span class="amt">';
-    var st=subTotal(), gt=grandTotal();
-    if(st>0){ h+= (state.promo&&promoEligible()) ? ('<s>'+st+' €</s><span id="amtNum" data-target="'+gt+'">'+gt+'</span> €') : ('<span id="amtNum" data-target="'+st+'">'+st+'</span> €'); }
-    else { h+='sur devis'; }
-    h+='</span></div>';
-    if(state.promo&&promoEligible()){h+='<p style="color:var(--dim);margin-top:8px;font-size:.8rem">Remise BIENVENUE10 : −'+(st-gt)+' €.</p>';}
-    else if(optsTotal()>0){h+='<p style="color:var(--dim);margin-top:8px;font-size:.8rem">Dont formule '+basePrice()+' € + options '+optsTotal()+' €.</p>';}
-    h+='<p style="color:var(--dim-2);margin-top:10px;font-size:.78rem">'+(STRIPE_ENABLED?'Un acompte de 40&nbsp;€ confirme votre créneau ; il est déduit du montant final réglé sur place selon l\'état réel du véhicule.':'Votre créneau est confirmé immédiatement ; le règlement se fait sur place selon l\'état réel du véhicule.')+'</p>';
-  }
-  /* ---------- DEMANDE DE DEVIS · 02 DEMANDE ---------- */
-  else {
-    h+=head+'<h4>Votre demande</h4>';
-    h+='<div class="recap" style="margin-bottom:24px">'+
-       '<div class="rl"><span>Souhait</span><b>'+state.sel.map(svcLabel).join(', ')+'</b></div>'+
-       '<div class="rl"><span>Véhicule</span><b>'+(vehLabel()||'—')+'</b></div></div>';
-    h+='<div class="field"><label id="etatLbl">Votre véhicule est…</label><div class="chips" id="etatChips" role="radiogroup" aria-labelledby="etatLbl">'+
-       ['Neuf','D\'occasion'].map(function(x){var v=x==='Neuf'?'neuf':'occasion';return '<div class="chip'+(state.etat===v?' sel':'')+'" data-etat="'+v+'" role="radio" tabindex="0" aria-checked="'+(state.etat===v?'true':'false')+'">'+x+'</div>';}).join('')+'</div></div>';
-    h+='<div class="field"><label for="msg">Un détail à nous préciser ? (facultatif)</label>'+
-       '<textarea id="msg" placeholder="Couleur, état de la peinture, finition souhaitée, délai…">'+(state.msg||'').replace(/</g,'&lt;')+'</textarea></div>';
-    h+='<div class="field"><label>Photos du véhicule (facultatif — 3 max)</label>'+
-       '<label class="photo-drop" id="photoDrop"><input type="file" id="photoInput" accept="image/*" multiple style="display:none"><span>Cliquez pour ajouter des photos</span></label>'+
-       '<div class="photo-list" id="photoList"></div></div>';
-    h+='<h4 style="margin-top:30px;margin-bottom:6px">Vos coordonnées</h4>'+
-       '<p class="veh-note" style="margin-bottom:18px">Nous revenons vers vous sous 24 h avec une proposition chiffrée.</p>'+contactFields();
-  }
-
-  var lastLabel=state.type==='prestation'?(STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer le rendez-vous'):'Envoyer ma demande';
-  h+='<div class="pnav"><button type="button" class="btn ghost" id="back" '+(step===0?'style="visibility:hidden"':'')+'>← Retour</button>'+
-     '<button type="button" class="btn" id="next">'+(step===last?lastLabel:'Continuer →')+'</button></div>';
-  setPanel(h);bindAll(last);animateAmt();updateSticky();
+  var L=stepsList(); if(idx>=L.length) idx=L.length-1; if(idx<0) idx=0;
+  var name=L[idx];
+  if(elBack) elBack.hidden=(idx===0);
+  if(elFill) elFill.style.width=(((idx+1)/L.length)*100)+'%';
+  if(elCount) elCount.textContent=state.svc||state.group?((idx+1)+' / '+L.length):'';
+  var sum=idx>0?summaryText():'';
+  if(elSum){elSum.hidden=!sum;elSum.textContent=sum;}
+  setPanel(R[name]());
+  (B[name]||function(){})();
 }
 
-function contactFields(){
-  function v(x){return (x||'').replace(/"/g,'&quot;');}
-  return '<div class="row2">'+
-    '<div class="field"><label for="prenom">Prénom</label><input id="prenom" autocomplete="given-name" placeholder="Prénom" value="'+v(state.prenom)+'"></div>'+
-    '<div class="field"><label for="nomFam">Nom</label><input id="nomFam" autocomplete="family-name" placeholder="Nom" value="'+v(state.nomFam)+'"></div>'+
-  '</div><div class="row2">'+
-    '<div class="field"><label for="tel">Téléphone</label><input id="tel" type="tel" autocomplete="tel" placeholder="06 …" value="'+v(state.tel)+'"></div>'+
-    '<div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="vous@email.com" value="'+v(state.email)+'"></div>'+
-  '</div>';
-}
-
-function splitName(full){
-  full=(full||'').trim();
-  var i=full.indexOf(' ');
-  if(i===-1) return {firstName: full||'Client', lastName: '—'};
-  return {firstName: full.slice(0,i), lastName: full.slice(i+1)};
-}
-
-function showError(msg,resetNextLabel){
-  var next=document.getElementById('next');
-  if(next&&resetNextLabel){next.disabled=false;next.textContent=resetNextLabel;}
-  var err=document.getElementById('bookErr');
+/* ---------- petits utilitaires d'écran ---------- */
+function showError(msg,resetBtn){
+  var btn=document.getElementById('wzGo');
+  if(btn&&resetBtn){btn.disabled=false;btn.textContent=resetBtn;}
+  var err=document.getElementById('wzErr');
   if(!err){
-    err=document.createElement('p');
-    err.id='bookErr';
-    err.setAttribute('role','alert');
-    err.style.cssText='color:#fff;background:rgba(255,255,255,.08);border:1px solid var(--line);padding:12px 16px;margin-top:14px;font-size:.85rem';
+    err=document.createElement('p');err.id='wzErr';err.className='wz-err';err.setAttribute('role','alert');
     panel.appendChild(err);
   }
   err.textContent=msg;
   try{err.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}
 }
-
-/* Résumé lisible des options sélectionnées — stocké dans les notes de
-   réservation. Le prix facturé est toujours recalculé côté serveur à
-   partir des ids d'options : le client n'envoie jamais de montant. */
-function optsNotes(){
-  var vis=visibleOptions();
-  var chosen=state.opts.map(function(id){return vis.find(function(o){return o.id===id});}).filter(Boolean);
-  if(!chosen.length) return undefined;
-  return 'Options : '+chosen.map(function(o){return o.nom;}).join(', ');
-}
-
-function done(){
-  var next=document.getElementById('next');
-  if(state.type==='prestation'){
-    if(next){next.disabled=true;next.textContent=STRIPE_ENABLED?'Redirection vers le paiement…':'Confirmation…';}
-    var f=CLEAN[state.clean].formules[state.form];
-    var notesParts=[optsNotes(),utmNoteLine()].filter(Boolean);
-    var payload={
-      service: serviceId(),
-      vehicleType: state.gab,
-      vehicleModel: vehLabel(),
-      date: state.jourISO,
-      time: state.heure,
-      client: {firstName:(state.prenom||'').trim(), lastName:(state.nomFam||'').trim(), phone:state.tel, email:state.email, notes: notesParts.length?notesParts.join(' — '):undefined},
-      opts: state.opts
-    };
-    var url='/api/create-booking';
-    if(STRIPE_ENABLED){url='/api/create-checkout-session';payload.paymentType='deposit';}
-    fetch(url,{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
-      .then(function(r){return r.json();})
-      .then(function(data){
-        if(data.error){showError(data.error,STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer le rendez-vous');return;}
-        if(data.url){window.location.href=data.url;return;}
-        if(data.sessionId){
-          /* booking_complete : déclenchée uniquement ici, après confirmation
-             réelle côté serveur, jamais au clic. */
-          pushEvt({
-            event:'booking_complete', service:serviceId(), formula:f.k,
-            service_area:state.clean, clean_type:state.clean,
-            vehicle_type:state.gab, vehicle_label:vehLabel()||null,
-            journey:'direct', value:grandTotal(), currency:'EUR'
-          });
-          var qs='session_id='+encodeURIComponent(data.sessionId);
-          var utm=utmQueryString();
-          if(utm)qs+='&'+utm;
-          setTimeout(function(){window.location.href='/confirmation.html?'+qs;},250);
-        }
-      })
-      .catch(function(){showError('Erreur de connexion. Vérifiez votre réseau et réessayez.','Confirmer le rendez-vous');});
-    return;
-  }
-
-  /* ---- demande de devis (PPF, céramique, polissage, autre…) ---- */
-  if(next){next.disabled=true;next.textContent='Envoi…';}
-  var labels=state.sel.map(svcLabel);
-  var vehicleInfo=vehLabel();
-  var parts=['Prestations souhaitées : '+labels.join(', ')];
-  if(state.etat) parts.push('Véhicule '+(state.etat==='neuf'?'neuf':'d\'occasion'));
-  if(state.msg.trim()) parts.push(state.msg.trim());
-  var source='Rendez-vous en ligne (rendez-vous.html) | prestations='+state.sel.join(',');
-  var utm=utmNoteLine(); if(utm) source+=' | '+utm.replace(/^Source : /,'');
-  var subject='Demande de devis — '+labels.join(', ');
-  var fn=(state.prenom||'').trim(), ln=(state.nomFam||'').trim();
-  var ok=function(r){return r&&r.ok;};
-  var onDone=function(good){
-    if(!good){showError('L\'envoi a échoué. Réessayez dans un instant, ou appelez-nous au 07 63 00 43 85.','Envoyer ma demande');return;}
-    pushEvt({event:'project_request_sent', projects:state.sel});
-    var main=state.sel.filter(function(k){return k==='ppf'||k==='ceramique'||k==='polissage';});
-    pushEvt({event:'generate_lead', service:main.length===1?main[0]:'rendez-vous', form_location:'rendez_vous',
-             currency:'EUR', value:0, lead_source:'rendez-vous.html', link_location:'form', page_type:'rendez_vous',
-             cible:'general', formule:state.sel.join(',')});
-    var target='merci-devis.html?service='+encodeURIComponent(main.length===1?main[0]:'rendez-vous');
-    setTimeout(function(){window.location.href=target;},250);
-  };
-  if(state.photos.length){
-    var fd=new FormData();
-    fd.append('firstName', fn); fd.append('lastName', ln);
-    fd.append('email', state.email); fd.append('phone', state.tel);
-    fd.append('subject', subject); fd.append('vehicleInfo', vehicleInfo);
-    fd.append('message', parts.join('\n')); fd.append('source', source);
-    state.photos.forEach(function(p){fd.append('photos', p);});
-    fetch('/api/devis-photos',{method:'POST', body: fd}).then(function(r){onDone(ok(r));}).catch(function(){onDone(false);});
-  } else {
-    fetch('/api/contact',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({type:'devis', firstName:fn, lastName:ln, email:state.email, phone:state.tel,
-        subject:subject, vehicleInfo:vehicleInfo, message:parts.join('\n'), source:source})
-    }).then(function(r){onDone(ok(r));}).catch(function(){onDone(false);});
-  }
-}
-
-function renderCalendarOnly(){
-  var wrap=document.getElementById('calWrap');
-  if(!wrap) return;
-  wrap.classList.remove('cal-refresh');
-  void wrap.offsetWidth;
-  wrap.innerHTML=calendar();
-  wrap.classList.add('cal-refresh');
-  bindCalendarNav();
-  bindDateCells();
-}
-function bindCalendarNav(){
-  var prev=document.getElementById('calPrev');
-  if(prev)prev.onclick=function(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}renderCalendarOnly();};
-  var nextB=document.getElementById('calNext');
-  if(nextB)nextB.onclick=function(){state.calMonth++;if(state.calMonth>11){state.calMonth=0;state.calYear++;}renderCalendarOnly();};
-}
-function bindDateCells(){
-  document.querySelectorAll('[data-iso]').forEach(function(b){b.onclick=function(){state.jourISO=b.dataset.iso;state.jourLabel=b.dataset.label;navDirection=null;render();};});
-}
-
-function scrollToPanelTop(){
-  var wrap=document.querySelector('.resa');
-  if(!wrap) return;
-  var top=wrap.getBoundingClientRect().top;
-  if(top<0||top>window.innerHeight*0.6){
-    try{window.scrollTo({top:window.scrollY+top-76,behavior:'smooth'});}catch(e){window.scrollTo(0,window.scrollY+top-76);}
-  }
-}
-function goBack(){
-  if(step>0){step--;navDirection='back';render();scrollToPanelTop();}
-}
-
-function shakeNext(){
-  var n=document.getElementById('next');
-  if(!n) return;
-  n.classList.remove('shake');
-  void n.offsetWidth;
-  n.classList.add('shake');
-}
-function flashEl(id){
-  var el=document.getElementById(id);
-  if(!el) return;
-  el.classList.remove('field-flash');
-  void el.offsetWidth;
-  el.classList.add('field-flash');
-}
+function clearError(){var e=document.getElementById('wzErr');if(e)e.remove();}
+function flash(id){var el=document.getElementById(id);if(!el)return;el.classList.remove('field-flash');void el.offsetWidth;el.classList.add('field-flash');}
 function fieldError(id,msg){
-  flashEl(id);
-  var el=document.getElementById(id);
+  flash(id);var el=document.getElementById(id);
   if(el){el.setAttribute('aria-invalid','true');try{el.focus();}catch(e){}}
-  if(msg) showError(msg);
-  return false;
+  showError(msg);return false;
 }
-var EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function validContact(){
   if(!(state.prenom||'').trim()) return fieldError('prenom','Merci d\'indiquer votre prénom.');
   if(!(state.nomFam||'').trim()) return fieldError('nomFam','Merci d\'indiquer votre nom.');
@@ -874,309 +438,436 @@ function validContact(){
   if(!EMAIL_RE.test((state.email||'').trim())) return fieldError('email','Merci d\'indiquer une adresse email valide.');
   return true;
 }
-function validStep(){
-  if(step===0){
-    if(!state.sel.length){flashEl('svcbox');showError('Choisissez au moins une prestation.');return false;}
-    if(state.type==='prestation'){
-      if(!state.gab){flashEl('vehbox');showError('Indiquez votre véhicule pour afficher le tarif exact : choisissez votre modèle dans la liste, ou son gabarit.');return false;}
-    } else if(!vehLabel()){
-      return fieldError('vehq','Indiquez votre véhicule (marque et modèle).');
-    }
-    return true;
-  }
-  if(state.type==='prestation'&&step===2){
-    if(!state.jourISO){flashEl('calWrap');showError('Choisissez un jour.');return false;}
-    if(!state.heure){flashEl('heureChips');showError('Choisissez une heure d\'arrivée.');return false;}
-    return validContact();
-  }
-  if(state.type==='projet'&&step===1) return validContact();
-  return true;
+function bindInputs(){
+  ['prenom','nomFam','tel','email','msg'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.addEventListener('input',function(e){state[id]=e.target.value;el.removeAttribute('aria-invalid');clearError();});
+  });
 }
-
-/* Une carte sélectionnable doit se comporter comme un vrai contrôle :
-   activable au clavier (Entrée / Espace) autant qu'à la souris. */
+function contactFields(){
+  return '<div class="row2">'+
+    '<div class="field"><label for="prenom">Prénom</label><input id="prenom" autocomplete="given-name" placeholder="Prénom" value="'+esc(state.prenom)+'"></div>'+
+    '<div class="field"><label for="nomFam">Nom</label><input id="nomFam" autocomplete="family-name" placeholder="Nom" value="'+esc(state.nomFam)+'"></div>'+
+  '</div><div class="row2">'+
+    '<div class="field"><label for="tel">Téléphone</label><input id="tel" type="tel" autocomplete="tel" placeholder="06 …" value="'+esc(state.tel)+'"></div>'+
+    '<div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="vous@email.com" value="'+esc(state.email)+'"></div>'+
+  '</div>';
+}
 function bindCard(el,fn){
   el.addEventListener('click',fn);
-  el.addEventListener('keydown',function(e){
-    if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){e.preventDefault();fn();}
-  });
+  el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){e.preventDefault();fn();}});
 }
 
-function renderPhotoList(){
-  var list=document.getElementById('photoList');
-  if(!list) return;
-  list.innerHTML=state.photos.map(function(f,i){
-    return '<div class="photo-chip"><span>'+f.name.replace(/</g,'&lt;')+'</span><button type="button" data-rmphoto="'+i+'" aria-label="Retirer la photo">✕</button></div>';
-  }).join('');
-  list.querySelectorAll('[data-rmphoto]').forEach(function(b){
-    b.addEventListener('click',function(){state.photos.splice(+b.dataset.rmphoto,1);renderPhotoList();});
+var R={}, B={};
+
+/* ================= 1 · PRESTATION ================= */
+R.svc=function(){
+  var h='<h2 class="wz-q">Que souhaitez-vous faire ?</h2><div class="wz-opts">';
+  SVC.forEach(function(s){
+    h+='<button type="button" class="wz-opt" data-svc="'+s.k+'"><span class="wz-t"><b>'+s.label+'</b><span>'+s.sub+'</span></span>'+
+       '<span class="wz-tag'+(s.book?' book':'')+'">'+s.tag+'</span></button>';
   });
-}
+  return h+'</div>';
+};
+B.svc=function(){
+  panel.querySelectorAll('[data-svc]').forEach(function(b){b.addEventListener('click',function(){
+    var k=b.dataset.svc; trackStart();
+    state.more=[];
+    if(k==='autre'){state.group='autre';state.svc=null;}
+    else{state.group=null;state.svc=k;}
+    pushEvt({event:'service_selected', service:k});
+    goNext();
+  });});
+};
+/* ================= 1 bis · AUTRE PRESTATION ================= */
+R.autre=function(){
+  var h='<h2 class="wz-q">Quelle prestation ?</h2><div class="wz-opts">';
+  AUTRE.forEach(function(s){h+='<button type="button" class="wz-opt" data-autre="'+s.k+'"><span class="wz-t"><b>'+s.label+'</b><span>'+s.sub+'</span></span></button>';});
+  return h+'</div>';
+};
+B.autre=function(){
+  panel.querySelectorAll('[data-autre]').forEach(function(b){b.addEventListener('click',function(){
+    state.svc=b.dataset.autre;state.more=[];
+    pushEvt({event:'service_selected', service:state.svc});
+    goNext();
+  });});
+};
 
-function bindAll(last){
-  /* ---- prestations cochées ---- */
-  panel.querySelectorAll('[data-svc]').forEach(function(b){bindCard(b,function(){
-    var k=b.dataset.svc, i=state.sel.indexOf(k);
-    if(i>-1) state.sel.splice(i,1); else state.sel.push(k);
-    pushEvt({event:'service_toggled', service:k, selected:i===-1});
-    render();
-  })});
-
-  /* ---- champs texte ---- */
-  function bI(id,key){var el=document.getElementById(id);if(el)el.addEventListener('input',function(e){
-    state[key]=e.target.value; el.removeAttribute('aria-invalid');
-    var err=document.getElementById('bookErr'); if(err)err.remove();
-  })}
-  bI('prenom','prenom');bI('nomFam','nomFam');bI('tel','tel');bI('email','email');bI('msg','msg');
-
-  /* ---- véhicule : recherche unifiée marque + modèle ---- */
-  var acBox=document.getElementById('ac');
-  var vehq=document.getElementById('vehq');
-  function closeAc(){ if(acBox){acBox.innerHTML='';acBox.classList.remove('on');} }
-  function pickVehicle(marque,modele,gab){
-    state.marque=marque;state.modele=modele;state.gab=gab;
-    state.gabAuto=true;state.vehUnknown=false;state.vehQuery=(marque+' '+modele).trim();
-    closeAc();
+/* ================= 2 · VÉHICULE ================= */
+R.veh=function(){
+  var nett=state.svc==='nettoyage';
+  var h='<h2 class="wz-q">Quel est votre véhicule ?</h2>';
+  if(nett&&state.vehUnknown){
+    h+='<p class="wz-note">'+(state.vehQuery?'<b>'+esc(state.vehQuery)+'</b> ne figure pas encore dans notre base. ':'')+'Indiquez son gabarit : c\'est lui qui détermine le tarif.</p><div class="wz-opts">';
+    for(var gk in GABARITS){h+='<button type="button" class="wz-opt" data-gab="'+gk+'"><span class="wz-t"><b>'+GABARITS[gk].label+'</b><span>'+GABARITS[gk].desc+'</span></span></button>';}
+    return h+'</div><p class="wz-link"><button type="button" class="link-soft" id="vehReset">Rechercher un autre modèle</button></p>';
+  }
+  h+='<div class="field wz-search"><label for="vehq">Marque ou modèle</label>'+
+     '<input id="vehq" autocomplete="off" autocapitalize="words" placeholder="BMW M3, Clio, Cayenne, Model 3…" value="'+esc(state.vehQuery)+'">'+
+     '<div class="wz-opts wz-sugg" id="ac"></div></div>';
+  if(state.gab&&state.gabAuto) h+='<p class="wz-note" id="vehOk">Véhicule identifié : <b>'+esc(vehLabel())+'</b> · '+GABARITS[state.gab].label+'</p>';
+  h+='<div class="wz-after"><button type="button" class="btn solid wz-cta" id="wzGo" hidden>Continuer</button>';
+  if(nett) h+='<p class="wz-link"><button type="button" class="link-soft" id="noModel">Je ne trouve pas mon véhicule</button></p>';
+  return h+'</div>';
+};
+B.veh=function(){
+  var nett=state.svc==='nettoyage';
+  var acBox=document.getElementById('ac'), vehq=document.getElementById('vehq'), go=document.getElementById('wzGo');
+  function pick(marque,modele,gab){
+    state.marque=marque;state.modele=modele;state.gab=gab;state.gabAuto=true;state.vehUnknown=false;
+    state.vehQuery=(marque+' '+modele).trim();
     pushEvt({event:'vehicle_selected', vehicle_type:gab, vehicle_label:state.vehQuery, recognised:true});
-    render();
+    goNext();
+  }
+  function refreshGo(){
+    if(!go) return;
+    var txt=(state.vehQuery||'').trim();
+    var res=txt.length>=2?searchVehicles(txt,1):[];
+    var show=(!nett&&txt.length>=2)||(nett&&state.gab&&state.gabAuto);
+    go.hidden=!show;
+    if(show) go.textContent=(res.length||(state.gab&&state.gabAuto))?'Continuer':'Continuer avec « '+txt+' »';
   }
   function suggest(){
-    if(!acBox)return;
-    var res=searchVehicles(state.vehQuery,7);
-    if(!res.length){closeAc();return;}
+    if(!acBox) return;
+    var res=searchVehicles(state.vehQuery,6);
     acBox.innerHTML=res.map(function(v){
-      return '<button type="button" class="aci" data-mk="'+v.marque+'" data-md="'+v.modele+'" data-gb="'+v.gab+'">'+
-             '<b>'+v.marque+' '+v.modele+'</b><span>'+GABARITS[v.gab].label+'</span></button>';
+      return '<button type="button" class="wz-opt" data-mk="'+esc(v.marque)+'" data-md="'+esc(v.modele)+'" data-gb="'+v.gab+'"><span class="wz-t"><b>'+esc(v.marque+' '+v.modele)+'</b></span><span class="wz-tag">'+GABARITS[v.gab].label+'</span></button>';
     }).join('');
-    acBox.classList.add('on');
-    acBox.querySelectorAll('.aci').forEach(function(bt){bt.addEventListener('click',function(){
-      pickVehicle(bt.dataset.mk,bt.dataset.md,bt.dataset.gb);
-    });});
+    acBox.querySelectorAll('.wz-opt').forEach(function(bt){bt.addEventListener('click',function(){pick(bt.dataset.mk,bt.dataset.md,bt.dataset.gb);});});
   }
   if(vehq){
     vehq.addEventListener('input',function(e){
-      state.vehQuery=e.target.value; state.gab=null; state.gabAuto=false; state.marque=''; state.modele='';
-      vehq.removeAttribute('aria-invalid'); var er=document.getElementById('bookErr'); if(er)er.remove();
-      suggest();
+      state.vehQuery=e.target.value;state.gab=null;state.gabAuto=false;state.marque='';state.modele='';
+      var ok=document.getElementById('vehOk');if(ok)ok.remove();clearError();
+      suggest();refreshGo();
     });
-    vehq.addEventListener('focus',suggest);
     vehq.addEventListener('keydown',function(e){
-      if(e.key!=='Enter')return;
-      e.preventDefault();
+      if(e.key!=='Enter')return; e.preventDefault();
       var res=searchVehicles(state.vehQuery,1);
-      if(res.length) pickVehicle(res[0].marque,res[0].modele,res[0].gab);
-      else if(needGab()){ state.vehUnknown=true; render(); }
-      else { closeAc(); }
+      if(res.length) pick(res[0].marque,res[0].modele,res[0].gab);
+      else if(nett){state.vehUnknown=true;render();}
+      else if((state.vehQuery||'').trim().length>=2){goNext();}
     });
+    if(state.vehQuery) suggest();
+    if(!state.vehQuery){setTimeout(function(){try{vehq.focus({preventScroll:true});}catch(e){}},60);}
   }
-  document.addEventListener('click',function(e){
-    if(acBox&&!e.target.closest('#ac')&&e.target.id!=='vehq') closeAc();
+  refreshGo();
+  if(go) go.addEventListener('click',function(){
+    if(state.gab&&state.gabAuto){goNext();return;}
+    if((state.vehQuery||'').trim().length<2){fieldError('vehq','Indiquez votre véhicule (marque et modèle).');return;}
+    var res=searchVehicles(state.vehQuery,1);
+    if(res.length&&norm(res[0].full)===norm(state.vehQuery)){pick(res[0].marque,res[0].modele,res[0].gab);return;}
+    goNext();
   });
-  panel.querySelectorAll('[data-gab]').forEach(function(bt){bindCard(bt,function(){
+  panel.querySelectorAll('[data-gab]').forEach(function(bt){bt.addEventListener('click',function(){
     state.gab=bt.dataset.gab;state.gabAuto=false;
     logUnknownVehicle(state.vehQuery,state.gab);
     pushEvt({event:'vehicle_selected', vehicle_type:state.gab, vehicle_label:state.vehQuery||null, recognised:false});
-    render();
-  })});
+    goNext();
+  });});
   var noModel=document.getElementById('noModel');
   if(noModel)noModel.addEventListener('click',function(){state.vehUnknown=true;render();});
   var vehReset=document.getElementById('vehReset');
   if(vehReset)vehReset.addEventListener('click',function(){
-    state.marque='';state.modele='';state.gab=null;state.gabAuto=false;
-    state.vehUnknown=false;state.vehQuery='';
-    render();
-    setTimeout(function(){var i=document.getElementById('vehq');if(i)i.focus();},40);
+    state.marque='';state.modele='';state.gab=null;state.gabAuto=false;state.vehUnknown=false;state.vehQuery='';render();
   });
+};
 
-  /* ---- nettoyage : soin, options, promo, créneau ---- */
-  panel.querySelectorAll('[data-clean]').forEach(function(b){b.addEventListener('click',function(){
-    state.clean=b.dataset.clean;
+/* ================= 3 · ZONE (nettoyage) ================= */
+R.zone=function(){
+  var h='<h2 class="wz-q">Intérieur, extérieur ou les deux ?</h2><div class="wz-opts">';
+  ZONES.forEach(function(z){
+    h+='<button type="button" class="wz-opt'+(state.clean===z[0]?' sel':'')+'" data-zone="'+z[0]+'"><span class="wz-t"><b>'+z[1]+'</b>'+
+       (z[0]==='duo'?'<span>Le véhicule repris dans son ensemble</span>':'')+'</span>'+
+       '<span class="wz-right">'+(z[0]==='duo'?'<span class="wz-tag book">Recommandé</span>':'')+'<span class="wz-price"><i>dès</i> '+minPrice(z[0])+' €</span></span></button>';
+  });
+  return h+'</div>';
+};
+B.zone=function(){
+  panel.querySelectorAll('[data-zone]').forEach(function(b){b.addEventListener('click',function(){
+    state.clean=b.dataset.zone;
     pushEvt({event:'service_area_selected', service_area:state.clean, vehicle_type:state.gab});
-    render();
-  })});
+    goNext();
+  });});
+};
+
+/* ================= 4 · FORMULE (nettoyage) ================= */
+R.formule=function(){
+  var fs=CLEAN[state.clean].formules;
+  var h='<h2 class="wz-q">Quelle formule ?</h2><div class="wz-opts wz-forms">';
+  fs.forEach(function(f,i){
+    var tag=f.top?'Signature REYCE':(f.reco?'Le plus choisi':'');
+    var det='';
+    if(f.detailInt&&f.detailExt){
+      det='<details class="wz-det"><summary>Voir ce qui est inclus</summary><h5>Intérieur</h5><ul>'+f.detailInt.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul><h5>Extérieur</h5><ul>'+f.detailExt.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul></details>';
+    } else if(f.detail){
+      det='<details class="wz-det"><summary>Voir ce qui est inclus</summary><ul>'+f.detail.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul></details>';
+    }
+    h+='<div class="wz-fcard'+(state.form===i?' sel':'')+(f.top?' top':'')+'" data-form="'+i+'" role="button" tabindex="0">'+
+       '<div class="wz-fhead"><div><span class="wz-ftier">'+TIER_SUB[f.k]+'</span><b>'+f.nom+'</b></div>'+
+       '<div class="wz-fprice">'+(tag?'<span class="wz-tag book">'+tag+'</span>':'')+'<span class="wz-price">'+priceFor(state.clean,i,state.gab)+' €</span></div></div>'+
+       '<p class="wz-fpitch">'+f.pitch+'</p>'+det+'</div>';
+  });
+  return h+'</div>';
+};
+B.formule=function(){
+  panel.querySelectorAll('.wz-det').forEach(function(d){d.addEventListener('click',function(e){e.stopPropagation();});});
   panel.querySelectorAll('[data-form]').forEach(function(b){bindCard(b,function(){
     state.form=+b.dataset.form;
     pushEvt({event:'formula_selected', formula:CLEAN[state.clean].formules[state.form].k,
              service_area:state.clean, vehicle_type:state.gab, value:grandTotal(), currency:'EUR'});
-    render();
-  })});
-  panel.querySelectorAll('.fdetail summary').forEach(function(s){s.addEventListener('click',function(e){e.stopPropagation();})});
-  panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){
-    var id=b.dataset.opt, k=state.opts.indexOf(id);
-    if(k>-1) state.opts.splice(k,1); else state.opts.push(id);
-    state.optsOpen=true;
-    pushEvt({event:'option_toggled', option:id, selected:k===-1});
-    render();
-  })});
-  var promoBtn=document.getElementById('promoBtn');
-  if(promoBtn)promoBtn.addEventListener('click',function(){
-    var v=(document.getElementById('promoInput').value||'').trim().toUpperCase();
-    var hint=document.getElementById('promoHint');
-    if(v!==PROMO.code){ if(hint){hint.textContent='Code invalide.';hint.style.color='#fff';} return; }
-    if(!promoEligible()){ if(hint){hint.textContent='Ce code est valable sur Premium et Expérience. Choisissez l\'une de ces formules pour en profiter.';hint.style.color='#fff';} return; }
-    state.promo=true; render();
-  });
-  bindSlotChips();
-  bindCalendarNav();
-  bindDateCells();
+    goNext();
+  });});
+};
 
-  /* ---- demande de devis : état du véhicule, photos ---- */
-  panel.querySelectorAll('[data-etat]').forEach(function(b){bindCard(b,function(){
-    state.etat=(state.etat===b.dataset.etat)?'':b.dataset.etat; render();
-  })});
-  var photoInput=document.getElementById('photoInput');
-  if(photoInput){
-    photoInput.addEventListener('change',function(){
-      var incoming=[].slice.call(photoInput.files);
-      incoming.forEach(function(f){
-        if(state.photos.length>=3) return;
-        if(f.size>6*1024*1024){showError('Photo trop lourde (6 Mo max) : '+f.name);return;}
-        state.photos.push(f);
+/* ================= 5 · JOUR (nettoyage) ================= */
+function calendarHtml(){
+  var dow=['L','M','M','J','V','S','D'];
+  var h='<div class="cal-nav"><button type="button" class="cal-nav__btn" id="calPrev" aria-label="Mois précédent">‹</button><span class="mono">'+MONTHS_FR[state.calMonth]+' '+state.calYear+'</span><button type="button" class="cal-nav__btn" id="calNext" aria-label="Mois suivant">›</button></div><div class="cal">';
+  dow.forEach(function(d){h+='<div class="dow">'+d+'</div>';});
+  var first=new Date(state.calYear,state.calMonth,1), off=(first.getDay()+6)%7;
+  var dim=new Date(state.calYear,state.calMonth+1,0).getDate();
+  var t0=new Date();t0.setHours(0,0,0,0);
+  for(var i=0;i<off;i++)h+='<div class="d mut"></div>';
+  for(var d=1;d<=dim;d++){
+    var dateObj=new Date(state.calYear,state.calMonth,d);
+    var iso=state.calYear+'-'+String(state.calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    var weekend=(dateObj.getDay()===0), mut=dateObj<t0||weekend;
+    h+='<div class="d'+(mut?' mut':'')+(weekend?' closed':'')+(state.jourISO===iso?' sel':'')+'" '+
+       (mut?(weekend?'title="Fermé le dimanche"':''):'data-iso="'+iso+'" data-label="'+d+' '+MONTHS_FR[state.calMonth]+'" role="button" tabindex="0"')+'>'+d+'</div>';
+  }
+  return h+'</div>';
+}
+R.jour=function(){
+  return '<h2 class="wz-q">Quel jour ?</h2><div id="calWrap">'+calendarHtml()+'</div>'+
+         '<p class="wz-note" id="slotNote">Du lundi au samedi · arrivées de 09:00 à 19:00</p>';
+};
+B.jour=function(){
+  function bindCal(){
+    var prev=document.getElementById('calPrev'), nxt=document.getElementById('calNext');
+    if(prev)prev.onclick=function(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}redraw();};
+    if(nxt)nxt.onclick=function(){state.calMonth++;if(state.calMonth>11){state.calMonth=0;state.calYear++;}redraw();};
+    document.querySelectorAll('#calWrap [data-iso]').forEach(function(c){bindCard(c,function(){
+      state.jourISO=c.dataset.iso;state.jourLabel=c.dataset.label;state.heure=null;
+      var note=document.getElementById('slotNote'); if(note)note.textContent='Recherche des disponibilités…';
+      fetchSlots(function(){
+        var msg=slotNote();
+        if(msg){var n=document.getElementById('slotNote');if(n)n.textContent=msg;redraw(true);return;}
+        goNext();
       });
-      photoInput.value='';
-      renderPhotoList();
+    });});
+  }
+  function redraw(keepNote){
+    var w=document.getElementById('calWrap'); if(w){w.innerHTML=calendarHtml();bindCal();}
+    if(!keepNote){var n=document.getElementById('slotNote');if(n)n.textContent='Du lundi au samedi · arrivées de 09:00 à 19:00';}
+  }
+  bindCal();
+};
+
+/* ================= 6 · HEURE (nettoyage) ================= */
+R.heure=function(){
+  var h='<h2 class="wz-q">À quelle heure ?</h2><div class="wz-chips" id="heureChips">';
+  if(!slotState.all.length) h+='<span class="wz-note">Recherche des disponibilités…</span>';
+  slotState.all.forEach(function(t){
+    var free=slotState.free.indexOf(t)>-1;
+    h+='<button type="button" class="wz-chip'+(state.heure===t?' sel':'')+(free?'':' taken')+'" data-t="'+t+'"'+(free?'':' disabled')+'>'+t+'</button>';
+  });
+  return h+'</div><p class="wz-note">Un rendez-vous mobilise l\'atelier au moins 3 heures : les horaires barrés sont déjà pris.</p>';
+};
+B.heure=function(){
+  if(slotState.date!==state.jourISO||slotState.svc!==serviceId()||!slotState.all.length){
+    fetchSlots(function(){render();}); return;
+  }
+  panel.querySelectorAll('[data-t]').forEach(function(b){b.addEventListener('click',function(){
+    if(b.disabled)return; state.heure=b.dataset.t;
+    pushEvt({event:'slot_selected', slot_time:state.heure, slot_date:state.jourISO});
+    goNext();
+  });});
+};
+
+/* ================= DÉTAILS (devis) ================= */
+R.details=function(){
+  var others=SVC.filter(function(s){return s.k!=='nettoyage'&&s.k!=='autre'&&s.k!==state.svc;}).concat(AUTRE.filter(function(s){return s.k!==state.svc&&s.k!=='autre';}));
+  var h='<h2 class="wz-q">Quelques précisions</h2>'+
+    '<div class="field"><label id="etatLbl">Votre véhicule est…</label><div class="wz-pills" role="radiogroup" aria-labelledby="etatLbl">'+
+    [['neuf','Neuf'],['occasion','D\'occasion']].map(function(x){return '<button type="button" class="wz-pill'+(state.etat===x[0]?' sel':'')+'" data-etat="'+x[0]+'" role="radio" aria-checked="'+(state.etat===x[0])+'">'+x[1]+'</button>';}).join('')+'</div></div>'+
+    '<div class="field"><label for="msg">Un détail à nous préciser ? (facultatif)</label><textarea id="msg" rows="3" placeholder="Couleur, état de la peinture, finition souhaitée, délai…">'+esc(state.msg)+'</textarea></div>'+
+    '<div class="field"><label>Aussi intéressé par ? (facultatif)</label><div class="wz-pills">'+
+    others.map(function(s){return '<button type="button" class="wz-pill'+(state.more.indexOf(s.k)>-1?' sel':'')+'" data-more="'+s.k+'" aria-pressed="'+(state.more.indexOf(s.k)>-1)+'">'+s.label+'</button>';}).join('')+'</div></div>'+
+    '<div class="field"><label class="photo-drop wz-photo" id="photoDrop"><input type="file" id="photoInput" accept="image/*" multiple style="display:none"><span>＋ Ajouter des photos du véhicule (facultatif, 3 max)</span></label><div class="photo-list" id="photoList"></div></div>'+
+    '<div class="wz-after"><button type="button" class="btn solid wz-cta" id="wzGo">Continuer</button></div>';
+  return h;
+};
+function renderPhotoList(){
+  var list=document.getElementById('photoList'); if(!list) return;
+  list.innerHTML=state.photos.map(function(f,i){return '<div class="photo-chip"><span>'+esc(f.name)+'</span><button type="button" data-rmphoto="'+i+'" aria-label="Retirer la photo">✕</button></div>';}).join('');
+  list.querySelectorAll('[data-rmphoto]').forEach(function(b){b.addEventListener('click',function(){state.photos.splice(+b.dataset.rmphoto,1);renderPhotoList();});});
+}
+B.details=function(){
+  bindInputs();
+  panel.querySelectorAll('[data-etat]').forEach(function(b){b.addEventListener('click',function(){
+    state.etat=(state.etat===b.dataset.etat)?'':b.dataset.etat;
+    panel.querySelectorAll('[data-etat]').forEach(function(x){var on=x.dataset.etat===state.etat;x.classList.toggle('sel',on);x.setAttribute('aria-checked',on);});
+  });});
+  panel.querySelectorAll('[data-more]').forEach(function(b){b.addEventListener('click',function(){
+    var k=b.dataset.more,i=state.more.indexOf(k); if(i>-1)state.more.splice(i,1);else state.more.push(k);
+    b.classList.toggle('sel',i===-1);b.setAttribute('aria-pressed',i===-1);
+  });});
+  var pi=document.getElementById('photoInput');
+  if(pi)pi.addEventListener('change',function(){
+    [].slice.call(pi.files).forEach(function(f){
+      if(state.photos.length>=3)return;
+      if(f.size>6*1024*1024){showError('Photo trop lourde (6 Mo max) : '+f.name);return;}
+      state.photos.push(f);
     });
-  }
+    pi.value='';renderPhotoList();
+  });
   renderPhotoList();
+  document.getElementById('wzGo').addEventListener('click',goNext);
+};
 
-  /* ---- navigation ---- */
-  var back=document.getElementById('back');
-  if(back)back.addEventListener('click',goBack);
-  var nextBtn=document.getElementById('next');
-  if(nextBtn)nextBtn.addEventListener('click',function(){
-    if(!validStep()){shakeNext();return;}
-    if(step<last){step++;navDirection='fwd';render();scrollToPanelTop();}else{done();}
-  });
-  refreshSlotAvailability();
-}
-
-/* Interroge le serveur pour le jour choisi : grille complète (`all`) et
-   arrivées réellement réservables (`slots`). */
-function refreshSlotAvailability(){
-  if(state.type!=='prestation'||!state.jourISO)return;
-  if(!document.getElementById('heureChips'))return;
-  var svc=serviceId(), date=state.jourISO;
-  if(slotState.date===date&&slotState.svc===svc&&!slotState.loading){paintSlots();return;}
-  slotState.date=date;slotState.svc=svc;slotState.loading=true;
-  paintSlots();
-  fetch('/api/slots?service='+encodeURIComponent(svc)+'&date='+encodeURIComponent(date))
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(data){
-      if(slotState.date!==date||slotState.svc!==svc)return; // réponse devenue obsolète
-      slotState.loading=false;
-      slotState.all=(data&&data.all)||[];
-      slotState.free=(data&&data.slots)||[];
-      slotState.closed=(data&&data.closed)||null;
-      /* Le créneau retenu vient d'être pris par quelqu'un d'autre : on le
-         retire plutôt que de laisser le client valider dans le vide. */
-      if(state.heure&&slotState.free.indexOf(state.heure)===-1){state.heure=null;render();return;}
-      paintSlots();
-    })
-    .catch(function(){slotState.loading=false;paintSlots();});
-}
-
-render();
-
-/* ============================================================
-   CTA COLLANT MOBILE — évolue avec l'avancée du parcours, masqué
-   quand le bouton "Continuer" est déjà visible à l'écran.
-   ============================================================ */
-var stickyEl=document.getElementById('lpSticky'), stickyCta=document.getElementById('lpStickyCta'),
-    stickyCall=document.getElementById('lpStickyCall'), stickyRecap=document.getElementById('lpStickyRecap'),
-    stickyVeh=document.getElementById('lpStickyVeh'), stickyPrice=document.getElementById('lpStickyPrice');
-function inTunnel(){return state.type==='prestation'&&step>=1&&!!state.gab;}
-function updateSticky(){
-  if(!stickyEl||!stickyCta) return;
-  var tunnel=inTunnel();
-  if(stickyCall) stickyCall.hidden=tunnel;
-  if(stickyRecap) stickyRecap.hidden=!tunnel;
-  if(tunnel){
-    var price=grandTotal()||basePrice();
-    if(stickyVeh) stickyVeh.textContent=vehLabel()||GABARITS[state.gab].label;
-    if(stickyPrice) stickyPrice.textContent=price>0?(price+' €'):'sur devis';
-    stickyCta.textContent=nextLabel();
-  } else {
-    stickyCta.textContent=(step>0||state.sel.length)?nextLabel():'Réserver / devis';
+/* ================= COORDONNÉES + CONFIRMATION ================= */
+R.coord=function(){
+  var nett=flowType()==='prestation', f=chosenForm();
+  var h='<h2 class="wz-q">'+(nett?'Dernière étape':'Vos coordonnées')+'</h2>';
+  h+=contactFields();
+  if(nett){
+    var st=subTotal(), gt=grandTotal();
+    h+='<div class="wz-recap" style="margin:14px 0 0"><div class="wz-total"><span>Total</span><b>'+((state.promo&&promoEligible())?'<s>'+st+' €</s> ':'')+gt+' € TTC</b></div>'+
+       (optsTotal()>0?'<div><span>dont options</span><b>'+optsTotal()+' €</b></div>':'')+'</div>';
   }
-  refreshStickyVisibility();
-}
-/* La barre ne doit jamais recouvrir le vrai bouton « Continuer » ni le
-   calendrier : elle s'efface dès que l'un des deux est à l'écran. */
-function refreshStickyVisibility(){
-  if(!stickyEl) return;
-  var hero=document.querySelector('.phero');
-  var pastHero=window.scrollY>((hero?hero.offsetHeight:400)*0.85);
-  var hide=false;
-  ['next','calWrap'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(!el) return;
-    var r=el.getBoundingClientRect();
-    if(r.top<window.innerHeight-24&&r.bottom>0) hide=true;
-  });
-  stickyEl.classList.toggle('on', pastHero&&!hide);
-}
-addEventListener('scroll',refreshStickyVisibility,{passive:true});
-addEventListener('resize',refreshStickyVisibility);
-/* Libellé court du bouton principal de l'écran courant (Continuer, Confirmer, Envoyer). */
-function nextLabel(){
-  var L=LAB[state.type];
-  if(step<L.length-1) return 'Continuer';
-  return state.type==='prestation'?'Confirmer':'Envoyer';
-}
-/* La barre collante agit comme le bouton principal : un seul geste, jamais deux boutons différents. */
-if(stickyCta)stickyCta.addEventListener('click',function(e){
-  e.preventDefault();
-  var nb=document.getElementById('next');
-  if(nb&&!nb.disabled&&panel.contains(nb)&&(step>0||state.sel.length)){nb.click();return;}
-  var panelEl=document.getElementById('panel');
-  if(panelEl)panelEl.scrollIntoView({behavior:'smooth',block:'center'});
-});
 
-/* Détail du récapitulatif sur mobile — feuille glissante, fermée par défaut. */
-var sheet=document.getElementById('recapSheet');
-if(stickyRecap&&sheet){
-  var sheetBody=document.getElementById('recapSheetBody');
-  var closeSheet=function(){sheet.hidden=true;};
-  stickyRecap.addEventListener('click',function(){
-    if(sheetBody) sheetBody.innerHTML='<div class="ws-title mono">Votre REYCE</div>'+recapHtml();
-    sheet.hidden=false;
+  if(nett){
+    h+='<details class="wz-fold"'+(state.optsOpen?' open':'')+' id="optFold"><summary>Ajouter une option (facultatif)'+(state.opts.length?' · '+state.opts.length:'')+'</summary><div class="optgrid" style="margin-top:10px">';
+    var showVar=false;
+    visibleOptions().forEach(function(op){
+      var on=state.opts.indexOf(op.id)>-1; if(on&&op.variable)showVar=true;
+      h+='<button type="button" class="optcard'+(on?' sel':'')+'" data-opt="'+op.id+'" aria-pressed="'+on+'"><span class="optck">'+(on?'✓':'+')+'</span><span class="optbody"><b>'+op.nom+'</b><span class="optd">'+op.desc+'</span></span><span class="optp"><i>à partir de</i>'+op.prix+'&nbsp;€</span></button>';
+    });
+    h+='</div>'+(showVar?'<p class="optnote">'+OPTS_VARIABLE_NOTE+'</p>':'')+'</details>';
+    if(PROMO.active&&!(state.promo&&promoEligible())){
+      h+='<details class="wz-fold"'+(state.promoOpen?' open':'')+' id="promoFold"><summary>J\'ai un code promo</summary><div class="promo-field" style="margin-top:10px"><input id="promoInput" placeholder="Code promo"><button type="button" id="promoBtn">Appliquer</button></div><p class="promo-hint" id="promoHint">Code −10 % valable sur les formules Premium et Expérience.</p></details>';
+    } else if(state.promo&&promoEligible()){
+      h+='<div class="promo-ok">✓ Code '+PROMO.code+' appliqué — <span class="x">−10 %</span></div>';
+    }
+    h+='<p class="wz-note">Votre créneau est confirmé immédiatement ; le règlement se fait sur place selon l\'état réel du véhicule.</p>';
+  } else {
+    h+='<p class="wz-note">Nous revenons vers vous sous 24 h avec une proposition chiffrée.</p>';
+  }
+  h+='<div class="wz-after"><button type="button" class="btn solid wz-cta" id="wzGo">'+(nett?(STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer le rendez-vous'):'Envoyer ma demande')+'</button></div>';
+  return h;
+};
+B.coord=function(){
+  bindInputs();
+  var of=document.getElementById('optFold'); if(of)of.addEventListener('toggle',function(){state.optsOpen=of.open;});
+  var pf=document.getElementById('promoFold'); if(pf)pf.addEventListener('toggle',function(){state.promoOpen=pf.open;});
+  panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){
+    var id=b.dataset.opt,k=state.opts.indexOf(id); if(k>-1)state.opts.splice(k,1);else state.opts.push(id);
+    state.optsOpen=true;pushEvt({event:'option_toggled', option:id, selected:k===-1});render();
+  });});
+  var pb=document.getElementById('promoBtn');
+  if(pb)pb.addEventListener('click',function(){
+    var v=(document.getElementById('promoInput').value||'').trim().toUpperCase(), hint=document.getElementById('promoHint');
+    if(v!==PROMO.code){if(hint){hint.textContent='Code invalide.';hint.style.color='#fff';}return;}
+    if(!promoEligible()){if(hint){hint.textContent='Ce code est valable sur Premium et Expérience. Choisissez l\'une de ces formules pour en profiter.';hint.style.color='#fff';}return;}
+    state.promo=true;render();
   });
-  sheet.addEventListener('click',function(e){
-    if(e.target===sheet||e.target.closest('[data-sheet-close]')) closeSheet();
-  });
-  addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet();});
+  document.getElementById('wzGo').addEventListener('click',function(){if(!validContact())return;done();});
+};
+
+/* ================= ENVOI ================= */
+function optsNotes(){
+  var vis=visibleOptions();
+  var chosen=state.opts.map(function(id){return vis.find(function(o){return o.id===id});}).filter(Boolean);
+  return chosen.length?('Options : '+chosen.map(function(o){return o.nom;}).join(', ')):undefined;
 }
-updateSticky();
+function done(){
+  var btn=document.getElementById('wzGo');
+  if(flowType()==='prestation'){
+    if(btn){btn.disabled=true;btn.textContent=STRIPE_ENABLED?'Redirection vers le paiement…':'Confirmation…';}
+    var f=chosenForm(), notesParts=[optsNotes(),utmNoteLine()].filter(Boolean);
+    var payload={service:serviceId(),vehicleType:state.gab,vehicleModel:vehLabel(),date:state.jourISO,time:state.heure,
+      client:{firstName:state.prenom.trim(),lastName:state.nomFam.trim(),phone:state.tel,email:state.email,notes:notesParts.length?notesParts.join(' — '):undefined},
+      opts:state.opts};
+    var url='/api/create-booking';
+    if(STRIPE_ENABLED){url='/api/create-checkout-session';payload.paymentType='deposit';}
+    var label=STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer le rendez-vous';
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if(data.error){showError(data.error,label);return;}
+        if(data.url){window.location.href=data.url;return;}
+        if(data.sessionId){
+          /* booking_complete : uniquement après confirmation réelle du serveur. */
+          pushEvt({event:'booking_complete',service:serviceId(),formula:f.k,service_area:state.clean,clean_type:state.clean,
+                   vehicle_type:state.gab,vehicle_label:vehLabel()||null,journey:'direct',value:grandTotal(),currency:'EUR'});
+          var qs='session_id='+encodeURIComponent(data.sessionId),utm=utmQueryString(); if(utm)qs+='&'+utm;
+          setTimeout(function(){window.location.href='/confirmation.html?'+qs;},250);
+        }
+      })
+      .catch(function(){showError('Erreur de connexion. Vérifiez votre réseau et réessayez.',label);});
+    return;
+  }
+  if(btn){btn.disabled=true;btn.textContent='Envoi…';}
+  var sel=[state.svc].concat(state.more), labels=sel.map(svcLabel);
+  var parts=['Prestations souhaitées : '+labels.join(', ')];
+  if(state.etat) parts.push('Véhicule '+(state.etat==='neuf'?'neuf':'d\'occasion'));
+  if((state.msg||'').trim()) parts.push(state.msg.trim());
+  var source='Rendez-vous en ligne (rendez-vous.html) | prestations='+sel.join(',');
+  var utm=utmNoteLine(); if(utm) source+=' | '+utm.replace(/^Source : /,'');
+  var subject='Demande de devis — '+labels.join(', ');
+  var fn=state.prenom.trim(), ln=state.nomFam.trim(), vehicleInfo=vehLabel();
+  var onDone=function(good){
+    if(!good){showError('L\'envoi a échoué. Réessayez dans un instant, ou appelez-nous au 07 63 00 43 85.','Envoyer ma demande');return;}
+    pushEvt({event:'project_request_sent',projects:sel});
+    var main=sel.filter(function(k){return k==='ppf'||k==='ceramique'||k==='polissage';});
+    pushEvt({event:'generate_lead',service:main.length===1?main[0]:'rendez-vous',form_location:'rendez_vous',currency:'EUR',value:0,
+             lead_source:'rendez-vous.html',link_location:'form',page_type:'rendez_vous',cible:'general',formule:sel.join(',')});
+    var target='merci-devis.html?service='+encodeURIComponent(main.length===1?main[0]:'rendez-vous');
+    setTimeout(function(){window.location.href=target;},250);
+  };
+  if(state.photos.length){
+    var fd=new FormData();
+    fd.append('firstName',fn);fd.append('lastName',ln);fd.append('email',state.email);fd.append('phone',state.tel);
+    fd.append('subject',subject);fd.append('vehicleInfo',vehicleInfo);fd.append('message',parts.join('\n'));fd.append('source',source);
+    state.photos.forEach(function(p){fd.append('photos',p);});
+    fetch('/api/devis-photos',{method:'POST',body:fd}).then(function(r){onDone(!!(r&&r.ok));}).catch(function(){onDone(false);});
+  } else {
+    fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'devis',firstName:fn,lastName:ln,email:state.email,phone:state.tel,subject:subject,vehicleInfo:vehicleInfo,message:parts.join('\n'),source:source})})
+      .then(function(r){onDone(!!(r&&r.ok));}).catch(function(){onDone(false);});
+  }
+}
+
+/* ---------- retour, téléphone ---------- */
+if(elBack)elBack.addEventListener('click',goPrev);
+document.addEventListener('click',function(e){
+  var a=e.target.closest('a[href^="tel:"]');
+  if(a) pushEvt({event:'click_phone', booking_type:flowType()});
+},true);
 
 /* ============================================================
    LIENS D'ARRIVÉE (annonces Google Ads, pages du site)
-   rendez-vous.html?service=interieur | exterieur | complet |
-     confort | premium | experience   → nettoyage pré-orienté
-   rendez-vous.html?projet=ppf | ceramique | polissage | covering |
-     vitres-teintees | jantes | car-staging  → prestation cochée
-   Tout reste modifiable ensuite.
+   ?service=interieur|exterieur|complet|confort|premium|experience → nettoyage pré-orienté
+   ?projet=ppf|ceramique|polissage|covering|vitres-teintees|jantes|car-staging → prestation choisie
+   Les étapes déjà déterminées sont sautées ; tout reste modifiable via « retour ».
    ============================================================ */
 (function(){
-  var sp=new URLSearchParams(location.search);
-  var want=(sp.get('service')||'').toLowerCase();
-  var proj=(sp.get('projet')||'').toLowerCase();
-  var touched=false;
+  var sp=new URLSearchParams(location.search), want=(sp.get('service')||'').toLowerCase(), proj=(sp.get('projet')||'').toLowerCase();
   if(want){
-    var areas={interieur:'interieur',exterieur:'exterieur',complet:'duo',duo:'duo'};
-    var tiers={confort:0,premium:1,experience:2,'expérience':2};
-    if(Object.prototype.hasOwnProperty.call(areas,want)){state.clean=areas[want];touched=true;}
-    if(Object.prototype.hasOwnProperty.call(tiers,want)){state.form=tiers[want];touched=true;}
-    if(touched&&state.sel.indexOf('nettoyage')===-1) state.sel.push('nettoyage');
-  }
-  if(proj){
-    var map={'car-staging':'staging','staging':'staging','ceramique':'ceramique','ppf':'ppf','vitres-teintees':'vitres','vitres':'vitres',
-             'wrap':'covering','covering':'covering','polissage':'polissage','jantes':'jantes','renovation-jantes':'jantes','nettoyage':'nettoyage'};
-    if(Object.prototype.hasOwnProperty.call(map,proj)){
-      if(state.sel.indexOf(map[proj])===-1) state.sel.push(map[proj]);
-      touched=true;
+    var areas={interieur:'interieur',exterieur:'exterieur',complet:'duo',duo:'duo'}, tiers={confort:0,premium:1,experience:2,'expérience':2};
+    var hit=false;
+    if(Object.prototype.hasOwnProperty.call(areas,want)){state.clean=areas[want];state.skip.zone=true;hit=true;}
+    if(Object.prototype.hasOwnProperty.call(tiers,want)){state.form=tiers[want];state.skip.form=true;hit=true;}
+    if(hit){state.svc='nettoyage';state.skip.svc=true;
     }
   }
-  if(touched) render();
+  if(proj){
+    var map={'car-staging':'staging','staging':'staging','ceramique':'ceramique','ppf':'ppf','vitres-teintees':'vitres','vitres':'vitres','wrap':'covering','covering':'covering','polissage':'polissage','jantes':'jantes','renovation-jantes':'jantes'};
+    if(proj==='nettoyage'){state.svc='nettoyage';state.skip.svc=true;}
+    else if(Object.prototype.hasOwnProperty.call(map,proj)){state.svc=map[proj];state.skip.svc=true;}
+  }
+  render();
 })();
 
 })();

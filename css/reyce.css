@@ -1498,3 +1498,132 @@ body[data-lp-service] .phero .lp-hero-note{max-width:none;font-size:.62rem;lette
   .pnav .btn{padding-left:16px;padding-right:16px}
 }
 @media(max-width:720px){.combo .tot,.combo .l{gap:12px}.combo .tot .v,.combo .l s{white-space:nowrap}.combo .tot span:first-child,.combo .l span:first-child{min-width:0}}
+
+/* ============================================================
+   Réservation en étapes (.wz-*) — une question par écran, sans défilement
+   ============================================================ */
+.wz-stage{min-height:100svh;padding:84px 16px 28px;display:flex;flex-direction:column;align-items:center;gap:12px;
+  background:radial-gradient(120% 60% at 50% 0%,rgba(255,255,255,.05),transparent 60%)}
+.wz-title{font-family:var(--disp);font-weight:700;font-size:clamp(1.05rem,3.6vw,1.5rem);text-transform:uppercase;letter-spacing:.02em;text-align:center;margin:6px 0 0;line-height:1.15}
+.wz-sub{font-size:.78rem;letter-spacing:.04em;color:var(--dim);text-align:center;margin:0 0 6px}
+.wz-card{width:100%;max-width:640px;background:var(--card);border:1px solid var(--line);padding:18px 18px 22px;min-height:min(580px,calc(100svh - 190px))}
+.wz-top{display:flex;align-items:center;gap:12px;min-height:34px;margin-bottom:14px}
+.wz-back{flex:0 0 auto;width:36px;height:36px;border:1px solid var(--line);background:transparent;color:#fff;font-size:1.05rem;cursor:pointer;transition:background-color .2s,border-color .2s}
+.wz-back:hover,.wz-back:focus-visible{border-color:#fff;background:rgba(255,255,255,.06)}
+.wz-prog{flex:1;height:2px;background:var(--line);position:relative}
+.wz-prog i{position:absolute;left:0;top:0;bottom:0;background:#fff;width:0;transition:width .35s var(--ease)}
+.wz-count{flex:0 0 auto;font-size:.6rem;letter-spacing:.16em;color:var(--dim);min-width:34px;text-align:right}
+.wz-sum{font-family:var(--disp);font-weight:600;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:0 0 14px;line-height:1.7}
+.wz-q{font-family:var(--disp);font-weight:700;font-size:clamp(1.2rem,5.2vw,1.65rem);text-transform:uppercase;line-height:1.12;margin:0 0 18px;letter-spacing:.005em}
+.wz-opts{display:flex;flex-direction:column;gap:10px}
+.wz-opt{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;min-height:62px;padding:14px 16px;text-align:left;
+  background:transparent;border:1px solid var(--line);color:#fff;cursor:pointer;transition:border-color .18s,background-color .18s,transform .12s var(--ease)}
+.wz-opt:hover,.wz-opt:focus-visible{border-color:#fff;background:rgba(255,255,255,.05)}
+.wz-opt:active{transform:scale(.99)}
+.wz-opt.sel{border-color:#fff;background:rgba(255,255,255,.08)}
+.wz-opt .wz-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.wz-opt .wz-t b{font-family:var(--disp);font-weight:600;font-size:1rem;letter-spacing:.005em}
+.wz-opt .wz-t span{font-size:.8rem;color:var(--dim);line-height:1.4}
+.wz-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.wz-tag{flex-shrink:0;font-family:var(--disp);font-weight:600;font-size:.5rem;letter-spacing:.14em;text-transform:uppercase;border:1px solid var(--line);padding:4px 7px;color:var(--dim);white-space:nowrap}
+.wz-tag.book{border-color:#fff;color:#fff}
+.wz-price{font-family:var(--disp);font-weight:700;font-size:1.1rem;white-space:nowrap}
+.wz-price i{font-style:normal;font-weight:500;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-right:3px}
+.wz-note{font-size:.8rem;color:var(--dim);line-height:1.55;margin:14px 0 0}
+.wz-link{margin:14px 0 0;text-align:center}
+.wz-search{position:relative;margin-bottom:0}
+.wz-sugg{margin-top:8px;gap:6px}
+.wz-sugg .wz-opt{min-height:52px;padding:10px 14px}
+.wz-after{margin-top:16px}
+.wz-cta{width:100%;justify-content:center;text-align:center}
+.wz-err{margin:14px 0 0;padding:12px 14px;border:1px solid var(--line);background:rgba(255,255,255,.08);font-size:.85rem;color:#fff}
+/* formules */
+.wz-forms{gap:10px}
+.wz-fcard{border:1px solid var(--line);padding:14px 16px;cursor:pointer;transition:border-color .18s,background-color .18s}
+.wz-fcard:hover,.wz-fcard:focus-visible,.wz-fcard.sel{border-color:#fff;background:rgba(255,255,255,.05)}
+.wz-fcard.top{background:rgba(255,255,255,.04)}
+.wz-fhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.wz-ftier{display:block;font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:3px}
+.wz-fhead b{font-family:var(--disp);font-weight:700;font-size:1.1rem;text-transform:uppercase}
+.wz-fprice{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.wz-fprice .wz-price{font-size:1.25rem}
+.wz-fpitch{font-size:.8rem;color:var(--dim);line-height:1.45;margin:8px 0 0}
+.wz-det{margin-top:8px}
+.wz-det summary{font-family:var(--disp);font-size:.58rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);cursor:pointer;padding:4px 0;list-style:none}
+.wz-det summary::-webkit-details-marker{display:none}
+.wz-det summary::after{content:" +"}
+.wz-det[open] summary::after{content:" −"}
+.wz-det h5{font-family:var(--disp);font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin:12px 0 4px}
+.wz-det ul{margin:6px 0 0;padding:0;list-style:none;font-size:.78rem;color:var(--dim)}
+.wz-det li{padding:3px 0;line-height:1.45}
+/* heures, pastilles */
+.wz-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.wz-chip{padding:16px 0;text-align:center;border:1px solid var(--line);background:transparent;color:#fff;font-family:var(--disp);font-weight:600;font-size:1rem;cursor:pointer;transition:border-color .18s,background-color .18s}
+.wz-chip:hover,.wz-chip:focus-visible{border-color:#fff;background:rgba(255,255,255,.06)}
+.wz-chip.sel{background:#fff;color:#000;border-color:#fff}
+.wz-chip.taken,.wz-chip:disabled{opacity:.28;text-decoration:line-through;cursor:not-allowed;pointer-events:none}
+.wz-pills{display:flex;flex-wrap:wrap;gap:8px}
+.wz-pill{padding:10px 14px;border:1px solid var(--line);background:transparent;color:#fff;font-size:.82rem;cursor:pointer;transition:border-color .18s,background-color .18s}
+.wz-pill:hover{border-color:#fff}
+.wz-pill.sel{background:#fff;color:#000;border-color:#fff}
+.wz-photo{display:block;padding:14px;text-align:center;font-size:.82rem}
+/* récap + replis */
+.wz-recap{border:1px solid var(--line);margin:0 0 18px}
+.wz-recap>div{display:flex;justify-content:space-between;gap:16px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:.84rem}
+.wz-recap>div:last-child{border-bottom:0}
+.wz-recap span{color:var(--dim);flex-shrink:0}
+.wz-recap b{font-weight:500;text-align:right}
+.wz-total b{font-family:var(--disp);font-weight:700;font-size:1.05rem}
+.wz-fold{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
+.wz-fold summary{font-family:var(--disp);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);cursor:pointer;list-style:none;padding:4px 0}
+.wz-fold summary::-webkit-details-marker{display:none}
+.wz-fold summary::after{content:" +"}
+.wz-fold[open] summary::after{content:" −"}
+.wz-help{font-size:.74rem;color:var(--dim);text-align:center;margin:4px 0 0;line-height:1.7}
+.wz-help a{color:#fff;text-decoration:underline}
+@media(max-width:720px){
+  .wz-stage{padding:76px 12px 20px;gap:8px}
+  .wz-sub{display:none}
+  .wz-card{padding:14px 14px 18px;min-height:calc(100svh - 150px)}
+  .wz-q{margin-bottom:14px}
+  .wz-opt{min-height:58px;padding:12px 14px}
+  .wz-opt .wz-t span{font-size:.76rem}
+  .wz-fcard{padding:12px 14px}
+  .wz-help{font-size:.7rem}
+}
+
+@media(max-width:720px){
+  .wz-card .row2{grid-template-columns:1fr 1fr;gap:10px}
+  .wz-card .field{margin-bottom:10px}
+  .wz-card .field label{font-size:.58rem;margin-bottom:5px}
+  .wz-forms{gap:8px}
+  .wz-fcard{padding:10px 14px}
+  .wz-fhead b{font-size:1rem}
+  .wz-fprice .wz-price{font-size:1.15rem}
+  .wz-fpitch{margin-top:6px;font-size:.76rem;line-height:1.4}
+  .wz-recap>div{padding:8px 12px}
+  .wz-note{margin-top:10px;font-size:.76rem}
+  .wz-fold{margin-top:10px;padding-top:8px}
+  .wz-after{margin-top:12px}
+}
+
+/* Réservation en étapes — ordinateur et petits écrans */
+@media(min-width:721px){
+  .wz-forms{flex-direction:row;align-items:stretch}
+  .wz-fcard{flex:1;min-width:0;display:flex;flex-direction:column}
+  .wz-fhead{flex-direction:column;align-items:flex-start;gap:8px}
+  .wz-fprice{flex-direction:row;align-items:center;justify-content:space-between;width:100%}
+  .wz-card .cal{max-width:430px;margin-left:auto;margin-right:auto}
+  .wz-card .cal-nav{max-width:430px;margin-left:auto;margin-right:auto}
+}
+@media(min-width:721px) and (max-height:900px){
+  .wz-stage{padding-top:78px;gap:8px}
+  .wz-sub{display:none}
+  .wz-card{min-height:0}
+}
+@media(max-height:780px){
+  .wz-fpitch{display:none}
+  .wz-title{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .wz-card textarea{height:58px;min-height:0}
+  .wz-stage{padding-top:70px}
+}

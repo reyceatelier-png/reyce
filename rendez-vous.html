@@ -170,44 +170,19 @@
 </header>
 <div id="drawer"><a href="index.html" class="active"><span class="n">01</span>Accueil</a><a href="prestations.html"><span class="n">02</span>Prestations</a><a href="realisations.html"><span class="n">03</span>Réalisations</a><a href="a-propos.html"><span class="n">04</span>À propos</a><a href="contact.html"><span class="n">05</span>Contact</a><a href="rendez-vous.html"><span class="n">06</span>Réserver</a></div>
 <main class="page-view" data-route="reservation" data-lp-service="rendezvous">
-<section class="phero">
-  <div class="pbg" data-plx="0.1" style="background-image:url('assets/img/atelier-reyce-bmw-porsche-911-lyon.jpg')"></div><div class="pscrim"></div>
-  <div class="pin">
-    <span class="mono">Nettoyage réservable en ligne · PPF, céramique, polissage sur devis</span>
-    <h1>Réservez ou demandez<br>un devis à Lyon</h1>
-    <p>Cochez ce que vous souhaitez et indiquez votre véhicule : nous nous occupons du reste.</p>
-    <ul class="lp-usp">
-      <li>400+ m² dédiés à l'esthétique automobile</li><li>Car Spa · La Mulatière, Lyon</li><li>Du lundi au samedi</li>
-    </ul>
-    <div class="lp-cta-row">
-      <a href="#resa" class="btn solid" data-cta="configurer_mon_soin">Commencer</a>
+<section class="wz-stage" id="resa" aria-label="Réservation en ligne">
+  <h1 class="wz-title">Réservez votre soin auto à Lyon</h1>
+  <p class="wz-sub">Nettoyage réservable en ligne · PPF, céramique et polissage sur devis</p>
+  <div class="wz-card">
+    <div class="wz-top">
+      <button type="button" class="wz-back" id="wzBack" aria-label="Étape précédente" hidden>←</button>
+      <div class="wz-prog" aria-hidden="true"><i id="wzFill"></i></div>
+      <span class="wz-count mono" id="wzCount"></span>
     </div>
-    <p class="hero-sub mono">Moins de deux minutes · Tarif du nettoyage affiché avant validation</p>
-    <p style="margin-top:18px"><a href="tel:+33763004385" class="lp-phone"><span class="dot"></span><span><small>Une question ?</small>07 63 00 43 85</span></a></p>
+    <p class="wz-sum" id="wzSum" hidden></p>
+    <div class="wz-panel" id="panel" aria-live="polite"></div>
   </div>
-</section>
-
-<section class="wrap" style="padding-top:clamp(50px,7vh,90px)">
-  <div class="resa reveal" id="resa">
-    <div class="aside"><div><h3 id="asideTitle">Configurez votre soin.</h3><p id="asideText">Le tarif dépend du véhicule : commençons par lui.</p>
-      <div class="wiz-media" id="wizMedia" aria-hidden="true">
-        <img class="wm active" data-key="prestation-0" src="assets/img/bmw-m4cs-atelier.jpg" alt="Atelier REYCE à La Mulatière">
-        <img class="wm" data-key="prestation-1" src="assets/img/nettoyage-exterieur-detail-mousse-reyce-lyon.jpg" alt="Détail du nettoyage extérieur chez REYCE">
-        <img class="wm" data-key="prestation-2" src="assets/img/detailing-interieur-finition-m-performance-bmw-reyce-lyon.jpg" alt="Finition M Performance détaillée chez REYCE">
-        <img class="wm" data-key="prestation-3" src="assets/img/technicien-reyce-canon-a-mousse-lyon.jpg" alt="Technicien REYCE au canon à mousse">
-        <img class="wm" data-key="prestation-4" src="assets/img/technicien-reyce-detailing-carrosserie-lyon.jpg" alt="Technicien REYCE en finition carrosserie">
-        <img class="wm" data-key="projet-0" src="assets/img/atelier-reyce-suv-porsche-911-lyon.jpg" alt="Atelier REYCE à La Mulatière">
-        <img class="wm" data-key="projet-1" src="assets/img/jante-porsche-etrier-frein-reyce-lyon.jpg" alt="Détail jante et étrier de frein Porsche chez REYCE">
-        <img class="wm" data-key="projet-2" src="assets/img/bmw-m4cs-atelier.jpg" alt="BMW M4 CS dans l'atelier REYCE">
-        <img class="wm" data-key="projet-3" src="assets/img/detailing-interieur-finition-m-performance-bmw-reyce-lyon.jpg" alt="Finition détaillée chez REYCE">
-      </div>
-      <div class="wiz-summary" id="wizSummary"></div>
-    </div><div class="steps" id="steps"></div></div>
-    <div class="panel-wrap">
-      <div class="wiz-progress"><div class="wiz-progress__fill" id="wizProgressFill"></div></div>
-      <div class="panel" id="panel"></div>
-    </div>
-  </div>
+  <p class="wz-help">Une question ? <a href="tel:+33763004385">07 63 00 43 85</a> · <a href="https://wa.me/33763004385?text=Bonjour%20Reyce%2C%20j%27ai%20une%20question%20avant%20de%20r%C3%A9server." target="_blank" rel="noopener">WhatsApp</a> · du lundi au samedi, 9 h – 19 h</p>
 </section>
 
 <section class="wrap ticks">
@@ -261,18 +236,7 @@
   </div>
 </section>
 </main>
-<div class="lp-sticky" id="lpSticky">
-  <a href="tel:+33763004385" class="s-call" id="lpStickyCall">Appeler</a>
-  <button type="button" class="s-recap" id="lpStickyRecap" hidden aria-haspopup="dialog"><b id="lpStickyVeh"></b><span id="lpStickyPrice"></span></button>
-  <button type="button" class="s-quote" id="lpStickyCta" data-cta="configurer_sticky">Réserver / devis</button>
-</div>
-
-<div id="recapSheet" class="recap-sheet" hidden role="dialog" aria-modal="true" aria-label="Récapitulatif de votre soin">
-  <div class="rs-box">
-    <button type="button" class="rs-close" data-sheet-close aria-label="Fermer">✕</button>
-    <div id="recapSheetBody"></div>
-  </div>
-</div>
+<div class="lp-sticky" hidden></div>
 <footer class="wrap">
   <div class="foot-grid">
     <div class="col"><div class="col-t">Le studio</div>
