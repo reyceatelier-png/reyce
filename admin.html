@@ -3,20 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#08090a">
+  <script>try{document.documentElement.setAttribute("data-theme",localStorage.getItem("reyceAdminTheme")==="light"?"light":"dark")}catch(e){document.documentElement.setAttribute("data-theme","dark")}</script>
   <title>Admin — REYCE</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* Deux thèmes : sombre (marque REYCE, par défaut) et clair. Tout passe par ces variables ;
+       --white désigne le « texte fort » (blanc en sombre, quasi noir en clair). */
     :root {
-      --bg:       #080808;
-      --bg2:      #0f0f0f;
-      --bg3:      #141414;
-      --border:   #1e1e1e;
-      --border2:  #2a2a2a;
+      --bg:       #08090a;
+      --bg2:      #101113;
+      --bg3:      #17181b;
+      --border:   #212327;
+      --border2:  #2d3035;
       --white:    #ffffff;
-      --grey1:    #c8c8c8;
-      --grey2:    #888;
-      --grey3:    #555;
+      --grey1:    #c9cdd2;
+      --grey2:    #8b9098;
+      --grey3:    #6c717a;
       --accent:   #bfc8d0;
       --red:      #e05252;
       --green:    #52b788;
@@ -24,7 +28,43 @@
       --blue:     #5b9bd5;
       --teal:     #4fb8a8;
       --violet:   #9b8cd9;
+      --on-primary: #08090a;
+      --hover:      rgba(255,255,255,.05);
+      --active-bg:  #232529;
+      --active-fg:  #ffffff;
+      --shadow:     0 12px 32px -16px rgba(0,0,0,.7);
+      --veil:       rgba(0,0,0,.7);
+      --chart-a:    #bfc8d0;
+      --chart-b:    rgba(191,200,208,.26);
       --font:     'Helvetica Neue', Helvetica, Arial, sans-serif;
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] {
+      --bg:       #f3f4f6;
+      --bg2:      #ffffff;
+      --bg3:      #f0f2f4;
+      --border:   #e3e6ea;
+      --border2:  #d2d7de;
+      --white:    #0e1216;
+      --grey1:    #2b323a;
+      --grey2:    #58616b;
+      --grey3:    #78818b;
+      --accent:   #3b5160;
+      --red:      #c23b3b;
+      --green:    #1b8559;
+      --amber:    #a5720a;
+      --blue:     #2c72b0;
+      --teal:     #15857a;
+      --violet:   #6552bd;
+      --on-primary: #ffffff;
+      --hover:      rgba(14,18,22,.05);
+      --active-bg:  #e6e9ee;
+      --active-fg:  #0e1216;
+      --shadow:     0 1px 2px rgba(14,18,22,.05), 0 14px 30px -18px rgba(14,18,22,.22);
+      --veil:       rgba(14,18,22,.45);
+      --chart-a:    #2f4858;
+      --chart-b:    rgba(47,72,88,.24);
+      color-scheme: light;
     }
 
     body {
@@ -72,83 +112,81 @@
       margin-bottom: 32px;
     }
 
-    /* ── App ── */
+    /* ── App : barre latérale + zone principale ── */
     .app { display: none; }
-    .app.is-visible { display: block; }
+    .app.is-visible { display: flex; min-height: 100vh; }
 
-    /* ── Header ── */
-    .header {
-      border-bottom: 1px solid var(--border);
-      padding: 0 32px;
-      display: flex;
-      align-items: center;
-      gap: 32px;
-      height: 56px;
+    .side {
+      width: 248px; flex: none; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+      background: var(--bg2); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 20px 14px 16px; z-index: 70;
     }
-    .header__logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: .3em;
-      text-transform: uppercase;
-      color: var(--white);
-      margin-right: 16px;
+    .side__brand {
+      display: flex; align-items: center; gap: 10px; padding: 4px 10px 6px;
+      font-size: 13px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: var(--white);
     }
-    .header__logo img { height: 22px; width: auto; display: block; }
-    .header__badge {
-      font-size: 9px;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      color: var(--grey3);
-      border: 1px solid var(--border2);
-      padding: 3px 8px;
-    }
-    .header__logout {
-      margin-left: auto;
-      font-size: 11px;
-      color: var(--grey3);
-      cursor: pointer;
-      background: none;
-      border: none;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-    }
-    .header__logout:hover { color: var(--grey1); }
+    .side__brand img { height: 24px; width: auto; display: block; }
+    :root[data-theme="light"] .side__brand img, :root[data-theme="light"] .login__logo img { filter: invert(1); }
+    .side__tag { padding: 0 10px 8px; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--grey3); }
+    .side__group { padding: 20px 12px 8px; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--grey3); }
+    .side__foot { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
 
-    /* ── Tabs ── */
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      padding: 0 32px;
-      overflow-x: auto;
-    }
     .tab {
-      padding: 14px 0;
-      margin-right: 32px;
-      font-size: 12px;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--grey3);
-      cursor: pointer;
-      border-bottom: 1px solid transparent;
-      margin-bottom: -1px;
-      background: none;
-      border-top: none;
-      border-left: none;
-      border-right: none;
-      transition: color .2s;
-      white-space: nowrap;
+      display: flex; align-items: center; gap: 12px; width: 100%;
+      padding: 10px 12px; border: none; border-radius: 10px; background: none;
+      font: inherit; font-size: 13px; color: var(--grey2); text-align: left; text-decoration: none;
+      cursor: pointer; transition: background .15s, color .15s;
     }
-    .tab:hover { color: var(--grey1); }
-    .tab.is-active { color: var(--white); border-bottom-color: var(--white); }
+    .tab svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .tab:hover { background: var(--hover); color: var(--white); }
+    .tab.is-active { background: var(--active-bg); color: var(--active-fg); font-weight: 600; }
+    .tab:focus-visible, .icon-btn:focus-visible, .seg__btn:focus-visible, .ag:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .topbar {
+      position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 14px;
+      min-height: 64px; padding: 10px 28px; background: var(--bg); border-bottom: 1px solid var(--border);
+    }
+    .topbar__title { font-size: 18px; font-weight: 500; letter-spacing: -.01em; color: var(--white); white-space: nowrap; }
+    .topbar__spacer { flex: 1; }
+    .topbar__actions { display: flex; align-items: center; gap: 8px; }
+
+    .icon-btn {
+      width: 38px; height: 38px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border2); border-radius: 10px; background: var(--bg2); color: var(--grey1);
+      cursor: pointer; transition: background .15s, color .15s;
+    }
+    .icon-btn:hover { background: var(--bg3); color: var(--white); }
+    .icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .icon-btn.topbar__burger { display: none; }
+    .ico-moon { display: none; }
+    :root[data-theme="light"] .ico-sun  { display: none; }
+    :root[data-theme="light"] .ico-moon { display: block; }
+
+    .topbar__new .short { display: none; }
+    .search { position: relative; flex: 1 1 320px; max-width: 380px; }
+    .search svg { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; margin-top: -8px; fill: none; stroke: var(--grey3); stroke-width: 1.7; stroke-linecap: round; pointer-events: none; }
+    .search input { padding: 9px 14px 9px 36px; border-radius: 10px; background: var(--bg2); }
+    .search__results {
+      display: none; position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 80; overflow: hidden;
+      background: var(--bg2); border: 1px solid var(--border2); border-radius: 12px; box-shadow: var(--shadow);
+    }
+    .search__results.is-open { display: block; }
+    .search__item {
+      display: block; width: 100%; padding: 10px 14px; border: none; border-bottom: 1px solid var(--border);
+      background: none; font: inherit; text-align: left; cursor: pointer; color: var(--grey1);
+    }
+    .search__item:last-child { border-bottom: none; }
+    .search__item:hover, .search__item:focus-visible { background: var(--hover); outline: none; }
+    .search__name { color: var(--white); font-size: 13px; }
+    .search__sub  { color: var(--grey3); font-size: 11px; }
+    .search__none { padding: 12px 14px; color: var(--grey3); font-size: 12px; }
+
+    .side-veil { display: none; position: fixed; inset: 0; z-index: 65; background: var(--veil); }
 
     /* ── Content ── */
-    .content {
-      padding: 32px;
-      max-width: 1100px;
-    }
+    .content { padding: 28px; width: 100%; max-width: 1240px; margin: 0 auto; }
+
     .panel { display: none; }
     .panel.is-active { display: block; }
 
@@ -191,19 +229,19 @@
       transition: opacity .2s;
     }
     .btn:hover { opacity: .8; }
-    .btn--primary { background: var(--white); color: #080808; }
-    .btn--danger  { background: var(--red); color: var(--white); }
+    .btn--primary { background: var(--white); color: var(--on-primary); }
+    .btn--danger  { background: var(--red); color: #fff; }
     .btn--ghost   { background: transparent; border: 1px solid var(--border2); color: var(--grey1); }
     .btn--sm      { padding: 6px 12px; font-size: 10px; }
 
     /* ── Booking card ── */
-    .booking-list { display: flex; flex-direction: column; gap: 1px; }
+    .booking-list { display: flex; flex-direction: column; gap: 10px; }
     .booking-card {
       background: var(--bg2);
       border: 1px solid var(--border);
       padding: 20px 24px;
       display: grid;
-      grid-template-columns: 110px 1fr 1fr 1fr auto;
+      grid-template-columns: 120px 1.3fr 1fr 1fr;
       align-items: center;
       gap: 20px;
     }
@@ -226,23 +264,26 @@
     }
     .booking-card__val { font-size: 13px; color: var(--grey1); }
     .status-badge {
-      font-size: 9px;
-      letter-spacing: .16em;
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border: 1px solid;
+      font-size: 10px;
+      letter-spacing: .06em;
+      padding: 3px 10px;
+      border-radius: 999px;
       display: inline-block;
+      white-space: nowrap;
+      color: var(--grey2);
+      background: var(--bg3);
     }
-    .status-badge--confirmed   { color: var(--green);  border-color: var(--green); }
-    .status-badge--dropped_off { color: var(--teal);   border-color: var(--teal); }
-    .status-badge--in_progress { color: var(--blue);   border-color: var(--blue); }
-    .status-badge--final_check { color: var(--violet); border-color: var(--violet); }
-    .status-badge--ready       { color: var(--amber);  border-color: var(--amber); }
-    .status-badge--completed   { color: var(--accent); border-color: var(--accent); }
-    .status-badge--cancelled   { color: var(--grey3);  border-color: var(--border2); }
-    .status-badge--no_show     { color: var(--red);    border-color: var(--red); }
+    .status-badge--confirmed   { color: var(--green);  background: color-mix(in srgb, var(--green) 14%, transparent); }
+    .status-badge--dropped_off { color: var(--teal);   background: color-mix(in srgb, var(--teal) 14%, transparent); }
+    .status-badge--in_progress { color: var(--blue);   background: color-mix(in srgb, var(--blue) 14%, transparent); }
+    .status-badge--final_check { color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, transparent); }
+    .status-badge--ready       { color: var(--amber);  background: color-mix(in srgb, var(--amber) 14%, transparent); }
+    .status-badge--completed   { color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+    .status-badge--cancelled   { color: var(--grey3);  background: var(--bg3); }
+    .status-badge--no_show     { color: var(--red);    background: color-mix(in srgb, var(--red) 14%, transparent); }
 
-    .action-col { display: flex; gap: 6px; flex-direction: column; align-items: flex-end; }
+    /* Actions sur une ligne à part, sous les informations du rendez-vous */
+    .action-col { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 14px; border-top: 1px solid var(--border); }
 
     /* ── Availability ── */
     .avail-grid {
@@ -283,8 +324,8 @@
     .stats-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 1px;
-      margin-bottom: 32px;
+      gap: 12px;
+      margin-bottom: 24px;
     }
     .stat-card {
       background: var(--bg2);
@@ -337,7 +378,7 @@
     .planning-nav__label { font-size: 13px; color: var(--white); min-width: 220px; }
     .planning-view-toggle { display: flex; gap: 1px; margin-left: auto; }
     .planning-view-toggle .btn { border-radius: 0; }
-    .planning-view-toggle .btn.is-active { background: var(--white); color: #080808; border-color: var(--white); }
+    .planning-view-toggle .btn.is-active { background: var(--white); color: var(--on-primary); border-color: var(--white); }
 
     /* ── Planning : vue mois ── */
     .month-grid { border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); overflow: hidden; }
@@ -418,7 +459,7 @@
     .planning-empty { font-size: 11px; color: var(--grey3); padding: 10px 0; }
 
     /* ── Clients ── */
-    .client-list { display: flex; flex-direction: column; gap: 1px; }
+    .client-list { display: flex; flex-direction: column; gap: 10px; }
     .client-card {
       background: var(--bg2);
       border: 1px solid var(--border);
@@ -469,7 +510,7 @@
     }
 
     /* ── Marketing ── */
-    .mkt-recipients { display: flex; flex-direction: column; gap: 1px; }
+    .mkt-recipients { display: flex; flex-direction: column; gap: 6px; }
     .mkt-recipient {
       display: flex; align-items: center; gap: 12px;
       padding: 10px 14px; background: var(--bg2); border: 1px solid var(--border);
@@ -479,7 +520,7 @@
     .mkt-recipient__email { font-size: 11px; color: var(--grey3); }
 
     /* ── Prestations ── */
-    .service-list { display: flex; flex-direction: column; gap: 1px; }
+    .service-list { display: flex; flex-direction: column; gap: 10px; }
     .service-card {
       background: var(--bg2); border: 1px solid var(--border); padding: 18px 24px;
       display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr auto auto; gap: 14px; align-items: end;
@@ -494,7 +535,7 @@
 
     /* ── Modal (Care Report) ── */
     .modal-veil {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000;
+      display: none; position: fixed; inset: 0; background: var(--veil); z-index: 1000;
       align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
     }
     .modal-veil.is-open { display: flex; }
@@ -549,10 +590,128 @@
       .avail-grid    { grid-template-columns: 1fr; }
       .stats-row     { grid-template-columns: 1fr 1fr; }
       .client-card__row { grid-template-columns: 1fr; }
-      .header        { padding: 0 16px; }
-      .tabs          { padding: 0 16px; }
-      .content       { padding: 20px 16px; }
     }
+
+    /* ── Habillage commun : cartes arrondies, pastilles de statut ── */
+    .booking-card, .stat-card, .avail-box, .client-card, .service-card, .modal, .mkt-recipient, .blocked-item, .vehicle-row { border-radius: 12px; }
+    .client-card, .modal { overflow: hidden; }
+    input, select, textarea, .btn { border-radius: 8px; }
+    .planning-view-toggle .btn { border-radius: 0; }
+    .planning-view-toggle .btn:first-child { border-radius: 8px 0 0 8px; }
+    .planning-view-toggle .btn:last-child  { border-radius: 0 8px 8px 0; }
+    .stat-card, .booking-card, .avail-box, .client-card, .service-card { box-shadow: var(--shadow); }
+    .booking-card:hover { border-color: var(--border2); }
+
+    /* ── Tableau de bord ── */
+    .dash-greeting { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-bottom: none; padding-bottom: 0; margin-bottom: 22px; }
+    .dash-greeting__title { font-style: normal; font-size: 24px; font-weight: 500; letter-spacing: -.01em; }
+
+    .dash-alert {
+      display: none; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; padding: 12px 16px;
+      border: 1px solid var(--amber); border-radius: 12px; background: color-mix(in srgb, var(--amber) 9%, transparent);
+      color: var(--white); font-size: 13px;
+    }
+    .dash-alert.is-visible { display: flex; }
+    .dash-alert .btn { margin-left: auto; }
+
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); min-width: 0; }
+    .kpi__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--grey2); font-size: 12px; }
+    .kpi__ico { width: 32px; height: 32px; border-radius: 9px; background: var(--bg3); display: inline-flex; align-items: center; justify-content: center; color: var(--accent); flex: none; }
+    .kpi__ico svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .kpi__val { margin-top: 10px; font-size: 28px; font-weight: 400; letter-spacing: -.02em; color: var(--white); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .kpi__foot { margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--grey3); min-height: 20px; }
+
+    .delta { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .delta--up   { color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+    .delta--down { color: var(--red);   background: color-mix(in srgb, var(--red) 14%, transparent); }
+
+    .dash-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 14px; align-items: start; margin-bottom: 18px; }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow); min-width: 0; }
+    .card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .card__title { font-size: 15px; font-weight: 500; color: var(--white); }
+    .card__sub { font-size: 12px; color: var(--grey3); margin-top: 2px; }
+
+    .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--border2); border-radius: 10px; background: var(--bg3); }
+    .seg__btn { padding: 5px 12px; border: none; border-radius: 7px; background: none; font: inherit; font-size: 12px; color: var(--grey2); cursor: pointer; }
+    .seg__btn:hover { color: var(--white); }
+    .seg__btn.is-active { background: var(--bg2); color: var(--white); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+
+    .rev-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+    .rev-total { font-size: 30px; font-weight: 400; letter-spacing: -.02em; color: var(--white); font-variant-numeric: tabular-nums; }
+    .rev-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 8px 0 6px; font-size: 11px; color: var(--grey2); }
+    .rev-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+    .rev-legend .k-a i { background: var(--chart-a); }
+    .rev-legend .k-b i { background: var(--chart-b); border: 1px solid var(--chart-a); }
+
+    .chart { position: relative; width: 100%; }
+    .chart svg { display: block; width: 100%; overflow: visible; }
+    .chart text { font-family: var(--font); font-size: 11px; fill: var(--grey3); }
+    .chart .grid { stroke: var(--border); stroke-width: 1; }
+    .chart .bar-a { fill: var(--chart-a); }
+    .chart .bar-b { fill: var(--chart-b); stroke: var(--chart-a); stroke-width: 1; stroke-dasharray: 3 2; }
+    .chart .col-now { fill: var(--hover); }
+    .chart .hit { fill: transparent; cursor: pointer; }
+    .chart .hit:hover { fill: var(--hover); }
+    .chart .lbl-now { fill: var(--white); font-weight: 600; }
+    .chart__empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding-bottom: 26px; font-size: 12px; color: var(--grey3); text-align: center; pointer-events: none; }
+    .chart__tip {
+      position: absolute; top: 0; z-index: 3; display: none; min-width: 150px; padding: 10px 12px; border-radius: 10px;
+      background: var(--bg3); border: 1px solid var(--border2); box-shadow: var(--shadow); font-size: 12px; color: var(--grey1); pointer-events: none; transform: translateX(-50%);
+    }
+    .chart__tip b { display: block; color: var(--white); font-weight: 600; margin-bottom: 4px; }
+    .chart__tip span { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+
+    .agenda { display: flex; flex-direction: column; }
+    .agenda + .card__head { margin-top: 22px; }
+    .ag { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--border); cursor: pointer; }
+    .ag:first-child { border-top: none; }
+    .ag:hover .ag__name { color: var(--accent); }
+    .ag--off { opacity: .45; }
+    .ag__time { width: 46px; flex: none; font-size: 13px; font-weight: 600; color: var(--white); font-variant-numeric: tabular-nums; }
+    .ag__body { flex: 1; min-width: 0; }
+    .ag__name { font-size: 13px; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ag__sub  { font-size: 11px; color: var(--grey3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ag__side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+    .ag__next { padding: 3px 9px; border: 1px solid var(--border2); border-radius: 999px; background: none; font: inherit; font-size: 11px; color: var(--grey1); cursor: pointer; }
+    .ag__next:hover { background: var(--hover); color: var(--white); }
+    .agenda .empty { padding: 22px 0; font-size: 11px; }
+
+    .mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .mini__item { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; min-width: 0; }
+    .mini__val { font-size: 20px; color: var(--white); font-variant-numeric: tabular-nums; }
+    .mini__val--text { font-size: 15px; line-height: 1.35; min-height: 2.7em; display: flex; align-items: center; }
+    .mini__label { margin-top: 2px; font-size: 11px; color: var(--grey3); }
+
+    @media (max-width: 1100px) {
+      .kpis { grid-template-columns: repeat(2, 1fr); }
+      .dash-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Mobile : barre latérale en tiroir ── */
+    @media (max-width: 900px) {
+      .side { position: fixed; left: 0; top: 0; transform: translateX(-102%); transition: transform .22s ease; box-shadow: var(--shadow); }
+      .side.is-open { transform: none; }
+      .side-veil.is-open { display: block; }
+      .topbar { flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
+      .icon-btn.topbar__burger { display: inline-flex; }
+      .topbar__title { font-size: 16px; }
+      .search { order: 5; flex: 1 1 100%; max-width: none; }
+      .content { padding: 20px 16px; }
+    }
+    @media (max-width: 560px) {
+      .kpis { gap: 10px; }
+      .kpi { padding: 14px; }
+      .kpi__val { font-size: 22px; }
+      .mini { grid-template-columns: 1fr; gap: 10px; }
+      .card { padding: 16px; }
+      .rev-total { font-size: 26px; }
+      .topbar__new .long { display: none; }
+      .topbar__new .short { display: inline; }
+      .topbar__new { padding: 9px 14px; font-size: 12px; }
+      .mini__item { padding: 12px 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .side { transition: none; } }
   </style>
 </head>
 <body>
@@ -574,21 +733,71 @@
   <!-- App -->
   <div class="app" id="app">
 
-    <div class="header">
-      <span class="header__logo"><img src="/assets/images/logo.png" alt=""><span>REYCE</span></span>
-      <span class="header__badge">Administration</span>
-      <button class="header__logout" onclick="logout()">Déconnexion</button>
-    </div>
+    <div class="side-veil" id="sideVeil" onclick="closeSide()"></div>
 
-    <div class="tabs">
-      <button class="tab is-active" data-tab="dashboard"     onclick="switchTab('dashboard')">Tableau de bord</button>
-      <button class="tab"           data-tab="bookings"      onclick="switchTab('bookings')">Réservations</button>
-      <button class="tab"           data-tab="planning"      onclick="switchTab('planning')">Planning</button>
-      <button class="tab"           data-tab="clients"       onclick="switchTab('clients')">Clients</button>
-      <button class="tab"           data-tab="marketing"     onclick="switchTab('marketing')">Marketing</button>
-      <button class="tab"           data-tab="services"      onclick="switchTab('services')">Prestations</button>
-      <button class="tab"           data-tab="availability"  onclick="switchTab('availability')">Disponibilités</button>
-    </div>
+    <aside class="side" id="side" aria-label="Navigation">
+      <div class="side__brand"><img src="/assets/images/logo.png" alt=""><span>REYCE</span></div>
+      <p class="side__tag">Administration</p>
+
+      <nav>
+        <p class="side__group">Activité</p>
+        <button class="tab is-active" data-tab="dashboard" onclick="switchTab('dashboard')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>
+          Tableau de bord</button>
+        <button class="tab" data-tab="bookings" onclick="switchTab('bookings')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8M9 2.5h6v3H9z"/><path d="M6 4.5H5a1 1 0 0 0-1 1V21a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V5.5a1 1 0 0 0-1-1h-1"/><path d="M8 11h8M8 15h8M8 19h5"/></svg>
+          Réservations</button>
+        <button class="tab" data-tab="planning" onclick="switchTab('planning')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+          Planning</button>
+        <button class="tab" data-tab="clients" onclick="switchTab('clients')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14.3c2.2.7 3.5 2.6 3.5 5.2"/></svg>
+          Clients</button>
+
+        <p class="side__group">Business</p>
+        <button class="tab" data-tab="services" onclick="switchTab('services')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg>
+          Prestations</button>
+        <button class="tab" data-tab="availability" onclick="switchTab('availability')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+          Disponibilités</button>
+        <button class="tab" data-tab="marketing" onclick="switchTab('marketing')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5v3a1 1 0 0 0 1 1h2.5L14 19V5L6.5 9.5H4a1 1 0 0 0-1 1z"/><path d="M17.5 9a4.2 4.2 0 0 1 0 6"/></svg>
+          Marketing</button>
+      </nav>
+
+      <div class="side__foot">
+        <a class="tab" href="/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+          Voir le site</a>
+        <button class="tab" onclick="logout()">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"/><path d="M16 8l4 4-4 4M20 12H9"/></svg>
+          Déconnexion</button>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn topbar__burger" onclick="openSide()" aria-label="Ouvrir le menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <h1 class="topbar__title" id="topTitle">Tableau de bord</h1>
+
+        <div class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+          <input type="search" id="globalSearch" placeholder="Rechercher un client…" autocomplete="off" aria-label="Rechercher un client">
+          <div class="search__results" id="searchResults"></div>
+        </div>
+
+        <span class="topbar__spacer"></span>
+        <div class="topbar__actions">
+          <button class="btn btn--primary btn--sm topbar__new" onclick="quickNewBooking()">+ <span class="long">Nouveau rendez-vous</span><span class="short">RDV</span></button>
+          <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Passer en thème clair" title="Thème clair / sombre">
+            <svg class="ico-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></svg>
+            <svg class="ico-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/></svg>
+          </button>
+        </div>
+      </header>
 
     <div class="content">
 
@@ -596,38 +805,90 @@
       <div class="panel is-active" id="panel-dashboard">
 
         <div class="dash-greeting">
-          <p class="dash-greeting__title" id="dashGreetingTitle">Bonjour.</p>
-          <p class="dash-greeting__text" id="dashGreetingText">Chargement de votre journée…</p>
-        </div>
-
-        <div class="stats-row">
-          <div class="stat-card"><div class="stat-card__val" id="dashToday">—</div><div class="stat-card__label">Aujourd'hui</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="dashTomorrow">—</div><div class="stat-card__label">Demain</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="dashUpcoming">—</div><div class="stat-card__label">7 prochains jours</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="dashRevenue">—</div><div class="stat-card__label">Encaissé (actif)</div></div>
-        </div>
-
-        <div class="stats-row">
-          <div class="stat-card"><div class="stat-card__val" id="dashMonth">—</div><div class="stat-card__label">Encaissé ce mois</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="dashTrend">—</div><div class="stat-card__label">Semaine vs préc.</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="dashTopService">—</div><div class="stat-card__label">Prestation la + demandée</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="dashCancelRate">—</div><div class="stat-card__label">Taux d'annulation</div></div>
-        </div>
-
-        <div class="dash-section">
-          <div class="dash-section__head">
-            <p class="section-title" style="margin:0;">Aujourd'hui</p>
-            <span class="dash-section__count" id="dashTodayCount"></span>
+          <div>
+            <p class="dash-greeting__title" id="dashGreetingTitle">Bonjour.</p>
+            <p class="dash-greeting__text" id="dashGreetingText">Chargement de votre journée…</p>
           </div>
-          <div class="booking-list" id="dashTodayList"></div>
         </div>
 
-        <div class="dash-section">
-          <div class="dash-section__head">
-            <p class="section-title" style="margin:0;">Demain</p>
-            <span class="dash-section__count" id="dashTomorrowCount"></span>
+        <div class="dash-alert" id="dashAlert">
+          <span id="dashAlertText"></span>
+          <button class="btn btn--ghost btn--sm" onclick="openToClose()">Voir ces rendez-vous</button>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi">
+            <div class="kpi__top"><span>Chiffre d'affaires du mois</span><span class="kpi__ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></span></div>
+            <div class="kpi__val" id="kpiRevenue">—</div>
+            <div class="kpi__foot" id="kpiRevenueFoot"></div>
           </div>
-          <div class="booking-list" id="dashTomorrowList"></div>
+          <div class="kpi">
+            <div class="kpi__top"><span>Rendez-vous ce mois</span><span class="kpi__ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg></span></div>
+            <div class="kpi__val" id="kpiAppts">—</div>
+            <div class="kpi__foot" id="kpiApptsFoot"></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi__top"><span>Nouveaux clients</span><span class="kpi__ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="3.5"/><path d="M3 20c0-3.6 3-6 7-6s7 2.4 7 6"/><path d="M19 8v6M16 11h6"/></svg></span></div>
+            <div class="kpi__val" id="kpiClients">—</div>
+            <div class="kpi__foot">ce mois-ci</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi__top"><span>Panier moyen</span><span class="kpi__ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span></div>
+            <div class="kpi__val" id="kpiBasket">—</div>
+            <div class="kpi__foot" id="kpiBasketFoot"></div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <section class="card" aria-labelledby="revTitle">
+            <div class="card__head">
+              <div>
+                <h2 class="card__title" id="revTitle">Chiffre d'affaires</h2>
+                <p class="card__sub" id="revPeriodLabel"></p>
+              </div>
+              <div class="seg" role="group" aria-label="Période">
+                <button class="seg__btn is-active" data-period="month"   onclick="loadRevenue('month')">Mois</button>
+                <button class="seg__btn"           data-period="quarter" onclick="loadRevenue('quarter')">Trimestre</button>
+                <button class="seg__btn"           data-period="year"    onclick="loadRevenue('year')">Année</button>
+              </div>
+            </div>
+            <div class="rev-head">
+              <span class="rev-total" id="revTotal">—</span>
+              <span class="delta" id="revDelta" hidden></span>
+              <span class="dash-section__count" id="revVs"></span>
+            </div>
+            <div class="rev-legend">
+              <span class="k-a"><i></i>Réalisé (livré) <b id="revCollected" style="color:var(--white);font-weight:600;"></b></span>
+              <span class="k-b"><i></i>À venir <b id="revForecast" style="color:var(--white);font-weight:600;"></b></span>
+              <span id="revCount"></span>
+            </div>
+            <div class="chart" id="revChart"></div>
+          </section>
+
+          <section class="card" aria-label="Rendez-vous du jour">
+            <div class="card__head">
+              <div>
+                <h2 class="card__title">Aujourd'hui</h2>
+                <p class="card__sub" id="dashTodayDate"></p>
+              </div>
+              <span class="dash-section__count" id="dashTodayCount"></span>
+            </div>
+            <div class="agenda" id="dashTodayList"></div>
+
+            <div class="card__head">
+              <div>
+                <h2 class="card__title">Demain</h2>
+              </div>
+              <span class="dash-section__count" id="dashTomorrowCount"></span>
+            </div>
+            <div class="agenda" id="dashTomorrowList"></div>
+          </section>
+        </div>
+
+        <div class="mini">
+          <div class="mini__item"><div class="mini__val" id="dashWeek">—</div><div class="mini__label">Rendez-vous sur les 7 prochains jours</div></div>
+          <div class="mini__item"><div class="mini__val mini__val--text" id="dashTopService">—</div><div class="mini__label">Prestation la plus demandée</div></div>
+          <div class="mini__item"><div class="mini__val" id="dashCancelRate">—</div><div class="mini__label">Taux d'annulation</div></div>
         </div>
 
       </div>
@@ -639,7 +900,7 @@
           <div class="stat-card"><div class="stat-card__val" id="statTotal">—</div><div class="stat-card__label">Total réservations</div></div>
           <div class="stat-card"><div class="stat-card__val" id="statConfirmed">—</div><div class="stat-card__label">Actives</div></div>
           <div class="stat-card"><div class="stat-card__val" id="statUpcoming">—</div><div class="stat-card__label">À venir</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="statRevenue">—</div><div class="stat-card__label">Encaissé</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="statRevenue">—</div><div class="stat-card__label">CA réalisé</div></div>
         </div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap;">
@@ -655,8 +916,8 @@
               <option value="completed">Terminé</option>
               <option value="no_show">Absent</option>
               <option value="cancelled">Annulée</option>
+              <option value="to_close">Passés à clôturer</option>
             </select>
-            <button class="btn btn--primary btn--sm" onclick="toggleNewBookingForm()">+ Nouveau rendez-vous</button>
           </div>
         </div>
 
@@ -796,6 +1057,7 @@
         </div>
       </div>
 
+    </div>
     </div>
   </div>
 
@@ -941,16 +1203,92 @@
         renderServices();
         renderMarketingRecipients();
         populateServiceSelect();
+        loadRevenue();
       } catch (e) {
         if (e.message !== 'Non autorisé') showToast('Erreur de connexion', true);
       }
     }
 
-    // ── Tabs ─────────────────────────────────────────────────
-    function switchTab(name) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
-      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('is-active', p.id === `panel-${name}`));
+    // ── Thème clair / sombre ─────────────────────────────────
+    // Le choix est mémorisé dans ce navigateur (le réglage initial est posé dans <head> pour éviter un flash).
+    function applyTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      const btn = document.getElementById('themeBtn');
+      if (btn) btn.setAttribute('aria-label', t === 'light' ? 'Passer en thème sombre' : 'Passer en thème clair');
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', t === 'light' ? '#f3f4f6' : '#08090a');
     }
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      applyTheme(next);
+      try { localStorage.setItem('reyceAdminTheme', next); } catch (e) { /* stockage indisponible : le thème reste valable pour la session */ }
+    }
+    applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+
+    // ── Tabs ─────────────────────────────────────────────────
+    const TAB_TITLES = {
+      dashboard: 'Tableau de bord', bookings: 'Réservations', planning: 'Planning', clients: 'Clients',
+      services: 'Prestations', availability: 'Disponibilités', marketing: 'Marketing'
+    };
+    function switchTab(name) {
+      document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('is-active', p.id === `panel-${name}`));
+      document.getElementById('topTitle').textContent = TAB_TITLES[name] || '';
+      closeSide();
+      window.scrollTo(0, 0);
+      if (name === 'dashboard') renderRevenue(); // le graphique se mesure sur un panneau visible
+    }
+    function openSide()  { document.getElementById('side').classList.add('is-open');    document.getElementById('sideVeil').classList.add('is-open'); }
+    function closeSide() { document.getElementById('side').classList.remove('is-open'); document.getElementById('sideVeil').classList.remove('is-open'); }
+
+    // Raccourcis
+    function quickNewBooking() {
+      switchTab('bookings');
+      const form = document.getElementById('newBookingForm');
+      if (form.style.display === 'none') toggleNewBookingForm();
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    function openToClose() {
+      switchTab('bookings');
+      document.getElementById('filterStatus').value = 'to_close';
+      renderBookings();
+    }
+
+    // ── Recherche client (barre du haut) ─────────────────────
+    function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+    function renderSearch() {
+      const box = document.getElementById('searchResults');
+      const q = norm(document.getElementById('globalSearch').value).trim();
+      if (q.length < 2) { box.classList.remove('is-open'); box.innerHTML = ''; return; }
+      const hits = clients.filter(c => norm([c.firstName, c.lastName, c.email, c.phone, (c.vehicles || []).join(' ')].join(' ')).includes(q)).slice(0, 6);
+      box.innerHTML = hits.length
+        ? hits.map(c => `<button type="button" class="search__item" data-email="${esc(c.email)}">
+            <div class="search__name">${esc(c.firstName)} ${esc(c.lastName)}</div>
+            <div class="search__sub">${esc(c.email)}${c.phone ? ' · ' + esc(c.phone) : ''}${(c.vehicles || []).length ? ' · ' + esc(c.vehicles[0]) : ''}</div>
+          </button>`).join('')
+        : '<div class="search__none">Aucun client trouvé</div>';
+      box.classList.add('is-open');
+    }
+    function closeSearch() { document.getElementById('searchResults').classList.remove('is-open'); }
+
+    document.getElementById('globalSearch').addEventListener('input', renderSearch);
+    document.getElementById('globalSearch').addEventListener('focus', renderSearch);
+    document.getElementById('globalSearch').addEventListener('keydown', e => { if (e.key === 'Escape') { closeSearch(); e.target.blur(); } });
+    document.getElementById('searchResults').addEventListener('click', e => {
+      const item = e.target.closest('.search__item');
+      if (!item) return;
+      const email = item.dataset.email;
+      document.getElementById('globalSearch').value = '';
+      closeSearch();
+      switchTab('clients');
+      openClientEmail = email;
+      renderClients();
+      const row = document.getElementById('detail-' + cssId(email));
+      if (row) row.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('.search')) closeSearch(); });
 
     // ── Statuts ───────────────────────────────────────────────
     const STATUS_LABEL = {
@@ -976,63 +1314,190 @@
       return 'Bonsoir';
     }
 
+    const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+    function fmtEur(cents) {
+      return `${Math.round((cents || 0) / 100).toLocaleString('fr-FR')} €`;
+    }
+    function deltaPct(cur, prev) {
+      if (!prev) return null;
+      return Math.round(((cur - prev) / prev) * 100);
+    }
+    function setDelta(el, pct) {
+      if (pct === null) { el.hidden = true; return; }
+      el.hidden = false;
+      el.className = 'delta ' + (pct >= 0 ? 'delta--up' : 'delta--down');
+      el.textContent = `${pct >= 0 ? '+' : '−'}${Math.abs(pct)} %`;
+    }
+
+    const NEXT_SHORT = { confirmed: 'Déposé', dropped_off: 'En cours', in_progress: 'Contrôle', final_check: 'Prêt', ready: 'Livré' };
+
+    // Ligne compacte d'agenda (tableau de bord)
+    function agendaRowHTML(b) {
+      const next = NEXT_STATUS[b.status];
+      const name = `${b.client?.firstName || ''} ${b.client?.lastName || ''}`.trim() || '—';
+      const sub  = [b.serviceName || b.service, [b.vehicleType, b.vehicleModel].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+      return `
+        <div class="ag" tabindex="0" role="button" onclick="focusBooking('${esc(b.sessionId)}')" onkeydown="if(event.key==='Enter')focusBooking('${esc(b.sessionId)}')">
+          <div class="ag__time">${esc(b.time || '—')}</div>
+          <div class="ag__body">
+            <div class="ag__name">${esc(name)}</div>
+            <div class="ag__sub">${esc(sub)}</div>
+          </div>
+          <div class="ag__side">
+            <span class="status-badge status-badge--${esc(b.status)}">${esc(STATUS_LABEL[b.status] || b.status)}</span>
+            ${next ? `<button class="ag__next" title="${esc(NEXT_LABEL[b.status])}" onclick="event.stopPropagation();setStatus('${esc(b.sessionId)}','${next}')">${NEXT_SHORT[b.status]} →</button>` : ''}
+          </div>
+        </div>`;
+    }
+
     function renderDashboard() {
       if (!dashboard) return;
-      document.getElementById('dashToday').textContent    = dashboard.todayCount;
-      document.getElementById('dashTomorrow').textContent = dashboard.tomorrowCount;
-      document.getElementById('dashUpcoming').textContent = dashboard.upcomingCount;
-      document.getElementById('dashRevenue').textContent  = `${(dashboard.revenueCents / 100).toFixed(0)} €`;
-
-      document.getElementById('dashMonth').textContent = `${(dashboard.monthRevenueCents / 100).toFixed(0)} €`;
-      document.getElementById('dashTopService').textContent = dashboard.topService ? dashboard.topService.name : '—';
-      document.getElementById('dashCancelRate').textContent = `${dashboard.cancelRate}%`;
-
-      const trendEl = document.getElementById('dashTrend');
-      const diff = dashboard.weekRevenueCents - dashboard.prevWeekRevenueCents;
-      if (dashboard.prevWeekRevenueCents === 0 && dashboard.weekRevenueCents === 0) {
-        trendEl.textContent = '—';
-        trendEl.className = 'stat-card__val';
-      } else {
-        const pct = dashboard.prevWeekRevenueCents ? Math.round((diff / dashboard.prevWeekRevenueCents) * 100) : 100;
-        trendEl.textContent = `${diff >= 0 ? '+' : ''}${pct}%`;
-        trendEl.className = 'stat-card__val ' + (diff >= 0 ? 'dash-trend-up' : 'dash-trend-down');
-      }
+      const d = dashboard;
 
       document.getElementById('dashGreetingTitle').textContent = `${greetingWord()}.`;
       const parts = [];
-      parts.push(dashboard.todayCount
-        ? `${dashboard.todayCount} rendez-vous aujourd'hui`
-        : 'Aucun rendez-vous aujourd\'hui');
-      if (dashboard.tomorrowCount) parts.push(`${dashboard.tomorrowCount} demain`);
-      parts.push(`${(dashboard.weekRevenueCents / 100).toFixed(0)} € encaissés cette semaine`);
-      if (dashboard.topService) parts.push(`la prestation la plus demandée est "${dashboard.topService.name}"`);
+      parts.push(d.todayCount ? `${d.todayCount} rendez-vous aujourd'hui` : 'aucun rendez-vous aujourd\'hui');
+      if (d.tomorrowCount) parts.push(`${d.tomorrowCount} demain`);
+      parts.push(`${fmtEur(d.monthTotalCents)} de chiffre d'affaires ce mois-ci`);
       document.getElementById('dashGreetingText').textContent = 'Voici votre journée : ' + parts.join(', ') + '.';
 
-      document.getElementById('dashTodayCount').textContent    = `${dashboard.today.length} RDV`;
-      document.getElementById('dashTomorrowCount').textContent = `${dashboard.tomorrow.length} RDV`;
+      // Rendez-vous passés à clôturer
+      const alertEl = document.getElementById('dashAlert');
+      alertEl.classList.toggle('is-visible', d.staleCount > 0);
+      if (d.staleCount > 0) {
+        document.getElementById('dashAlertText').textContent = d.staleCount === 1
+          ? '1 rendez-vous passé n\'est pas marqué « Livré » : il ne compte pas encore dans le chiffre d\'affaires réalisé.'
+          : `${d.staleCount} rendez-vous passés ne sont pas marqués « Livré » : ils ne comptent pas encore dans le chiffre d'affaires réalisé.`;
+      }
 
-      const todayEl = document.getElementById('dashTodayList');
-      todayEl.innerHTML = dashboard.today.length
-        ? dashboard.today.map(b => bookingCardHTML(b)).join('')
+      // Cartes chiffres clés
+      document.getElementById('kpiRevenue').textContent = fmtEur(d.monthTotalCents);
+      const foot = document.getElementById('kpiRevenueFoot');
+      const pct = deltaPct(d.monthTotalCents, d.prevMonthTotalCents);
+      foot.innerHTML = '';
+      if (pct !== null) foot.innerHTML = `<span class="delta ${pct >= 0 ? 'delta--up' : 'delta--down'}">${pct >= 0 ? '+' : '−'}${Math.abs(pct)} %</span><span>vs mois précédent</span>`;
+      else foot.textContent = `${fmtEur(d.monthCollectedCents)} réalisé · ${fmtEur(d.monthForecastCents)} à venir`;
+
+      document.getElementById('kpiAppts').textContent = d.monthActiveCount;
+      document.getElementById('kpiApptsFoot').textContent = `${d.todayCount} aujourd'hui · ${d.tomorrowCount} demain`;
+      document.getElementById('kpiClients').textContent = d.newClientsMonth;
+      document.getElementById('kpiBasket').textContent = d.monthActiveCount ? fmtEur(d.avgBasketCents) : '—';
+      document.getElementById('kpiBasketFoot').textContent = d.monthActiveCount ? 'par rendez-vous' : 'aucun rendez-vous ce mois-ci';
+
+      // Agenda du jour
+      const todayLabel = d.todayYmd ? new Date(d.todayYmd + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+      document.getElementById('dashTodayDate').textContent = cap(todayLabel);
+      document.getElementById('dashTodayCount').textContent    = `${d.today.length} RDV`;
+      document.getElementById('dashTomorrowCount').textContent = `${d.tomorrow.length} RDV`;
+      document.getElementById('dashTodayList').innerHTML = d.today.length
+        ? d.today.map(agendaRowHTML).join('')
         : '<div class="empty">Aucun rendez-vous aujourd\'hui</div>';
-
-      const tomorrowEl = document.getElementById('dashTomorrowList');
-      tomorrowEl.innerHTML = dashboard.tomorrow.length
-        ? dashboard.tomorrow.map(b => bookingCardHTML(b)).join('')
+      document.getElementById('dashTomorrowList').innerHTML = d.tomorrow.length
+        ? d.tomorrow.map(agendaRowHTML).join('')
         : '<div class="empty">Aucun rendez-vous demain</div>';
+
+      // Aperçu
+      document.getElementById('dashWeek').textContent = d.todayCount + d.tomorrowCount + d.upcomingCount;
+      document.getElementById('dashTopService').textContent = d.topService ? d.topService.name : '—';
+      document.getElementById('dashCancelRate').textContent = `${d.cancelRate} %`;
     }
+
+    // ── Chiffre d'affaires (graphique) ───────────────────────
+    let revPeriod = 'month';
+    let revData = null;
+
+    async function loadRevenue(period) {
+      if (period) revPeriod = period;
+      document.querySelectorAll('.seg__btn').forEach(b => b.classList.toggle('is-active', b.dataset.period === revPeriod));
+      try {
+        revData = await api('GET', `/api/admin/revenue?period=${revPeriod}`);
+        renderRevenue();
+      } catch (e) {
+        if (e.message !== 'Non autorisé') showToast('Chiffre d\'affaires indisponible', true);
+      }
+    }
+
+    // Graduation « ronde » : 4 intervalles au plus
+    function niceStep(maxEur) {
+      const steps = [50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000];
+      return steps.find(s => maxEur / s <= 4) || 100000;
+    }
+
+    function renderRevenue() {
+      const el = document.getElementById('revChart');
+      if (!revData || !el || !el.offsetParent) return; // panneau masqué : rendu au retour sur l'onglet
+      const d = revData;
+
+      document.getElementById('revPeriodLabel').textContent = cap(d.label);
+      document.getElementById('revTotal').textContent = fmtEur(d.totalCents);
+      setDelta(document.getElementById('revDelta'), deltaPct(d.totalCents, d.prevTotalCents));
+      document.getElementById('revVs').textContent = d.prevTotalCents ? `vs ${d.prevLabel}` : '';
+      document.getElementById('revCollected').textContent = fmtEur(d.collectedCents);
+      document.getElementById('revForecast').textContent = fmtEur(d.forecastCents);
+      document.getElementById('revCount').textContent = `${d.count} rendez-vous`;
+
+      const W = Math.max(260, el.clientWidth), H = W < 420 ? 190 : 240;
+      const padL = 46, padR = 6, padT = 10, padB = 26;
+      const innerW = W - padL - padR, innerH = H - padT - padB;
+      const maxEur = Math.max(0, ...d.buckets.map(b => b.totalCents)) / 100;
+      const step = niceStep(maxEur || 1);
+      const top = Math.max(step, Math.ceil(maxEur / step) * step);
+      const y = v => padT + innerH * (1 - v / top);
+      const n = d.buckets.length, slot = innerW / n;
+      const barW = Math.max(3, Math.min(36, slot * 0.62));
+      const every = n > 20 ? 3 : n > 12 ? 2 : 1;
+
+      let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Chiffre d'affaires, ${esc(d.label)}">`;
+      for (let v = 0; v <= top; v += step) {
+        svg += `<line class="grid" x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}"/>`;
+        svg += `<text x="${padL - 8}" y="${y(v) + 4}" text-anchor="end">${v >= 1000 ? (v / 1000).toLocaleString('fr-FR') + ' k€' : v + ' €'}</text>`;
+      }
+      d.buckets.forEach((b, i) => {
+        const x = padL + i * slot, bx = x + (slot - barW) / 2;
+        const isNow = i === d.todayIndex;
+        if (isNow) svg += `<rect class="col-now" x="${x}" y="${padT}" width="${slot}" height="${innerH}" rx="4"/>`;
+        const a = b.collectedCents / 100, f = b.forecastCents / 100;
+        if (a > 0) svg += `<rect class="bar-a" x="${bx}" y="${y(a)}" width="${barW}" height="${y(0) - y(a)}" rx="2.5"/>`;
+        if (f > 0) svg += `<rect class="bar-b" x="${bx}" y="${y(a + f)}" width="${barW}" height="${y(a) - y(a + f)}" rx="2.5"/>`;
+        if (i % every === 0 || isNow) svg += `<text class="${isNow ? 'lbl-now' : ''}" x="${x + slot / 2}" y="${H - 8}" text-anchor="middle">${esc(b.label)}</text>`;
+        svg += `<rect class="hit" data-i="${i}" x="${x}" y="${padT}" width="${slot}" height="${innerH + padB - 8}"/>`;
+      });
+      svg += '</svg>';
+
+      el.innerHTML = svg
+        + (d.totalCents === 0 ? '<div class="chart__empty">Aucun chiffre d\'affaires sur cette période.<br>Il apparaît dès qu\'un rendez-vous est enregistré.</div>' : '')
+        + '<div class="chart__tip" id="revTip"></div>';
+
+      const tip = document.getElementById('revTip');
+      const showTip = i => {
+        const b = d.buckets[i];
+        const range = b.from === b.to ? fmtDate(b.from) : `${fmtDate(b.from).replace(/ \d{4}$/, '')} – ${fmtDate(b.to).replace(/ \d{4}$/, '')}`;
+        tip.innerHTML = `<b>${esc(range)}</b><span>Réalisé <em style="font-style:normal;color:var(--white)">${fmtEur(b.collectedCents)}</em></span><span>À venir <em style="font-style:normal;color:var(--white)">${fmtEur(b.forecastCents)}</em></span><span>Rendez-vous <em style="font-style:normal;color:var(--white)">${b.count}</em></span>`;
+        tip.style.display = 'block';
+        const cx = padL + i * slot + slot / 2;
+        tip.style.left = Math.min(W - tip.offsetWidth / 2 - 4, Math.max(tip.offsetWidth / 2 + 4, cx)) + 'px';
+      };
+      el.querySelectorAll('.hit').forEach(h => {
+        h.addEventListener('mouseenter', () => showTip(+h.dataset.i));
+        h.addEventListener('click', () => showTip(+h.dataset.i));
+        h.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+      });
+    }
+
+    let resizeTimer;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderRevenue, 120); });
 
     // ── Stats (onglet Réservations) ──────────────────────────
     function renderStats() {
       const active   = bookings.filter(b => !['cancelled', 'no_show'].includes(b.status));
-      const today    = new Date().toISOString().split('T')[0];
-      const upcoming = active.filter(b => b.date >= today);
-      const revenue  = active.reduce((s, b) => s + (b.amountPaid || 0), 0);
+      const todayStr = (dashboard && dashboard.todayYmd) || new Date().toISOString().split('T')[0];
+      const upcoming = active.filter(b => b.date >= todayStr);
+      const realised = bookings.filter(b => b.status === 'completed').reduce((s, b) => s + (b.totalCents || 0), 0);
 
       document.getElementById('statTotal').textContent     = bookings.length;
       document.getElementById('statConfirmed').textContent = active.length;
       document.getElementById('statUpcoming').textContent  = upcoming.length;
-      document.getElementById('statRevenue').textContent   = `${(revenue / 100).toFixed(0)} €`;
+      document.getElementById('statRevenue').textContent   = fmtEur(realised);
     }
 
     // ── Carte de réservation (réutilisée : dashboard + réservations + planning) ──
@@ -1042,6 +1507,9 @@
       const status       = b.status;
       const isCancelled  = status === 'cancelled' || status === 'no_show';
       const payment      = b.paymentType === 'full' ? 'Complet' : b.paymentType === 'on_site' ? 'Sur place' : 'Acompte';
+      const payLine      = b.paymentType === 'on_site'
+        ? `Sur place · ${fmtEur(b.totalCents)}`
+        : `${payment} · ${fmtEur(b.amountPaid)} réglé${b.remainingCents ? ` · reste ${fmtEur(b.remainingCents)}` : ''}`;
       const nextStatus   = NEXT_STATUS[status];
 
       return `
@@ -1053,7 +1521,7 @@
           <div>
             <div class="booking-card__label">Prestation</div>
             <div class="booking-card__val">${b.serviceName || b.service || '—'}</div>
-            <div style="font-size:11px;color:var(--grey3);margin-top:2px;">${payment} — ${((b.amountPaid || 0) / 100)} €${b.remainingCents ? ` · reste ${(b.remainingCents/100)} €` : ''}</div>
+            <div style="font-size:11px;color:var(--grey3);margin-top:2px;">${payLine}</div>
           </div>
           <div>
             <div class="booking-card__label">Client</div>
@@ -1066,7 +1534,7 @@
             <div style="margin-top:6px;"><span class="status-badge status-badge--${status}">${STATUS_LABEL[status] || status}</span></div>
           </div>
           <div class="action-col">
-            ${nextStatus ? `<button class="btn btn--ghost btn--sm" onclick="setStatus('${b.sessionId}','${nextStatus}')">${NEXT_LABEL[status]}</button>` : ''}
+            ${nextStatus ? `<button class="btn btn--primary btn--sm" onclick="setStatus('${b.sessionId}','${nextStatus}')">${NEXT_LABEL[status]}</button>` : ''}
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReminder('${b.sessionId}')">Envoyer rappel</button>` : ''}
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReady('${b.sessionId}')">Email véhicule prêt</button>` : ''}
             ${!isCancelled ? `<button class="btn btn--ghost btn--sm" onclick="sendReview('${b.sessionId}')">Demande avis</button>` : ''}
@@ -1083,7 +1551,10 @@
       const filter = document.getElementById('filterStatus').value;
       const list   = document.getElementById('bookingList');
 
-      const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter);
+      const todayStr = (dashboard && dashboard.todayYmd) || new Date().toISOString().split('T')[0];
+      const filtered = filter === 'all' ? bookings
+        : filter === 'to_close' ? bookings.filter(b => ['confirmed', 'dropped_off', 'in_progress', 'final_check', 'ready'].includes(b.status) && b.date < todayStr)
+        : bookings.filter(b => b.status === filter);
 
       list.innerHTML = filtered.length
         ? filtered.map(b => bookingCardHTML(b)).join('')
@@ -1133,7 +1604,7 @@
       // dashboard et clients dépendent de calculs serveur (revenus, agrégats) —
       // on les resynchronise depuis l'API pour rester exacts après un changement de statut.
       Promise.all([api('GET', '/api/admin/dashboard'), api('GET', '/api/admin/clients')])
-        .then(([dash, cl]) => { dashboard = dash; clients = cl.clients || []; renderDashboard(); renderClients(); })
+        .then(([dash, cl]) => { dashboard = dash; clients = cl.clients || []; renderDashboard(); renderStats(); renderBookings(); renderClients(); loadRevenue(); })
         .catch(() => {});
     }
 
@@ -1329,7 +1800,7 @@ let openClientEmail = null;
             </div>
             <div>
               <div class="booking-card__label">Historique</div>
-              <div class="booking-card__val">${c.appointmentCount} rendez-vous — ${(c.totalSpentCents / 100).toFixed(0)} €</div>
+              <div class="booking-card__val">${c.appointmentCount} rendez-vous · ${fmtEur(c.totalSpentCents)} réalisés</div>
               <div class="client-card__sub">${c.vehicles.length ? c.vehicles.join(', ') : 'Véhicule non renseigné'}</div>
             </div>
             <div>

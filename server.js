@@ -38,6 +38,10 @@ app.use(helmet({
       // de Google Tag Platform), et par le pixel Meta s'il est activé un jour dans GTM.
       // Rien n'est chargé tant que la personne n'a pas accepté les cookies (voir js/reyce-consent.js).
       scriptSrc: ["'self'", "'unsafe-inline'", 'https://www.googletagmanager.com', 'https://www.googleadservices.com', 'https://www.google.com', 'https://connect.facebook.net'],
+      // Les gestionnaires onclick="…" de l'admin (et de quelques pages) sont du JavaScript en ligne, comme les
+      // <script> déjà admis par scriptSrc : sans cette ligne, helmet les bloque (script-src-attr 'none') et
+      // les boutons de l'espace d'administration ne répondent plus.
+      scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'https:'],
@@ -59,10 +63,13 @@ app.use(helmet({
 
 // ── Rate limiting ────────────────────────────────────────────
 // Strict sur l'admin : ralentit un brute-force du token sans gêner un usage
-// normal (une poignée de requêtes par minute depuis le back-office).
+// normal. Seules les requêtes refusées (token faux → 401, erreurs) sont comptées :
+// un chargement du back-office envoie à lui seul 6 requêtes, qui épuisaient les
+// 10 appels autorisés et bloquaient l'accès dès la deuxième ouverture.
 const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives, réessayez plus tard.' },
@@ -1976,16 +1983,89 @@ app.patch('/api/admin/services/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Chiffre d'affaires ───────────────────────────────────────
+// Les rendez-vous se règlent à l'atelier : amountPaid reste à 0 pour la plupart.
+// Le suivi se base donc sur le montant de la prestation (totalCents) :
+//  · réalisé  = rendez-vous au statut « Livré » (completed)
+//  · à venir  = rendez-vous actifs pas encore livrés
+// Les rendez-vous annulés ou absents ne comptent pas.
+const REVENUE_OPEN = ['confirmed', 'dropped_off', 'in_progress', 'final_check', 'ready'];
+const MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const MOIS_LONGS  = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+function ymdAddDays(ymd, n) {
+  const d = strToDate(ymd);
+  d.setUTCDate(d.getUTCDate() + n);
+  return dateToStr(d);
+}
+function ymdLastDay(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+function ymd(y, m, d) { return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`; }
+function ymdMonday(s) {
+  const dow = strToDate(s).getUTCDay(); // 0 = dimanche
+  return ymdAddDays(s, dow === 0 ? -6 : 1 - dow);
+}
+
+// Bornes de la période courante (mois, trimestre, année), de la précédente et découpage en barres.
+function revenuePeriod(period, todayYmd) {
+  const [y, m] = todayYmd.split('-').map(Number);
+  let from, to, prevFrom, prevTo, label, prevLabel, buckets = [];
+  if (period === 'year') {
+    from = ymd(y, 1, 1); to = ymd(y, 12, 31);
+    prevFrom = ymd(y - 1, 1, 1); prevTo = ymd(y - 1, 12, 31);
+    label = String(y); prevLabel = String(y - 1);
+    for (let k = 1; k <= 12; k++) buckets.push({ label: MOIS_COURTS[k - 1].replace('.', ''), from: ymd(y, k, 1), to: ymd(y, k, ymdLastDay(y, k)) });
+  } else if (period === 'quarter') {
+    const q = Math.floor((m - 1) / 3), m1 = q * 3 + 1, m3 = q * 3 + 3;
+    from = ymd(y, m1, 1); to = ymd(y, m3, ymdLastDay(y, m3));
+    const pq = q === 0 ? { yy: y - 1, a: 10, b: 12 } : { yy: y, a: (q - 1) * 3 + 1, b: (q - 1) * 3 + 3 };
+    prevFrom = ymd(pq.yy, pq.a, 1); prevTo = ymd(pq.yy, pq.b, ymdLastDay(pq.yy, pq.b));
+    label = `T${q + 1} ${y}`; prevLabel = `T${pq.b / 3} ${pq.yy}`;
+    for (let w = ymdMonday(from); w <= to; w = ymdAddDays(w, 7)) {
+      const [, wm, wd] = w.split('-').map(Number);
+      buckets.push({ label: `${wd} ${MOIS_COURTS[wm - 1].replace('.', '')}`, from: w < from ? from : w, to: ymdAddDays(w, 6) > to ? to : ymdAddDays(w, 6) });
+    }
+  } else {
+    period = 'month';
+    const last = ymdLastDay(y, m);
+    from = ymd(y, m, 1); to = ymd(y, m, last);
+    const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+    prevFrom = ymd(py, pm, 1); prevTo = ymd(py, pm, ymdLastDay(py, pm));
+    label = `${MOIS_LONGS[m - 1]} ${y}`; prevLabel = `${MOIS_LONGS[pm - 1]} ${py}`;
+    for (let d = 1; d <= last; d++) buckets.push({ label: String(d), from: ymd(y, m, d), to: ymd(y, m, d) });
+  }
+  return { period, from, to, prevFrom, prevTo, label, prevLabel, buckets };
+}
+
+function revenueTotals(bookings, from, to) {
+  let collectedCents = 0, forecastCents = 0, count = 0;
+  for (const b of bookings) {
+    if (b.date < from || b.date > to) continue;
+    if (b.status === 'completed') { collectedCents += b.totalCents || 0; count++; }
+    else if (REVENUE_OPEN.includes(b.status)) { forecastCents += b.totalCents || 0; count++; }
+  }
+  return { collectedCents, forecastCents, totalCents: collectedCents + forecastCents, count };
+}
+
+// Courbe de chiffre d'affaires : une barre par jour (mois), par semaine (trimestre) ou par mois (année).
+app.get('/api/admin/revenue', async (req, res) => {
+  const today = parisNow().ymd;
+  const per = revenuePeriod(String(req.query.period || 'month'), today);
+  const bookings = await readBookings();
+  const buckets = per.buckets.map(bk => ({ ...bk, ...revenueTotals(bookings, bk.from, bk.to) }));
+  const cur  = revenueTotals(bookings, per.from, per.to);
+  const prev = revenueTotals(bookings, per.prevFrom, per.prevTo);
+  const todayIndex = buckets.findIndex(bk => today >= bk.from && today <= bk.to);
+  res.json({ period: per.period, label: per.label, prevLabel: per.prevLabel, from: per.from, to: per.to, today, todayIndex, buckets, ...cur, prevTotalCents: prev.totalCents, prevCount: prev.count });
+});
+
 // Vue d'ensemble : compteurs, chiffre d'affaires, RDV du jour/lendemain
 app.get('/api/admin/dashboard', async (req, res) => {
   const bookings = await readBookings();
   const active   = bookings.filter(b => !['cancelled', 'no_show'].includes(b.status));
 
-  const now       = new Date();
-  const todayStr  = dateToStr(now);
-  const tomorrow  = new Date(now.getTime() + 86400000);
-  const tomorrowStr = dateToStr(tomorrow);
-  const in7Str    = dateToStr(new Date(now.getTime() + 7 * 86400000));
+  const todayStr    = parisNow().ymd;
+  const tomorrowStr = ymdAddDays(todayStr, 1);
+  const in7Str      = ymdAddDays(todayStr, 7);
 
   const todayList    = active.filter(b => b.date === todayStr).sort((a, b) => a.time < b.time ? -1 : 1);
   const tomorrowList = active.filter(b => b.date === tomorrowStr).sort((a, b) => a.time < b.time ? -1 : 1);
@@ -1998,12 +2078,10 @@ app.get('/api/admin/dashboard', async (req, res) => {
   for (const s of ADMIN_SETTABLE_STATUSES) byStatus[s] = bookings.filter(b => b.status === s).length;
 
   // Semaine courante (lundi → dimanche) vs semaine précédente
-  const day0 = now.getDay();
-  const mondayOffset = (day0 === 0 ? -6 : 1) - day0;
-  const weekStart = dateToStr(new Date(now.getTime() + mondayOffset * 86400000));
-  const weekEnd   = dateToStr(new Date(now.getTime() + (mondayOffset + 6) * 86400000));
-  const prevWeekStart = dateToStr(new Date(now.getTime() + (mondayOffset - 7) * 86400000));
-  const prevWeekEnd   = dateToStr(new Date(now.getTime() + (mondayOffset - 1) * 86400000));
+  const weekStart = ymdMonday(todayStr);
+  const weekEnd   = ymdAddDays(weekStart, 6);
+  const prevWeekStart = ymdAddDays(weekStart, -7);
+  const prevWeekEnd   = ymdAddDays(weekStart, -1);
 
   const weekRevenueCents = active.filter(b => b.date >= weekStart && b.date <= weekEnd)
     .reduce((s, b) => s + (b.amountPaid || 0), 0);
@@ -2015,6 +2093,17 @@ app.get('/api/admin/dashboard', async (req, res) => {
   const monthRevenueCents = active.filter(b => b.date.startsWith(monthPrefix))
     .reduce((s, b) => s + (b.amountPaid || 0), 0);
   const monthCount = bookings.filter(b => b.date.startsWith(monthPrefix)).length;
+
+  // Suivi du chiffre d'affaires du mois (sur le montant des prestations)
+  const [cy, cm] = todayStr.split('-').map(Number);
+  const monthFrom = ymd(cy, cm, 1), monthTo = ymd(cy, cm, ymdLastDay(cy, cm));
+  const monthRev  = revenueTotals(bookings, monthFrom, monthTo);
+  const prevMonthY = cm === 1 ? cy - 1 : cy, prevMonthM = cm === 1 ? 12 : cm - 1;
+  const prevMonthRev = revenueTotals(bookings, ymd(prevMonthY, prevMonthM, 1), ymd(prevMonthY, prevMonthM, ymdLastDay(prevMonthY, prevMonthM)));
+  const avgBasketCents = monthRev.count ? Math.round(monthRev.totalCents / monthRev.count) : 0;
+  const newClientsMonth = await prisma.client.count({ where: { createdAt: { gte: strToDate(monthFrom) } } });
+  // Rendez-vous passés encore ouverts : à clôturer (statut « Livré ») pour entrer dans le chiffre réalisé
+  const staleCount = bookings.filter(b => REVENUE_OPEN.includes(b.status) && b.date < todayStr).length;
 
   // Taux d'annulation / absence (sur l'ensemble des réservations)
   const cancelledCount = bookings.filter(b => b.status === 'cancelled' || b.status === 'no_show').length;
@@ -2029,6 +2118,10 @@ app.get('/api/admin/dashboard', async (req, res) => {
   }
 
   res.json({
+    today: todayList,
+    tomorrow: tomorrowList,
+    upcoming: upcomingList,
+    todayYmd: todayStr,
     todayCount: todayList.length,
     tomorrowCount: tomorrowList.length,
     upcomingCount: upcomingList.length,
@@ -2039,12 +2132,18 @@ app.get('/api/admin/dashboard', async (req, res) => {
     prevWeekRevenueCents,
     monthRevenueCents,
     monthCount,
+    monthLabel: `${MOIS_LONGS[cm - 1]} ${cy}`,
+    monthCollectedCents: monthRev.collectedCents,
+    monthForecastCents: monthRev.forecastCents,
+    monthTotalCents: monthRev.totalCents,
+    monthActiveCount: monthRev.count,
+    prevMonthTotalCents: prevMonthRev.totalCents,
+    avgBasketCents,
+    newClientsMonth,
+    staleCount,
     cancelRate,
     topService,
-    byStatus,
-    today: todayList,
-    tomorrow: tomorrowList,
-    upcoming: upcomingList
+    byStatus
   });
 });
 
@@ -2076,7 +2175,8 @@ app.get('/api/admin/clients', async (req, res) => {
     c.phone     = b.client.phone;
     if (b.vehicleModel) c.vehicles.add(b.vehicleModel);
     c.appointmentCount += 1;
-    if (b.status !== 'cancelled') c.totalSpentCents += (b.amountPaid || 0);
+    // Montant réalisé = prestations livrées (les règlements se font à l'atelier, amountPaid reste à 0)
+    if (b.status === 'completed') c.totalSpentCents += (b.totalCents || 0);
     c.lastDate = b.date;
   }
 
