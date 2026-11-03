@@ -81,6 +81,18 @@
 .expert-note{display:flex;align-items:center;gap:14px;border:1px solid var(--line);padding:14px 16px;margin:20px 0;background:var(--card)}
 .expert-ava{flex:none;width:34px;height:34px;border-radius:50%;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:700;font-size:.85rem}
 .expert-note p{font-size:.8rem;color:var(--dim);line-height:1.5;margin:0}
+  @media(max-width:720px){
+    body[data-lp-service="rendezvous"] .phero{min-height:0;height:auto;padding-top:92px;padding-bottom:22px}
+    body[data-lp-service="rendezvous"] .phero h1{font-size:clamp(1.55rem,7.6vw,2.1rem);line-height:1.06;margin-bottom:12px}
+    body[data-lp-service="rendezvous"] .phero .pin>.mono{font-size:.6rem;letter-spacing:.12em;line-height:1.6;margin-bottom:12px}
+    body[data-lp-service="rendezvous"] .phero .pin>p:not(.hero-sub){font-size:.92rem;line-height:1.55;margin-bottom:16px}
+    body[data-lp-service="rendezvous"] .phero .lp-usp,
+    body[data-lp-service="rendezvous"] .phero .hero-sub,
+    body[data-lp-service="rendezvous"] .phero .lp-phone{display:none}
+    body[data-lp-service="rendezvous"] .phero .lp-cta-row{margin:0}
+    body[data-lp-service="rendezvous"] .phero .lp-cta-row .btn{padding-top:14px;padding-bottom:14px}
+    body[data-lp-service="rendezvous"] .resa .aside{display:none}
+  }
 </style>
 <script src="js/reyce-preloader.js"></script>
 <meta name="robots" content="index, follow">
@@ -161,39 +173,22 @@
 <section class="phero">
   <div class="pbg" data-plx="0.1" style="background-image:url('assets/img/atelier-reyce-bmw-porsche-911-lyon.jpg')"></div><div class="pscrim"></div>
   <div class="pin">
-    <span class="mono">Créneau confirmé immédiatement</span>
-    <h1>Réservez votre<br>soin auto à Lyon</h1>
-    <p>Configurez votre soin selon votre véhicule et consultez les créneaux disponibles.</p>
+    <span class="mono">Nettoyage réservable en ligne · PPF, céramique, polissage sur devis</span>
+    <h1>Réservez ou demandez<br>un devis à Lyon</h1>
+    <p>Cochez ce que vous souhaitez et indiquez votre véhicule : nous nous occupons du reste.</p>
     <ul class="lp-usp">
       <li>400+ m² dédiés à l'esthétique automobile</li><li>Car Spa · La Mulatière, Lyon</li><li>Du lundi au samedi</li>
     </ul>
     <div class="lp-cta-row">
-      <a href="#rtype" class="btn solid" data-cta="configurer_mon_soin">Configurer mon soin</a>
+      <a href="#resa" class="btn solid" data-cta="configurer_mon_soin">Commencer</a>
     </div>
-    <p class="hero-sub mono">Tarif adapté à votre véhicule · Créneaux disponibles en ligne</p>
+    <p class="hero-sub mono">Moins de deux minutes · Tarif du nettoyage affiché avant validation</p>
     <p style="margin-top:18px"><a href="tel:+33763004385" class="lp-phone"><span class="dot"></span><span><small>Une question ?</small>07 63 00 43 85</span></a></p>
   </div>
 </section>
 
-<section class="wrap ticks">
-  <div class="sec-head reveal" style="margin-bottom:40px"><h2><span class="uline">REYCE</span><br>Car Spa</h2><span class="idx">Pas un lavage classique</span></div>
-  <p class="reveal" style="color:var(--dim);max-width:62ch;font-size:1.02rem;line-height:1.7;margin-bottom:36px">Votre voiture est prise en charge. Vous aussi. Un atelier automobile de plus de 400 m², pensé pour l'esthétique et la protection — pas une station de lavage.</p>
-  <div class="incl reveal">
-    <div><span class="tick">—</span><p>Atelier premium de 400+ m² à La Mulatière</p></div>
-    <div><span class="tick">—</span><p>Lounge et espace client dédié pendant l'intervention</p></div>
-    <div><span class="tick">—</span><p>Prix affiché avant validation, aucune prestation surprise</p></div>
-    <div><span class="tick">—</span><p>Du lundi au samedi, équipe joignable en cas de question</p></div>
-  </div>
-</section>
-
 <section class="wrap" style="padding-top:clamp(50px,7vh,90px)">
-  <div class="rtype stagger" id="rtype">
-    <button data-type="prestation" class="sel reveal"><span class="rk">Je veux réserver</span>
-      <div><h2>Nettoyage &amp; entretien</h2><p>Intérieur, extérieur ou complet. Le tarif s'adapte à votre véhicule, et le créneau est confirmé immédiatement.</p></div></button>
-    <button data-type="projet" class="reveal"><span class="rk">J'ai un projet</span>
-      <div><h2>PPF · Céramique · Polissage · Car Staging · Covering</h2><p>Ces prestations se chiffrent après échange : décrivez votre projet, nous revenons vers vous sous 24 h.</p></div></button>
-  </div>
-  <div class="resa reveal">
+  <div class="resa reveal" id="resa">
     <div class="aside"><div><h3 id="asideTitle">Configurez votre soin.</h3><p id="asideText">Le tarif dépend du véhicule : commençons par lui.</p>
       <div class="wiz-media" id="wizMedia" aria-hidden="true">
         <img class="wm active" data-key="prestation-0" src="assets/img/bmw-m4cs-atelier.jpg" alt="Atelier REYCE à La Mulatière">
@@ -214,6 +209,18 @@
     </div>
   </div>
 </section>
+
+<section class="wrap ticks">
+  <div class="sec-head reveal" style="margin-bottom:40px"><h2><span class="uline">REYCE</span><br>Car Spa</h2><span class="idx">Pas un lavage classique</span></div>
+  <p class="reveal" style="color:var(--dim);max-width:62ch;font-size:1.02rem;line-height:1.7;margin-bottom:36px">Votre voiture est prise en charge. Vous aussi. Un atelier automobile de plus de 400 m², pensé pour l'esthétique et la protection — pas une station de lavage.</p>
+  <div class="incl reveal">
+    <div><span class="tick">—</span><p>Atelier premium de 400+ m² à La Mulatière</p></div>
+    <div><span class="tick">—</span><p>Lounge et espace client dédié pendant l'intervention</p></div>
+    <div><span class="tick">—</span><p>Prix affiché avant validation, aucune prestation surprise</p></div>
+    <div><span class="tick">—</span><p>Du lundi au samedi, équipe joignable en cas de question</p></div>
+  </div>
+</section>
+
 
 <section class="wrap">
   <div class="sec-head reveal" style="margin-bottom:40px"><h2><span class="uline">Comment</span><br>ça se passe</h2><span class="idx">Le jour J</span></div>
@@ -240,8 +247,8 @@
 <section class="wrap ticks">
   <div class="sec-head reveal" style="margin-bottom:40px"><h2><span class="uline">Votre</span><br>réservation</h2></div>
   <div class="incl reveal">
-    <div><span class="tick">—</span><p>Le prix est connu avant validation, aucune prestation supplémentaire sans votre accord</p></div>
-    <div><span class="tick">—</span><p>Le créneau choisi est confirmé immédiatement, sans attente de validation</p></div>
+    <div><span class="tick">—</span><p>Nettoyage : le prix est connu avant validation, aucune prestation supplémentaire sans votre accord</p></div>
+    <div><span class="tick">—</span><p>Nettoyage : le créneau choisi est confirmé immédiatement. PPF, céramique, polissage : un devis chiffré sur votre véhicule</p></div>
     <div><span class="tick">—</span><p>Règlement sur place le jour du rendez-vous, aucun acompte demandé en ligne</p></div>
     <div><span class="tick">—</span><p>Une question avant de venir ? L'équipe est joignable au 07 63 00 43 85</p></div>
   </div>
@@ -257,7 +264,7 @@
 <div class="lp-sticky" id="lpSticky">
   <a href="tel:+33763004385" class="s-call" id="lpStickyCall">Appeler</a>
   <button type="button" class="s-recap" id="lpStickyRecap" hidden aria-haspopup="dialog"><b id="lpStickyVeh"></b><span id="lpStickyPrice"></span></button>
-  <button type="button" class="s-quote" id="lpStickyCta" data-cta="configurer_sticky">Configurer mon soin</button>
+  <button type="button" class="s-quote" id="lpStickyCta" data-cta="configurer_sticky">Réserver / devis</button>
 </div>
 
 <div id="recapSheet" class="recap-sheet" hidden role="dialog" aria-modal="true" aria-label="Récapitulatif de votre soin">

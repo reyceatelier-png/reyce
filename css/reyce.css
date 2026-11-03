@@ -1468,3 +1468,33 @@ body[data-lp-service] .phero .lp-hero-note{max-width:none;font-size:.62rem;lette
 
 /* « Plus qu'un lavage » : le fond doit rester lisible sans écraser le texte */
 .hist-media img{filter:brightness(.66) contrast(1.05)}
+
+/* Réservation simplifiée : cartes de prestations en deux colonnes */
+.qopts--grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.qopts--grid .qopt{border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+.qopts--grid .qopt:nth-child(2n){border-right:0}
+.qopts--grid .qopt:last-child{grid-column:1/-1;border-right:0;border-bottom:0}
+.qopts--grid .qopt:nth-last-child(2):nth-child(odd){border-bottom:1px solid var(--line)}
+.qopts--grid .qo-tag{align-self:flex-start;margin-top:2px}
+@media(max-width:720px){.qopts--grid{grid-template-columns:1fr}.qopts--grid .qopt{border-right:0}}
+
+/* Réservation — mobile : cartes compactes, soins plus courts */
+@media(max-width:720px){
+  .qopts--grid{grid-template-columns:1fr 1fr}
+  .qopts--grid .qopt{display:grid;grid-template-columns:20px 1fr;column-gap:10px;row-gap:3px;padding:14px 12px;align-items:start;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .qopts--grid .qopt:nth-child(even){border-right:0}
+  .qopts--grid .qopt:first-child{grid-column:1/-1;border-right:0}
+  .qopts--grid .qopt:last-child,.qopts--grid .qopt:nth-last-child(2){grid-column:auto;border-bottom:0}
+  .qopts--grid .qopt:last-child{border-right:0}
+  .qopts--grid .qo-mark{width:20px;height:20px;font-size:.66rem}
+  .qopts--grid .qo-body b{font-size:.88rem;line-height:1.25}
+  .qopts--grid .qo-body span{display:none}
+  .qopts--grid .qopt:first-child .qo-body span{display:block;font-size:.78rem;line-height:1.45}
+  .qopts--grid .qo-tag{grid-column:2;justify-self:start;align-self:start;margin:3px 0 0;padding:3px 6px;font-size:.48rem;letter-spacing:.1em}
+  .formcard:not(.sel)>ul,.formcard:not(.sel)>.fnote{display:none}
+  .formcard{padding:18px 16px}
+  .areabtn .ab-tag{display:none}
+  .pnav{gap:10px}
+  .pnav .btn{padding-left:16px;padding-right:16px}
+}
+@media(max-width:720px){.combo .tot,.combo .l{gap:12px}.combo .tot .v,.combo .l s{white-space:nowrap}.combo .tot span:first-child,.combo .l span:first-child{min-width:0}}
