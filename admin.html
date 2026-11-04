@@ -723,10 +723,13 @@
       <h1 class="login__title">Espace administration</h1>
       <p class="login__sub">Accès restreint — identifiez-vous pour continuer.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
-        <input type="password" id="tokenInput" placeholder="Token d'accès" autocomplete="current-password">
+        <input type="password" id="tokenInput" placeholder="Mot de passe" autocomplete="current-password">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--grey2);cursor:pointer;">
+          <input type="checkbox" id="rememberMe" checked style="width:auto;"> Rester connecté 30 jours sur cet appareil
+        </label>
         <button class="btn btn--primary" onclick="login()">Accéder</button>
       </div>
-      <p id="loginError" style="font-size:11px;color:var(--red);margin-top:12px;display:none;">Token incorrect.</p>
+      <p id="loginError" style="font-size:11px;color:var(--red);margin-top:12px;display:none;">Mot de passe incorrect.</p>
     </div>
   </div>
 
@@ -1130,7 +1133,8 @@
     const DAYS_FULL = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
     const DAYS_MON_FIRST = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
-    let token     = sessionStorage.getItem('adminToken') || '';
+    let token     = ''; // la session passe par un cookie sécurisé posé à la connexion
+    let loginAttempted = false;
     let bookings  = [];
     let blocked   = { dates: [], slots: {} };
     let clients   = [];
@@ -1140,21 +1144,34 @@
     let mktSelected = new Set();
 
     // ── Auth ──────────────────────────────────────────────────
-    function login() {
-      const val = document.getElementById('tokenInput').value.trim();
+    async function login() {
+      const val = document.getElementById('tokenInput').value;
       if (!val) return;
-      token = val;
-      sessionStorage.setItem('adminToken', token);
-      loadAll();
+      loginAttempted = true;
+      const err = document.getElementById('loginError');
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: val, remember: document.getElementById('rememberMe').checked })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { err.textContent = data.error || 'Connexion impossible.'; err.style.display = 'block'; return; }
+        document.getElementById('tokenInput').value = '';
+        err.style.display = 'none';
+        loadAll();
+      } catch (e) {
+        err.textContent = 'Connexion impossible. Vérifiez votre réseau.';
+        err.style.display = 'block';
+      }
     }
 
     document.getElementById('tokenInput').addEventListener('keydown', e => {
       if (e.key === 'Enter') login();
     });
 
-    function logout() {
-      sessionStorage.removeItem('adminToken');
-      token = '';
+    async function logout() {
+      try { await fetch('/api/admin/logout', { method: 'POST' }); } catch (e) {}
       document.getElementById('app').classList.remove('is-visible');
       document.getElementById('loginScreen').style.display = 'flex';
     }
@@ -1167,7 +1184,7 @@
         body: body ? JSON.stringify(body) : undefined
       });
       if (res.status === 401) {
-        document.getElementById('loginError').style.display = 'block';
+        if (loginAttempted) document.getElementById('loginError').style.display = 'block';
         document.getElementById('app').classList.remove('is-visible');
         document.getElementById('loginScreen').style.display = 'flex';
         throw new Error('Non autorisé');
@@ -2327,9 +2344,8 @@ let openClientEmail = null;
     document.getElementById('blockSlotDate').min = today;
 
     // ── Init ──────────────────────────────────────────────────
-    if (token) {
-      loadAll();
-    }
+    // Session déjà ouverte sur cet appareil (cookie) : on entre directement, sans retaper le mot de passe.
+    fetch('/api/admin/session').then(r => r.json()).then(s => { if (s.authenticated) loadAll(); }).catch(() => {});
   </script>
 </body>
 </html>

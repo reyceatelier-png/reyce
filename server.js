@@ -1883,15 +1883,62 @@ app.get('/api/booking/:sessionId', async (req, res) => {
 // ============================================================
 // Admin API
 // ============================================================
-function requireAdmin(req, res, next) {
-  const token = req.headers['x-admin-token'];
-  const expected = process.env.ADMIN_TOKEN;
-  const valid = !!expected && !!token
-    && token.length === expected.length
-    && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
-  if (!valid) return res.status(401).json({ error: 'Non autorisé' });
-  next();
+// ── Session d'administration ──────────────────────────────────
+// Le mot de passe (la variable ADMIN_TOKEN) n'est saisi qu'une fois par appareil : le serveur répond
+// par un cookie signé (HttpOnly, SameSite=Strict, Secure en HTTPS), valable 30 jours. Changer
+// ADMIN_TOKEN invalide toutes les sessions. L'en-tête x-admin-token reste accepté (scripts, tests).
+const ADMIN_COOKIE = 'reyce_admin';
+const ADMIN_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
+function sameSecret(a, b) {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
+function adminTokenMatches(given) {
+  const expected = process.env.ADMIN_TOKEN;
+  return !!expected && typeof given === 'string' && given.length > 0 && sameSecret(given, expected);
+}
+function adminSessionSig(exp) {
+  return crypto.createHmac('sha256', 'admin-session|' + (process.env.ADMIN_TOKEN || '')).update(String(exp)).digest('base64url');
+}
+function signAdminSession(expMs) { return `${expMs}.${adminSessionSig(expMs)}`; }
+function verifyAdminSession(value) {
+  if (!process.env.ADMIN_TOKEN || typeof value !== 'string') return false;
+  const [exp, sig] = value.split('.');
+  if (!exp || !sig || !/^\d+$/.test(exp) || Number(exp) < Date.now()) return false;
+  return sameSecret(sig, adminSessionSig(exp));
+}
+function readCookie(req, name) {
+  const h = req.headers.cookie;
+  if (!h) return null;
+  for (const part of h.split(';')) {
+    const i = part.indexOf('=');
+    if (i > -1 && part.slice(0, i).trim() === name) { try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return null; } }
+  }
+  return null;
+}
+function requireAdmin(req, res, next) {
+  if (adminTokenMatches(req.headers['x-admin-token']) || verifyAdminSession(readCookie(req, ADMIN_COOKIE))) return next();
+  return res.status(401).json({ error: 'Non autorisé' });
+}
+
+// Connexion / déconnexion / état de la session : déclarées avant le garde requireAdmin.
+app.post('/api/admin/login', adminLimiter, express.json(), (req, res) => {
+  const { password, remember } = req.body || {};
+  if (!adminTokenMatches(password)) return res.status(401).json({ error: 'Mot de passe incorrect.' });
+  const attrs = [`${ADMIN_COOKIE}=${encodeURIComponent(signAdminSession(Date.now() + ADMIN_SESSION_MS))}`, 'Path=/api/admin', 'HttpOnly', 'SameSite=Strict'];
+  if (remember !== false) attrs.push(`Max-Age=${Math.floor(ADMIN_SESSION_MS / 1000)}`); // sinon : cookie de session, effacé à la fermeture du navigateur
+  if (req.secure) attrs.push('Secure');
+  res.setHeader('Set-Cookie', attrs.join('; '));
+  res.json({ ok: true });
+});
+app.post('/api/admin/logout', (req, res) => {
+  res.setHeader('Set-Cookie', `${ADMIN_COOKIE}=; Path=/api/admin; HttpOnly; SameSite=Strict; Max-Age=0`);
+  res.json({ ok: true });
+});
+app.get('/api/admin/session', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ authenticated: verifyAdminSession(readCookie(req, ADMIN_COOKIE)) });
+});
 
 // Limite de taille relevée pour les photos du Care Report (data URLs) —
 // doit être déclarée avant le express.json() générique de /api/admin.
