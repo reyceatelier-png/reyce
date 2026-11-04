@@ -173,14 +173,17 @@
 <section class="wz-stage" id="resa" aria-label="Réservation en ligne">
   <h1 class="wz-title">Réservez votre soin auto à Lyon</h1>
   <p class="wz-sub">Nettoyage réservable en ligne · PPF, céramique et polissage sur devis</p>
-  <div class="wz-card">
-    <div class="wz-top">
-      <button type="button" class="wz-back" id="wzBack" aria-label="Étape précédente" hidden>←</button>
+  <div class="wz-layout">
+    <div class="wz-card">
+      <div class="wz-top">
+        <button type="button" class="wz-back" id="wzBack" aria-label="Étape précédente" hidden>←</button>
+        <p class="wz-stephead"><span class="wz-count mono" id="wzCount"></span><span class="wz-stepname" id="wzStep"></span></p>
+      </div>
       <div class="wz-prog" aria-hidden="true"><i id="wzFill"></i></div>
-      <span class="wz-count mono" id="wzCount"></span>
+      <p class="wz-sum" id="wzSum" hidden></p>
+      <div class="wz-panel" id="panel" aria-live="polite"></div>
     </div>
-    <p class="wz-sum" id="wzSum" hidden></p>
-    <div class="wz-panel" id="panel" aria-live="polite"></div>
+    <aside class="wz-order" id="wzOrder" aria-label="Votre commande"></aside>
   </div>
   <p class="wz-help">Une question ? <a href="tel:+33763004385">07 63 00 43 85</a> · <a href="https://wa.me/33763004385?text=Bonjour%20Reyce%2C%20j%27ai%20une%20question%20avant%20de%20r%C3%A9server." target="_blank" rel="noopener">WhatsApp</a> · du lundi au samedi, 9 h – 19 h</p>
 </section>

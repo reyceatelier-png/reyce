@@ -15,7 +15,7 @@
   'use strict';
 
   var GTM_ID = 'GTM-PLVLP89M';
-  var KEY = 'reyce_consent_v1';
+  var KEY = 'reyce_consent_v2';
   var MAX_AGE = 180 * 24 * 60 * 60 * 1000; // 6 mois
   var ATTR_KEY = 'reyce_attr';
 
@@ -24,7 +24,8 @@
 
   var gtmLoaded = false;
   var current = null;     // choix en vigueur, ou null
-  var root = null;        // bannière
+  var root = null;        // fenêtre de choix
+  var veil = null;        // fond assombri qui la contient
   var returnFocus = null;
 
   /* ---------- stockage ---------- */
@@ -158,8 +159,10 @@
       ])
     ]);
 
-    var box = el('div', { id: 'cc', role: 'dialog', 'aria-labelledby': 'cc-title', 'aria-modal': 'false', tabindex: '-1', 'class': 'cc' }, [
-      el('div', { 'class': 'cc-head' }, [el('h2', { id: 'cc-title', text: 'Vos choix sur les cookies' })]),
+    var box = el('div', { id: 'cc', role: 'dialog', 'aria-labelledby': 'cc-title', 'aria-modal': 'true', tabindex: '-1', 'class': 'cc' }, [
+      el('div', { 'class': 'cc-head' }, [
+        el('div', { 'class': 'cc-brand' }, [el('img', { 'class': 'cc-logo', src: '/assets/images/logo.png', alt: '', width: '26', height: '26' }), el('h2', { id: 'cc-title', text: 'Vos choix sur les cookies' })])
+      ]),
       main, panel
     ]);
     if (current) { // déjà un choix : on peut fermer sans rien changer
@@ -167,6 +170,13 @@
     }
     box.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { if (!panel.hidden && !current) showPanel(false); else if (current) close(); }
+      if (e.key === 'Tab') { // le focus reste dans la fenêtre tant qu'elle est ouverte
+        var f = Array.prototype.filter.call(box.querySelectorAll('button, input:not([disabled]), a[href]'), function (n) { return n.offsetParent !== null; });
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === box)) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     });
     box._main = main; box._panel = panel;
     if (startInPanel) showPanel(true, box);
@@ -184,14 +194,18 @@
     if (root) return;
     returnFocus = document.activeElement;
     root = build(!!startInPanel);
-    document.body.appendChild(root);
-    requestAnimationFrame(function () { root.classList.add('on'); root.focus({ preventScroll: true }); });
+    veil = el('div', { 'class': 'cc-veil' }, [root]);
+    veil.addEventListener('click', function (e) { if (e.target === veil && current) close(); }); // clic à côté : fermer, seulement si un choix existe déjà
+    document.body.appendChild(veil);
+    document.documentElement.classList.add('cc-lock');
+    requestAnimationFrame(function () { if (!veil) return; veil.classList.add('on'); root.classList.add('on'); root.focus({ preventScroll: true }); });
   }
   function close() {
     if (!root) return;
-    var r = root; root = null;
-    r.classList.remove('on');
-    setTimeout(function () { if (r.parentNode) r.parentNode.removeChild(r); }, 250);
+    var v = veil; root = null; veil = null;
+    v.classList.remove('on');
+    document.documentElement.classList.remove('cc-lock');
+    setTimeout(function () { if (v.parentNode) v.parentNode.removeChild(v); }, 250);
     if (returnFocus && returnFocus.focus && document.contains(returnFocus)) { try { returnFocus.focus(); } catch (e) {} }
   }
 

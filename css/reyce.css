@@ -1344,9 +1344,15 @@ img.fig-crop{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:
 @media(max-width:560px){.hero-inner{padding-top:104px}.hero h1.hero-words{font-size:clamp(2.4rem,min(14vw,12vh),4.4rem)}}
 
 /* ---- consentement aux cookies ---- */
-.cc{position:fixed;z-index:1100;left:24px;bottom:24px;width:min(460px,calc(100vw - 32px));max-height:min(86vh,640px);overflow:auto;
-  background:rgba(8,8,8,.97);backdrop-filter:blur(14px);border:1px solid var(--line);padding:24px 24px 22px;color:#fff;
+.cc-veil{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;transition:opacity .25s ease}
+.cc-veil.on{opacity:1}
+html.cc-lock{overflow:hidden}
+.cc{position:relative;width:min(520px,100%);max-height:min(90vh,700px);overflow:auto;
+  background:#0a0a0a;border:1px solid rgba(255,255,255,.22);padding:28px 28px 24px;color:#fff;box-shadow:0 30px 80px rgba(0,0,0,.6);
   opacity:0;transform:translateY(14px);transition:opacity .25s ease,transform .25s var(--ease)}
+.cc-brand{display:flex;align-items:center;gap:12px}
+.cc-logo{display:block;width:26px;height:26px;object-fit:contain;flex:none}
 .cc.on{opacity:1;transform:none}
 .cc:focus{outline:none}
 /* le conteneur reçoit le focus par script pour les lecteurs d'écran : pas d'anneau, les boutons gardent le leur */
@@ -1378,10 +1384,11 @@ img.fig-crop{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:
 .cc-row input:focus-visible+.cc-sw{outline:2px solid #fff;outline-offset:3px}
 .cc [hidden]{display:none}
 @media(max-width:560px){
-  .cc{left:0;right:0;bottom:0;width:auto;max-height:84vh;padding:20px 18px calc(18px + env(safe-area-inset-bottom));border-width:1px 0 0 0}
+  .cc-veil{align-items:flex-end;padding:0}
+  .cc{width:100%;max-height:88vh;padding:22px 18px calc(18px + env(safe-area-inset-bottom));border-width:1px 0 0 0}
   .cc-actions{flex-direction:column}.cc-btn{flex:1 1 auto}
 }
-@media(prefers-reduced-motion:reduce){.cc,.cc-sw,.cc-sw::after{transition:none}}
+@media(prefers-reduced-motion:reduce){.cc,.cc-veil,.cc-sw,.cc-sw::after{transition:none}}
 
 /* ---- pages d'atterrissage PPF : garanties, WhatsApp, convoyage, avis ---- */
 .tier-grid.has-2{grid-template-columns:repeat(2,1fr)}
@@ -1626,4 +1633,54 @@ body[data-lp-service] .phero .lp-hero-note{max-width:none;font-size:.62rem;lette
   .wz-title{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .wz-card textarea{height:58px;min-height:0}
   .wz-stage{padding-top:70px}
+}
+
+/* ============================================================
+   Réservation — en-tête d'étape, panneau « Votre commande », cartes de gabarit
+   ============================================================ */
+.wz-layout{width:100%;max-width:640px}
+.wz-top{margin-bottom:10px}
+.wz-stephead{flex:1;min-width:0;margin:0;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.wz-stephead .wz-count{min-width:0;text-align:left;font-size:.62rem;color:var(--dim)}
+.wz-stepname{font-family:var(--disp);font-weight:600;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:#fff}
+.wz-prog{flex:none;width:100%;margin:0 0 16px}
+/* panneau « Votre commande » (ordinateur) */
+.wz-order{display:none}
+.wz-or__title{font-family:var(--disp);font-weight:700;font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;margin:0 0 16px}
+.wz-or__row{display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.wz-or__row:first-of-type{border-top:0;padding-top:0}
+.wz-or__ico{width:32px;height:32px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--dim);transition:border-color .2s,color .2s}
+.wz-or__ico svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.wz-or__row.done .wz-or__ico{border-color:#fff;color:#fff}
+.wz-or__txt i{display:block;font-style:normal;font-size:.55rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.wz-or__txt b{display:block;font-weight:500;font-size:.86rem;line-height:1.35;margin-top:2px;overflow-wrap:anywhere}
+.wz-or__row.is-empty .wz-or__txt b{color:var(--dim);font-weight:400}
+.wz-or__total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:6px;padding-top:16px;border-top:1px solid #fff}
+.wz-or__total span{font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.wz-or__total b{font-family:var(--disp);font-weight:700;font-size:1.5rem}
+.wz-or__total small{font-size:.58rem;letter-spacing:.14em;color:var(--dim);font-weight:500}
+.wz-or__hint,.wz-or__foot{font-size:.74rem;color:var(--dim);line-height:1.5;margin:10px 0 0}
+.wz-or__back{margin:14px 0 0;padding:0;border:0;background:none;color:var(--dim);font-family:var(--disp);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.wz-or__back:hover,.wz-or__back:focus-visible{color:#fff}
+@media(min-width:1000px){
+  .wz-layout{max-width:1010px;display:grid;grid-template-columns:minmax(0,640px) 330px;gap:20px;align-items:start;justify-content:center}
+  .wz-order{display:block;position:sticky;top:88px;background:var(--card);border:1px solid var(--line);padding:20px 20px 18px}
+  .wz-sum{display:none}
+}
+/* bouton « Continuer » masqué tant qu'il n'a pas lieu d'être ; prix de formule qui passe à la ligne dans les colonnes étroites */
+.wz-cta[hidden]{display:none}
+.wz-fprice{flex-wrap:wrap}
+@media(min-width:721px){.wz-fprice{gap:6px 10px}}
+/* petits téléphones (iPhone SE…) : en-tête et champs resserrés pour garder chaque étape sans défilement */
+@media(max-height:700px){
+  .wz-stage{padding-top:60px;gap:6px}
+  .wz-top{min-height:30px;margin-bottom:6px}
+  .wz-back{width:30px;height:30px}
+  .wz-prog{margin-bottom:10px}
+  .wz-card{padding-top:10px;padding-bottom:12px}
+  .wz-q{margin-bottom:10px}
+  .wz-sum{margin-bottom:8px}
+  .wz-card .field{margin-bottom:7px}
+  .wz-card textarea{height:44px}
+  .wz-photo{padding:9px 12px}
 }

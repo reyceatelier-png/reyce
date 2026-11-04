@@ -337,6 +337,14 @@ function vehLabel(){
   var v=(state.marque+' '+state.modele).trim();
   return v||(state.vehQuery||'').trim()||'';
 }
+/* Libellé court (résumé) : modèle saisi, sinon gabarit choisi. Le modèle seul part vers le serveur (vehLabel). */
+function vehShort(){return vehLabel()||((state.svc==='nettoyage'&&state.gab)?GABARITS[state.gab].label:'');}
+/* Libellé complet (panneau « Votre commande ») : modèle + gabarit. */
+function vehDisplay(){
+  var v=vehLabel();
+  if(state.svc==='nettoyage'&&state.gab) return v?v+' · '+GABARITS[state.gab].label:GABARITS[state.gab].label;
+  return v;
+}
 function minPrice(zone){
   var m=0;CLEAN[zone].formules.forEach(function(f,i){var p=priceFor(zone,i,state.gab);if(p>0&&(m===0||p<m))m=p;});return m;
 }
@@ -369,7 +377,9 @@ function slotNote(){
 
 /* ---------- structure de l'écran ---------- */
 var elBack=document.getElementById('wzBack'), elFill=document.getElementById('wzFill'),
-    elCount=document.getElementById('wzCount'), elSum=document.getElementById('wzSum');
+    elCount=document.getElementById('wzCount'), elSum=document.getElementById('wzSum'),
+    elStep=document.getElementById('wzStep'), elOrder=document.getElementById('wzOrder');
+var STEP_NAMES={svc:'Prestation',autre:'Prestation',veh:'Véhicule',zone:'Soin',formule:'Formule',jour:'Date',heure:'Heure',details:'Précisions',coord:'Coordonnées'};
 
 function setPanel(html){
   panel.classList.remove('panel-fade','panel-fwd','panel-back');
@@ -382,7 +392,7 @@ function passed(name){var L=stepsList(),i=L.indexOf(name);return i===-1?!!state.
 function summaryText(){
   var parts=[], f=chosenForm();
   if(state.svc) parts.push(svcLabel(state.svc)+(state.more.length?' +'+state.more.length:''));
-  if(vehLabel()&&passed('veh')) parts.push(vehLabel());
+  if(vehShort()&&passed('veh')) parts.push(vehShort());
   if(state.svc==='nettoyage'){
     if(state.clean&&passed('zone')) parts.push(CLEAN[state.clean].label);
     if(f&&passed('formule')) parts.push(f.k);
@@ -406,11 +416,57 @@ function render(){
   var name=L[idx];
   if(elBack) elBack.hidden=(idx===0);
   if(elFill) elFill.style.width=(((idx+1)/L.length)*100)+'%';
-  if(elCount) elCount.textContent=state.svc||state.group?((idx+1)+' / '+L.length):'';
+  if(elCount) elCount.textContent=(state.svc||state.group)?('Étape '+(idx+1)+' sur '+L.length):'Étape '+(idx+1);
+  if(elStep) elStep.textContent=STEP_NAMES[name]||'';
   var sum=idx>0?summaryText():'';
   if(elSum){elSum.hidden=!sum;elSum.textContent=sum;}
   setPanel(R[name]());
   (B[name]||function(){})();
+  renderOrder();
+}
+
+/* ---------- panneau « Votre commande » (ordinateur) ---------- */
+var OR_ICO={
+  svc:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>',
+  lieu:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+  veh:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16v-3.5l1.7-4A2 2 0 0 1 7.5 7.3h9a2 2 0 0 1 1.8 1.2l1.7 4V16"/><path d="M3 16h18v2.5H3z"/><path d="M4.5 12.5h15"/></svg>',
+  soin:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5s6 6.2 6 10.5a6 6 0 0 1-12 0c0-4.3 6-10.5 6-10.5z"/></svg>',
+  date:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  opt:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  note:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6"/></svg>'
+};
+function orRow(ico,label,val){
+  var empty=!val;
+  return '<div class="wz-or__row'+(empty?' is-empty':' done')+'"><span class="wz-or__ico">'+OR_ICO[ico]+'</span><span class="wz-or__txt"><i>'+label+'</i><b>'+(empty?'À choisir':esc(val))+'</b></span></div>';
+}
+function renderOrder(){
+  if(!elOrder) return;
+  var nett=state.svc==='nettoyage', f=chosenForm(), L=stepsList();
+  var svcVal=state.svc?(svcLabel(state.svc)+(state.more.length?' +'+state.more.length:'')):(state.group==='autre'?'Autre prestation':'');
+  var h='<h2 class="wz-or__title">Votre commande</h2>';
+  h+=orRow('svc','Service',svcVal);
+  h+='<div class="wz-or__row done"><span class="wz-or__ico">'+OR_ICO.lieu+'</span><span class="wz-or__txt"><i>Lieu</i><b>Atelier REYCE · La Mulatière</b></span></div>';
+  h+=orRow('veh','Véhicule',(svcVal&&passed('veh'))?vehDisplay():'');
+  if(nett){
+    var soin=[];
+    if(state.clean&&passed('zone')) soin.push(CLEAN[state.clean].label);
+    if(f&&passed('formule')) soin.push(f.k);
+    h+=orRow('soin','Soin',soin.join(' · '));
+    var dt=(state.jourLabel&&passed('jour'))?state.jourLabel+((state.heure&&passed('heure'))?' · '+state.heure:''):'';
+    h+=orRow('date','Date et heure',dt);
+    if(state.opts.length) h+=orRow('opt','Options',state.opts.length+(state.opts.length>1?' options':' option')+' · +'+optsTotal()+' €');
+    var gt=grandTotal();
+    if(f&&gt>0&&passed('formule')) h+='<div class="wz-or__total"><span>Total</span><b>'+gt+' € <small>TTC</small></b></div>';
+    else h+='<p class="wz-or__hint">Le total s\'affiche dès que vous choisissez votre formule.</p>';
+    h+='<p class="wz-or__foot">Confirmation immédiate · règlement sur place.</p>';
+  } else if(svcVal){
+    var pr=(state.etat&&passed('details'))?('Véhicule '+(state.etat==='neuf'?'neuf':'d\'occasion')):'';
+    h+=orRow('note','Précisions',pr);
+    h+='<p class="wz-or__foot">Nous revenons vers vous sous 24 h avec une proposition chiffrée.</p>';
+  }
+  if(idx>0) h+='<button type="button" class="wz-or__back" id="wzOrderBack">← Retour</button>';
+  elOrder.innerHTML=h;
+  var ob=document.getElementById('wzOrderBack'); if(ob) ob.addEventListener('click',goPrev);
 }
 
 /* ---------- petits utilitaires d'écran ---------- */
@@ -561,7 +617,8 @@ B.veh=function(){
     goNext();
   });
   panel.querySelectorAll('[data-gab]').forEach(function(bt){bt.addEventListener('click',function(){
-    state.gab=bt.dataset.gab;state.gabAuto=false;
+    if(state.marque&&state.gab!==bt.dataset.gab){state.marque='';state.modele='';state.vehQuery='';}
+    state.gab=bt.dataset.gab;state.gabAuto=false;state.vehUnknown=false;
     logUnknownVehicle(state.vehQuery,state.gab);
     pushEvt({event:'vehicle_selected', vehicle_type:state.gab, vehicle_label:state.vehQuery||null, recognised:false});
     goNext();
