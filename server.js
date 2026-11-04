@@ -372,6 +372,7 @@ function toBooking(row) {
   return {
     sessionId:    row.stripeSessionId,
     status:       row.status,
+    createdAt:    row.createdAt ? row.createdAt.toISOString() : null,
     paidAt:       row.paidAt ? row.paidAt.toISOString() : null,
     amountPaid:   row.amountPaidCents,
     totalCents:   row.totalCents,
@@ -1475,6 +1476,57 @@ app.use(express.static(path.join(__dirname), {
 // Routes API
 // ============================================================
 
+// ============================================================
+// Leads : demandes reçues par le site (devis, messages) — pipeline du CRM
+// ============================================================
+// Chaque demande est enregistrée en base AVANT l'envoi de l'e-mail : si Gmail est indisponible,
+// la demande n'est pas perdue. Stockage : table EventLog (type « lead »), sans migration ; le
+// champ payload contient la fiche complète (coordonnées, véhicule, source, statut, notes, historique).
+const LEAD_STATUSES = ['new', 'to_call', 'contacted'];
+const clipText = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+
+// Source écrite par les formulaires : « Landing ppf (ppf.html) | cible=neuve | utm_source=… » ou
+// « Rendez-vous en ligne (rendez-vous.html) | prestations=ppf | utm_source=… · utm_medium=… ».
+function parseSource(source) {
+  const out = { page: '', utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', utm_term: '', gclid: '', prestations: '' };
+  const parts = String(source || '').split(/\s[|·]\s/).map(x => x.trim()).filter(Boolean);
+  if (parts.length && !parts[0].includes('=')) out.page = parts[0].slice(0, 120);
+  for (const part of parts) {
+    const i = part.indexOf('=');
+    if (i < 1) continue;
+    const k = part.slice(0, i).trim().toLowerCase(), v = part.slice(i + 1).trim();
+    if (k in out && k !== 'page') out[k] = v.slice(0, 160);
+  }
+  return out;
+}
+function channelLabel(a) {
+  if (a.utm_source) return a.utm_source + (a.utm_medium ? ' / ' + a.utm_medium : '');
+  if (a.gclid) return 'Google Ads';
+  return 'Site (sans campagne)';
+}
+async function recordLead({ kind, firstName, lastName, email, phone, vehicleInfo, subject, message, source, photos }) {
+  try {
+    const attr = parseSource(source);
+    const now = new Date().toISOString();
+    await prisma.eventLog.create({
+      data: {
+        type: 'lead',
+        payload: {
+          kind, origin: 'site',
+          firstName: clipText(firstName, 80), lastName: clipText(lastName, 80),
+          email: clipText(email, 160).toLowerCase(), phone: clipText(phone, 40),
+          vehicle: clipText(vehicleInfo, 160), subject: clipText(subject, 200), message: clipText(message, 4000),
+          source: clipText(source, 600), attribution: attr, channel: channelLabel(attr),
+          photos: Number(photos) || 0,
+          status: 'new', archived: false, notes: [], history: [{ at: now, to: 'new' }]
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[Lead] enregistrement impossible :', err.message);
+  }
+}
+
 // ── Contact / Devis ──────────────────────────────────────────
 app.use('/api/contact', publicLimiter, express.json());
 app.post('/api/contact', async (req, res) => {
@@ -1486,6 +1538,8 @@ app.post('/api/contact', async (req, res) => {
   if (!isValidEmail(email)) {
     return res.status(400).json({ error: 'Adresse email invalide' });
   }
+
+  await recordLead({ kind: type === 'devis' ? 'devis' : 'message', firstName, lastName, email, phone, vehicleInfo, subject, message, source });
 
   if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) {
     console.log('[Contact] Variables Gmail OAuth2 manquantes — email ignoré');
@@ -1559,6 +1613,8 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
   if (!isValidEmail(email)) {
     return res.status(400).json({ error: 'Adresse email invalide' });
   }
+
+  await recordLead({ kind: 'devis', firstName, lastName, email, phone, vehicleInfo, subject, message, source, photos: Array.isArray(req.files) ? req.files.length : 0 });
 
   if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) {
     console.log('[Devis photos] Variables Gmail OAuth2 manquantes — email ignoré');
@@ -2192,6 +2248,204 @@ app.get('/api/admin/dashboard', async (req, res) => {
     topService,
     byStatus
   });
+});
+
+// ── Pipeline des leads ───────────────────────────────────────
+const ACTIVE_APPT = ['confirmed', 'dropped_off', 'in_progress', 'final_check', 'ready'];
+const normKey = v => String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function leadView(row) {
+  const p = row.payload || {};
+  return { id: row.id, createdAt: row.createdAt.toISOString(), ...p, notes: p.notes || [], history: p.history || [] };
+}
+async function loadLeads() {
+  const rows = await prisma.eventLog.findMany({ where: { type: 'lead' }, orderBy: { createdAt: 'desc' }, take: 1000 });
+  return rows.map(leadView);
+}
+// Un lead est « converti » dès qu'une réservation non annulée existe avec le même e-mail, créée après lui.
+function markConverted(leads, bookings) {
+  const byEmail = new Map();
+  for (const b of bookings) {
+    if (['cancelled', 'no_show'].includes(b.status) || !b.client.email || !b.createdAt) continue;
+    const k = b.client.email.toLowerCase();
+    if (!byEmail.has(k)) byEmail.set(k, []);
+    byEmail.get(k).push(b);
+  }
+  for (const l of leads) {
+    const list = l.email ? byEmail.get(l.email.toLowerCase()) : null;
+    l.bookingCount = list ? list.length : 0;
+    l.converted = !!list && list.some(b => b.createdAt >= l.createdAt);
+  }
+}
+
+app.get('/api/admin/pipeline', async (req, res) => {
+  const [leads, bookings] = await Promise.all([loadLeads(), readBookings()]);
+  markConverted(leads, bookings);
+  const now = Date.now(), day = 86400000;
+  const open = leads.filter(l => !l.archived && !l.converted);
+  const confirmed = bookings.filter(b => ACTIVE_APPT.includes(b.status))
+    .sort((a, b) => (a.date + a.time) < (b.date + b.time) ? -1 : 1);
+
+  const recent30 = leads.filter(l => now - Date.parse(l.createdAt) <= 30 * day);
+  const converted30 = recent30.filter(l => l.converted).length;
+  const delays = [];
+  for (const l of recent30) {
+    const first = (l.history || []).find(h => h.to && h.to !== 'new' && Date.parse(h.at) >= Date.parse(l.createdAt));
+    if (first) delays.push(Date.parse(first.at) - Date.parse(l.createdAt));
+  }
+  res.json({
+    leads: open.slice(0, 300),
+    archivedCount: leads.filter(l => l.archived && !l.converted).length,
+    appointments: confirmed.slice(0, 200),
+    stats: {
+      newCount: open.filter(l => l.status === 'new').length,
+      toCallCount: open.filter(l => l.status === 'to_call').length,
+      contactedCount: open.filter(l => l.status === 'contacted').length,
+      confirmedCount: confirmed.length,
+      received7d: leads.filter(l => now - Date.parse(l.createdAt) <= 7 * day).length,
+      received30d: recent30.length,
+      converted30d: converted30,
+      conversionRate30d: recent30.length ? Math.round((converted30 / recent30.length) * 100) : null,
+      avgFirstContactHours: delays.length ? Math.round((delays.reduce((a, b) => a + b, 0) / delays.length) / 360000) / 10 : null
+    }
+  });
+});
+
+app.get('/api/admin/leads/archived', async (req, res) => {
+  const leads = (await loadLeads()).filter(l => l.archived);
+  res.json({ leads: leads.slice(0, 200) });
+});
+
+// Création manuelle (appel, message Instagram/WhatsApp…) : même fiche, origine « manuel ».
+app.post('/api/admin/leads', async (req, res) => {
+  const b = req.body || {};
+  const firstName = clipText(b.firstName, 80);
+  if (!firstName) return res.status(400).json({ error: 'Le prénom est obligatoire.' });
+  const email = clipText(b.email, 160).toLowerCase();
+  if (email && !isValidEmail(email)) return res.status(400).json({ error: 'Adresse email invalide.' });
+  const now = new Date().toISOString();
+  const channel = clipText(b.channel, 60) || 'Saisie manuelle';
+  const row = await prisma.eventLog.create({
+    data: {
+      type: 'lead',
+      payload: {
+        kind: 'manuel', origin: 'manuel', firstName, lastName: clipText(b.lastName, 80), email, phone: clipText(b.phone, 40),
+        vehicle: clipText(b.vehicle, 160), subject: clipText(b.subject, 200), message: clipText(b.message, 4000),
+        source: channel, attribution: parseSource(''), channel, photos: 0,
+        status: LEAD_STATUSES.includes(b.status) ? b.status : 'new', archived: false, notes: [], history: [{ at: now, to: 'new' }]
+      }
+    }
+  });
+  res.json({ ok: true, lead: leadView(row) });
+});
+
+app.patch('/api/admin/leads/:id', async (req, res) => {
+  const row = await prisma.eventLog.findFirst({ where: { id: req.params.id, type: 'lead' } });
+  if (!row) return res.status(404).json({ error: 'Lead introuvable' });
+  const p = { ...(row.payload || {}) };
+  p.notes = [...(p.notes || [])]; p.history = [...(p.history || [])];
+  const { status, note, archived } = req.body || {};
+  const now = new Date().toISOString();
+  if (status !== undefined) {
+    if (!LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Statut invalide' });
+    if (p.status !== status) { p.history.push({ at: now, from: p.status, to: status }); p.status = status; }
+  }
+  if (typeof note === 'string' && note.trim()) p.notes.push({ at: now, text: clipText(note, 1000) });
+  if (archived !== undefined && !!archived !== !!p.archived) {
+    p.archived = !!archived;
+    p.history.push({ at: now, to: p.archived ? 'archived' : 'restored' });
+  }
+  for (const k of ['firstName', 'lastName', 'phone', 'vehicle']) if (typeof req.body?.[k] === 'string') p[k] = clipText(req.body[k], k === 'vehicle' ? 160 : 80);
+  if (typeof req.body?.email === 'string') {
+    const e = clipText(req.body.email, 160).toLowerCase();
+    if (e && !isValidEmail(e)) return res.status(400).json({ error: 'Adresse email invalide.' });
+    p.email = e;
+  }
+  const saved = await prisma.eventLog.update({ where: { id: row.id }, data: { payload: p } });
+  res.json({ ok: true, lead: leadView(saved) });
+});
+
+// ── Campagnes ────────────────────────────────────────────────
+// Registre tenu à la main (le site ne voit ni les dépenses ni les clics : voir les gestionnaires
+// de publicités) + attribution des leads et réservations d'après les paramètres utm_ du lien.
+const CAMPAIGN_STATUSES = ['draft', 'pending', 'active', 'paused', 'ended'];
+function campaignView(row) { return { id: row.id, createdAt: row.createdAt.toISOString(), ...(row.payload || {}) }; }
+function campaignFields(b, base = {}) {
+  const out = { ...base };
+  if (typeof b.name === 'string') out.name = clipText(b.name, 120);
+  if (typeof b.platform === 'string') out.platform = clipText(b.platform, 60);
+  if (typeof b.objective === 'string') out.objective = clipText(b.objective, 120);
+  if (typeof b.notes === 'string') out.notes = clipText(b.notes, 600);
+  if (typeof b.url === 'string') out.url = clipText(b.url, 300);
+  if (typeof b.startDate === 'string') out.startDate = /^\d{4}-\d{2}-\d{2}$/.test(b.startDate) ? b.startDate : '';
+  if (b.status !== undefined && CAMPAIGN_STATUSES.includes(b.status)) out.status = b.status;
+  if (b.dailyBudget !== undefined) { const n = Number(b.dailyBudget); out.dailyBudget = Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null; }
+  return out;
+}
+// Deux campagnes connues au premier affichage (modifiables, sans montant inventé).
+async function ensureCampaignSeed() {
+  const n = await prisma.eventLog.count({ where: { type: 'campaign' } });
+  if (n > 0) return;
+  await prisma.eventLog.createMany({ data: [
+    { type: 'campaign', payload: { name: 'REYCE – Car Spa – Prospects', platform: 'Meta (Instagram / Facebook)', objective: 'Prospects · évènement Lead', status: 'draft',
+      notes: 'Reels · Lyon + 50 km · 25 ans et plus · destination : page de réservation.', url: 'https://www.reyce.fr/rendez-vous.html', dailyBudget: null, startDate: '' } },
+    { type: 'campaign', payload: { name: 'Google Ads – PPF', platform: 'Google Ads', objective: 'Demandes de devis PPF', status: 'pending',
+      notes: 'À lancer après la validation de l\'annonceur par Google.', url: 'https://www.reyce.fr/ppf.html', dailyBudget: null, startDate: '' } }
+  ] });
+}
+
+app.get('/api/admin/campaigns', async (req, res) => {
+  await ensureCampaignSeed();
+  const [rows, leads, bookings] = await Promise.all([
+    prisma.eventLog.findMany({ where: { type: 'campaign' }, orderBy: { createdAt: 'asc' } }),
+    loadLeads(), readBookings()
+  ]);
+  markConverted(leads, bookings);
+  const since = Date.now() - 30 * 86400000;
+  // attribution : un enregistrement par lead et par réservation, rangé selon sa campagne utm (sinon sa source)
+  const groups = new Map();
+  const touch = (channel, campaign) => {
+    const key = channel + '||' + campaign;
+    if (!groups.has(key)) groups.set(key, { channel, campaign, leads: 0, bookings: 0, revenueCents: 0, lastAt: null });
+    return groups.get(key);
+  };
+  const stamp = (g, iso) => { if (iso && (!g.lastAt || iso > g.lastAt)) g.lastAt = iso; };
+  for (const l of leads) {
+    if (Date.parse(l.createdAt) < since) continue;
+    const a = l.attribution || {};
+    const g = touch(l.channel || channelLabel(a), a.utm_campaign || '');
+    g.leads++; stamp(g, l.createdAt);
+  }
+  for (const b of bookings) {
+    if (['cancelled', 'no_show'].includes(b.status) || !b.createdAt || Date.parse(b.createdAt) < since) continue;
+    const a = parseSource((b.client.notes || '').replace(/^.*?Source : /, ''));
+    const g = touch(channelLabel(a), a.utm_campaign || '');
+    g.bookings++; g.revenueCents += b.totalCents || 0; stamp(g, b.createdAt);
+  }
+  const attribution = [...groups.values()].sort((x, y) => (y.leads + y.bookings) - (x.leads + x.bookings));
+  const campaigns = rows.map(r => {
+    const c = campaignView(r), k = normKey(c.name);
+    const mine = attribution.filter(g => g.campaign && normKey(g.campaign) === k);
+    return { ...c, stats: { leads: mine.reduce((n, g) => n + g.leads, 0), bookings: mine.reduce((n, g) => n + g.bookings, 0), revenueCents: mine.reduce((n, g) => n + g.revenueCents, 0) } };
+  });
+  res.json({ campaigns, attribution });
+});
+app.post('/api/admin/campaigns', async (req, res) => {
+  const data = campaignFields(req.body || {}, { status: 'draft' });
+  if (!data.name) return res.status(400).json({ error: 'Le nom de la campagne est obligatoire.' });
+  const row = await prisma.eventLog.create({ data: { type: 'campaign', payload: data } });
+  res.json({ ok: true, campaign: campaignView(row) });
+});
+app.patch('/api/admin/campaigns/:id', async (req, res) => {
+  const row = await prisma.eventLog.findFirst({ where: { id: req.params.id, type: 'campaign' } });
+  if (!row) return res.status(404).json({ error: 'Campagne introuvable' });
+  const data = campaignFields(req.body || {}, row.payload || {});
+  if (!data.name) return res.status(400).json({ error: 'Le nom de la campagne est obligatoire.' });
+  const saved = await prisma.eventLog.update({ where: { id: row.id }, data: { payload: data } });
+  res.json({ ok: true, campaign: campaignView(saved) });
+});
+app.delete('/api/admin/campaigns/:id', async (req, res) => {
+  await prisma.eventLog.deleteMany({ where: { id: req.params.id, type: 'campaign' } });
+  res.json({ ok: true });
 });
 
 // Liste des clients agrégée à partir des réservations (pas de compte

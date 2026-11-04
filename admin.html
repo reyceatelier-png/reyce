@@ -712,6 +712,106 @@
       .mini__item { padding: 12px 16px; }
     }
     @media (prefers-reduced-motion: reduce) { .side { transition: none; } }
+
+    /* ── Leads : pipeline en colonnes ── */
+    .tab__badge { margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--blue); color: #fff; font-size: 11px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+    .tab__badge[hidden] { display: none; }
+    .dash-alert--lead { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 9%, transparent); }
+
+    .lead-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+    .lead-kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; box-shadow: var(--shadow); }
+    .lead-kpi b { display: block; font-size: 24px; font-weight: 400; letter-spacing: -.02em; color: var(--white); font-variant-numeric: tabular-nums; }
+    .lead-kpi span { display: block; margin-top: 2px; font-size: 11px; color: var(--grey3); }
+
+    .board-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .board-bar .grow { flex: 1 1 220px; max-width: 360px; }
+    .board-bar__note { font-size: 12px; color: var(--grey3); }
+
+    .board { display: grid; grid-template-columns: repeat(4, minmax(272px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; padding-bottom: 14px; }
+    .col { display: flex; flex-direction: column; min-width: 0; background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); max-height: calc(100vh - 300px); min-height: 260px; }
+    .col.is-over { outline: 2px dashed var(--accent); outline-offset: -5px; }
+    .col__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px 10px; }
+    .col__title { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; color: var(--white); }
+    .col__dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+    .col__count { padding: 2px 9px; border-radius: 999px; background: var(--bg3); font-size: 11px; color: var(--grey2); font-variant-numeric: tabular-nums; }
+    .col__body { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto; padding: 4px 10px 12px; }
+    .col__empty { padding: 26px 8px; text-align: center; font-size: 12px; color: var(--grey3); }
+
+    .lcard { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; cursor: pointer; transition: border-color .15s, transform .12s; }
+    .lcard:hover { border-color: var(--border2); }
+    .lcard.is-drag { opacity: .45; }
+    .lcard[draggable="true"] { cursor: grab; }
+    .lcard__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .lcard__name { font-size: 14px; font-weight: 500; color: var(--white); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lcard__age { flex: none; font-size: 11px; color: var(--grey3); }
+    .lcard__sub { margin-top: 3px; font-size: 12px; color: var(--grey2); line-height: 1.45; overflow-wrap: anywhere; }
+    .lcard__msg { margin-top: 6px; font-size: 12px; color: var(--grey3); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .lcard__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .tag { padding: 2px 8px; border-radius: 999px; background: var(--bg2); border: 1px solid var(--border); font-size: 10px; letter-spacing: .04em; color: var(--grey2); white-space: nowrap; }
+    .tag--src { color: var(--accent); }
+    .tag--ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border)); }
+    .lcard__links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .lcard__links a, .lcard__links button, .mini-btn {
+      padding: 4px 10px; border: 1px solid var(--border2); border-radius: 999px; background: none; font: inherit; font-size: 11px;
+      color: var(--grey1); text-decoration: none; cursor: pointer; white-space: nowrap;
+    }
+    .lcard__links a:hover, .lcard__links button:hover, .mini-btn:hover { background: var(--hover); color: var(--white); }
+    .lcard__links .is-primary, .mini-btn.is-primary { background: var(--white); color: var(--on-primary); border-color: var(--white); }
+
+    /* fiche détaillée */
+    .drawer-veil { display: none; position: fixed; inset: 0; z-index: 90; background: var(--veil); }
+    .drawer-veil.is-open { display: block; }
+    .drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 91; width: min(480px, 100%); display: flex; flex-direction: column; background: var(--bg2); border-left: 1px solid var(--border2); box-shadow: var(--shadow); transform: translateX(102%); transition: transform .22s ease; }
+    .drawer.is-open { transform: none; }
+    .drawer__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 22px 14px; border-bottom: 1px solid var(--border); }
+    .drawer__name { font-size: 18px; font-weight: 500; color: var(--white); }
+    .drawer__body { flex: 1; overflow-y: auto; padding: 18px 22px 24px; display: flex; flex-direction: column; gap: 18px; }
+    .drawer__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .drawer__actions a { text-decoration: none; }
+    .dl { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px 14px; font-size: 13px; }
+    .dl dt { color: var(--grey3); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding-top: 2px; }
+    .dl dd { margin: 0; color: var(--grey1); overflow-wrap: anywhere; }
+    .dr-title { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--grey3); margin-bottom: 8px; }
+    .dr-msg { white-space: pre-wrap; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg3); font-size: 13px; line-height: 1.55; color: var(--grey1); }
+    .note { padding: 9px 12px; border-left: 2px solid var(--border2); margin-top: 8px; font-size: 13px; color: var(--grey1); }
+    .note small { display: block; color: var(--grey3); font-size: 11px; }
+    .hist { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--grey2); display: flex; flex-direction: column; gap: 5px; }
+
+    /* campagnes */
+    .camps { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-bottom: 26px; }
+    .camp { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+    .camp__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .camp__name { font-size: 15px; font-weight: 500; color: var(--white); }
+    .camp__plat { font-size: 12px; color: var(--grey3); }
+    .camp__meta { font-size: 12px; color: var(--grey2); line-height: 1.6; }
+    .camp__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .camp__stats b { display: block; font-size: 18px; font-weight: 400; color: var(--white); font-variant-numeric: tabular-nums; }
+    .camp__stats span { font-size: 11px; color: var(--grey3); }
+    .camp__foot { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 10px; letter-spacing: .06em; white-space: nowrap; background: var(--bg3); color: var(--grey2); }
+    .chip--active  { color: var(--green);  background: color-mix(in srgb, var(--green) 14%, transparent); }
+    .chip--pending { color: var(--amber);  background: color-mix(in srgb, var(--amber) 14%, transparent); }
+    .chip--paused  { color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, transparent); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--bg2); }
+    table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.grid th { text-align: left; padding: 11px 14px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--grey3); border-bottom: 1px solid var(--border); font-weight: 500; white-space: nowrap; }
+    table.grid td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--grey1); }
+    table.grid tr:last-child td { border-bottom: 0; }
+    table.grid td.num { font-variant-numeric: tabular-nums; text-align: right; }
+    table.grid th.num { text-align: right; }
+    .modal__body select, .modal__body input { width: 100%; }
+    .row2f { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    @media (max-width: 1100px) { .lead-kpis { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 700px) {
+      .lead-kpis { grid-template-columns: repeat(2, 1fr); }
+      .board { grid-template-columns: repeat(4, 84vw); scroll-snap-type: x mandatory; }
+      .col { scroll-snap-align: start; max-height: none; }
+      .dl { grid-template-columns: 1fr; gap: 2px 0; }
+      .dl dd { margin-bottom: 8px; }
+      .row2f { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
   </style>
 </head>
 <body>
@@ -747,6 +847,9 @@
         <button class="tab is-active" data-tab="dashboard" onclick="switchTab('dashboard')">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>
           Tableau de bord</button>
+        <button class="tab" data-tab="leads" onclick="switchTab('leads')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8.2V19l-4 2v-7.8z"/></svg>
+          Leads <span class="tab__badge" id="leadsBadge" hidden>0</span></button>
         <button class="tab" data-tab="bookings" onclick="switchTab('bookings')">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8M9 2.5h6v3H9z"/><path d="M6 4.5H5a1 1 0 0 0-1 1V21a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V5.5a1 1 0 0 0-1-1h-1"/><path d="M8 11h8M8 15h8M8 19h5"/></svg>
           Réservations</button>
@@ -767,6 +870,9 @@
         <button class="tab" data-tab="marketing" onclick="switchTab('marketing')">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5v3a1 1 0 0 0 1 1h2.5L14 19V5L6.5 9.5H4a1 1 0 0 0-1 1z"/><path d="M17.5 9a4.2 4.2 0 0 1 0 6"/></svg>
           Marketing</button>
+        <button class="tab" data-tab="campaigns" onclick="switchTab('campaigns')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>
+          Campagnes</button>
       </nav>
 
       <div class="side__foot">
@@ -817,6 +923,11 @@
         <div class="dash-alert" id="dashAlert">
           <span id="dashAlertText"></span>
           <button class="btn btn--ghost btn--sm" onclick="openToClose()">Voir ces rendez-vous</button>
+        </div>
+
+        <div class="dash-alert dash-alert--lead" id="dashLeadAlert">
+          <span id="dashLeadAlertText"></span>
+          <button class="btn btn--ghost btn--sm" onclick="switchTab('leads')">Ouvrir les leads</button>
         </div>
 
         <div class="kpis">
@@ -894,6 +1005,52 @@
           <div class="mini__item"><div class="mini__val" id="dashCancelRate">—</div><div class="mini__label">Taux d'annulation</div></div>
         </div>
 
+      </div>
+
+      <!-- ── Panel : Leads (pipeline) ── -->
+      <div class="panel" id="panel-leads">
+        <div class="lead-kpis">
+          <div class="lead-kpi"><b id="lkNew">—</b><span>Nouveaux leads à traiter</span></div>
+          <div class="lead-kpi"><b id="lkCall">—</b><span>À rappeler</span></div>
+          <div class="lead-kpi"><b id="lkWeek">—</b><span>Demandes reçues (7 jours)</span></div>
+          <div class="lead-kpi"><b id="lkRate">—</b><span>Leads devenus clients (30 jours)</span></div>
+          <div class="lead-kpi"><b id="lkDelay">—</b><span>Délai moyen de premier contact</span></div>
+        </div>
+
+        <div class="board-bar">
+          <input class="grow" id="boardSearch" type="search" placeholder="Rechercher dans les leads…" autocomplete="off" aria-label="Rechercher dans les leads">
+          <button class="btn btn--primary btn--sm" onclick="openNewLead()">+ Nouveau lead</button>
+          <button class="btn btn--ghost btn--sm" id="archivedBtn" onclick="toggleArchived()">Archivés (0)</button>
+          <span class="board-bar__note">Toutes les demandes du site arrivent ici automatiquement. Glissez une fiche d'une colonne à l'autre.</span>
+        </div>
+
+        <div class="board" id="board"></div>
+        <div id="archivedBox" style="display:none;margin-top:22px;">
+          <p class="section-title">Leads archivés</p>
+          <div class="booking-list" id="archivedList"></div>
+        </div>
+      </div>
+
+      <!-- ── Panel : Campagnes ── -->
+      <div class="panel" id="panel-campaigns">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+          <div>
+            <p class="section-title" style="margin:0 0 4px;">Campagnes en place</p>
+            <p class="board-bar__note">Les dépenses, impressions et clics se consultent dans
+              <a href="https://adsmanager.facebook.com/" target="_blank" rel="noopener" style="color:var(--accent);">Meta Ads Manager</a> et
+              <a href="https://ads.google.com/" target="_blank" rel="noopener" style="color:var(--accent);">Google Ads</a>.
+              Ici : ce que chaque campagne rapporte réellement à l'atelier.</p>
+          </div>
+          <button class="btn btn--primary btn--sm" onclick="openCampaign()">+ Ajouter une campagne</button>
+        </div>
+        <div class="camps" id="campList"></div>
+
+        <p class="section-title">Origine des demandes — 30 derniers jours</p>
+        <div class="table-wrap"><table class="grid">
+          <thead><tr><th>Canal</th><th>Campagne</th><th class="num">Leads</th><th class="num">Réservations</th><th class="num">Chiffre d'affaires</th><th>Dernière demande</th></tr></thead>
+          <tbody id="attrBody"></tbody>
+        </table></div>
+        <p class="board-bar__note" style="margin-top:10px;">L'origine vient des paramètres <b>utm_</b> du lien de la publicité, conservés lorsque le visiteur accepte les cookies publicitaires.</p>
       </div>
 
       <!-- ── Panel : Réservations ── -->
@@ -1064,6 +1221,70 @@
     </div>
   </div>
 
+  <!-- Fiche lead -->
+  <div class="drawer-veil" id="drawerVeil" onclick="closeLead()"></div>
+  <aside class="drawer" id="leadDrawer" aria-label="Fiche du lead" aria-hidden="true"></aside>
+
+  <!-- Nouveau lead -->
+  <div class="modal-veil" id="newLeadVeil" onclick="if(event.target===this) closeNewLead()">
+    <div class="modal">
+      <div class="modal__head">
+        <p class="section-title" style="margin:0;">Nouveau lead</p>
+        <button class="btn btn--ghost btn--sm" onclick="closeNewLead()">Fermer</button>
+      </div>
+      <div class="modal__body">
+        <div class="row2f">
+          <div><label for="nlFirst">Prénom *</label><input id="nlFirst" autocomplete="off"></div>
+          <div><label for="nlLast">Nom</label><input id="nlLast" autocomplete="off"></div>
+        </div>
+        <div class="row2f">
+          <div><label for="nlPhone">Téléphone</label><input id="nlPhone" type="tel" autocomplete="off"></div>
+          <div><label for="nlEmail">E-mail</label><input id="nlEmail" type="email" autocomplete="off"></div>
+        </div>
+        <div class="row2f">
+          <div><label for="nlVehicle">Véhicule</label><input id="nlVehicle" placeholder="Ex. BMW M4" autocomplete="off"></div>
+          <div><label for="nlChannel">Canal</label>
+            <select id="nlChannel"><option>Téléphone</option><option>WhatsApp</option><option>Instagram</option><option>Facebook</option><option>Sur place</option><option>Bouche-à-oreille</option><option>Autre</option></select></div>
+        </div>
+        <div><label for="nlMsg">Demande</label><textarea id="nlMsg" rows="3" placeholder="Ce que la personne souhaite"></textarea></div>
+      </div>
+      <div class="modal__foot">
+        <button class="btn btn--primary" onclick="saveNewLead()">Ajouter le lead</button>
+        <button class="btn btn--ghost" onclick="closeNewLead()">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campagne -->
+  <div class="modal-veil" id="campVeil" onclick="if(event.target===this) closeCampaign()">
+    <div class="modal">
+      <div class="modal__head">
+        <p class="section-title" style="margin:0;" id="campTitle">Campagne</p>
+        <button class="btn btn--ghost btn--sm" onclick="closeCampaign()">Fermer</button>
+      </div>
+      <div class="modal__body">
+        <div><label for="cpName">Nom *</label><input id="cpName" autocomplete="off" placeholder="Identique au nom dans le gestionnaire de publicités"></div>
+        <div class="row2f">
+          <div><label for="cpPlatform">Plateforme</label>
+            <select id="cpPlatform"><option>Meta (Instagram / Facebook)</option><option>Google Ads</option><option>Autre</option></select></div>
+          <div><label for="cpStatus">Statut</label>
+            <select id="cpStatus"><option value="draft">Brouillon</option><option value="pending">À lancer</option><option value="active">En cours</option><option value="paused">En pause</option><option value="ended">Terminée</option></select></div>
+        </div>
+        <div class="row2f">
+          <div><label for="cpBudget">Budget par jour (€)</label><input id="cpBudget" type="number" min="0" step="0.5" placeholder="Facultatif"></div>
+          <div><label for="cpStart">Début</label><input id="cpStart" type="date"></div>
+        </div>
+        <div><label for="cpObjective">Objectif</label><input id="cpObjective" autocomplete="off" placeholder="Ex. Prospects · évènement Lead"></div>
+        <div><label for="cpUrl">Lien de destination</label><input id="cpUrl" autocomplete="off" placeholder="https://www.reyce.fr/rendez-vous.html"></div>
+        <div><label for="cpNotes">Notes</label><textarea id="cpNotes" rows="3"></textarea></div>
+      </div>
+      <div class="modal__foot">
+        <button class="btn btn--primary" onclick="saveCampaign()">Enregistrer</button>
+        <button class="btn btn--ghost" onclick="closeCampaign()">Annuler</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Care Report -->
   <div class="modal-veil" id="careVeil" onclick="if(event.target===this) closeCareReport()">
     <div class="modal">
@@ -1221,6 +1442,7 @@
         renderMarketingRecipients();
         populateServiceSelect();
         loadRevenue();
+        loadPipeline(true);
       } catch (e) {
         if (e.message !== 'Non autorisé') showToast('Erreur de connexion', true);
       }
@@ -1244,7 +1466,7 @@
 
     // ── Tabs ─────────────────────────────────────────────────
     const TAB_TITLES = {
-      dashboard: 'Tableau de bord', bookings: 'Réservations', planning: 'Planning', clients: 'Clients',
+      dashboard: 'Tableau de bord', leads: 'Leads', campaigns: 'Campagnes', bookings: 'Réservations', planning: 'Planning', clients: 'Clients',
       services: 'Prestations', availability: 'Disponibilités', marketing: 'Marketing'
     };
     function switchTab(name) {
@@ -1254,6 +1476,8 @@
       closeSide();
       window.scrollTo(0, 0);
       if (name === 'dashboard') renderRevenue(); // le graphique se mesure sur un panneau visible
+      if (name === 'leads') loadPipeline(true);
+      if (name === 'campaigns') loadCampaigns();
     }
     function openSide()  { document.getElementById('side').classList.add('is-open');    document.getElementById('sideVeil').classList.add('is-open'); }
     function closeSide() { document.getElementById('side').classList.remove('is-open'); document.getElementById('sideVeil').classList.remove('is-open'); }
@@ -2337,6 +2561,336 @@ let openClientEmail = null;
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => t.classList.remove('is-visible'), 3000);
     }
+
+    // ── Leads : pipeline ─────────────────────────────────────
+    let pipeline = { leads: [], appointments: [], stats: {}, archivedCount: 0 };
+    let archivedLeads = [];
+    let showArchived = false;
+    let openLeadId = null;
+
+    const LEAD_COLS = [
+      { key: 'new',       title: 'Nouveaux leads',  color: 'var(--blue)',   empty: 'Aucun nouveau lead' },
+      { key: 'to_call',   title: 'À rappeler',      color: 'var(--amber)',  empty: 'Rien à rappeler' },
+      { key: 'contacted', title: 'Déjà contactés',  color: 'var(--violet)', empty: 'Aucun lead contacté' }
+    ];
+    const LEAD_LABEL = { new: 'Nouveau', to_call: 'À rappeler', contacted: 'Contacté' };
+    const KIND_LABEL = { devis: 'Devis', message: 'Message', manuel: 'Saisie manuelle' };
+
+    function timeAgo(iso) {
+      const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+      if (s < 90) return 'à l\'instant';
+      if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
+      if (s < 86400) return `il y a ${Math.round(s / 3600)} h`;
+      const d = Math.round(s / 86400);
+      return d === 1 ? 'hier' : `il y a ${d} j`;
+    }
+    function fmtDateTime(iso) {
+      return new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    }
+    function phoneIntl(phone) { // 06 12 34 56 78 → 33612345678
+      let d = String(phone || '').replace(/[^\d+]/g, '');
+      if (d.startsWith('+')) d = d.slice(1);
+      else if (d.startsWith('00')) d = d.slice(2);
+      else if (d.startsWith('0') && d.length === 10) d = '33' + d.slice(1);
+      return d;
+    }
+    function contactLinks(p, name) {
+      const out = [];
+      if (p.phone) {
+        out.push(`<a href="tel:+${esc(phoneIntl(p.phone))}">Appeler</a>`);
+        out.push(`<a href="https://wa.me/${esc(phoneIntl(p.phone))}?text=${encodeURIComponent('Bonjour ' + (name || '') + ', c\'est REYCE, à propos de votre demande.')}" target="_blank" rel="noopener">WhatsApp</a>`);
+      }
+      if (p.email) out.push(`<a href="mailto:${esc(p.email)}">E-mail</a>`);
+      return out.join('');
+    }
+
+    async function loadPipeline(silent) {
+      try {
+        pipeline = await api('GET', '/api/admin/pipeline');
+        renderBoard();
+        updateLeadBadge();
+        if (showArchived) loadArchived();
+      } catch (e) {
+        if (!silent && e.message !== 'Non autorisé') showToast('Leads indisponibles', true);
+      }
+    }
+    function updateLeadBadge() {
+      const st = pipeline.stats || {}, n = st.newCount || 0;
+      const badge = document.getElementById('leadsBadge');
+      badge.textContent = n; badge.hidden = !n;
+      const al = document.getElementById('dashLeadAlert');
+      if (al) {
+        al.classList.toggle('is-visible', n > 0 || (st.toCallCount || 0) > 0);
+        const parts = [];
+        if (n) parts.push(n === 1 ? '1 nouveau lead à traiter' : `${n} nouveaux leads à traiter`);
+        if (st.toCallCount) parts.push(`${st.toCallCount} à rappeler`);
+        document.getElementById('dashLeadAlertText').textContent = parts.join(' · ');
+      }
+    }
+
+    function leadCardHTML(l) {
+      const sub = [l.vehicle, l.attribution && l.attribution.prestations ? l.attribution.prestations.split(',').join(', ') : (l.subject || '')].filter(Boolean).join(' · ');
+      const to = { new: [['to_call', 'À rappeler'], ['contacted', 'Contacté']], to_call: [['contacted', 'Contacté'], ['new', 'Nouveau']], contacted: [['to_call', 'À rappeler']] }[l.status] || [];
+      return `
+        <article class="lcard" draggable="true" data-id="${esc(l.id)}" data-open="${esc(l.id)}">
+          <div class="lcard__top"><span class="lcard__name">${esc(((l.firstName || '') + ' ' + (l.lastName || '')).trim() || '—')}</span><span class="lcard__age">${esc(timeAgo(l.createdAt))}</span></div>
+          ${sub ? `<div class="lcard__sub">${esc(sub)}</div>` : ''}
+          ${l.message ? `<div class="lcard__msg">${esc(l.message)}</div>` : ''}
+          <div class="lcard__tags">
+            <span class="tag">${esc(KIND_LABEL[l.kind] || 'Demande')}</span>
+            <span class="tag tag--src">${esc(l.channel || 'Site')}</span>
+            ${l.attribution && l.attribution.utm_campaign ? `<span class="tag">${esc(l.attribution.utm_campaign)}</span>` : ''}
+            ${l.bookingCount ? '<span class="tag tag--ok">Déjà client</span>' : ''}
+            ${l.photos ? `<span class="tag">${l.photos} photo${l.photos > 1 ? 's' : ''}</span>` : ''}
+          </div>
+          <div class="lcard__links">
+            ${contactLinks(l, l.firstName)}
+            ${to.map(([s, label]) => `<button type="button" data-move="${esc(l.id)}" data-to="${s}">→ ${label}</button>`).join('')}
+          </div>
+        </article>`;
+    }
+    function apptCardHTML(b) {
+      const name = ((b.client.firstName || '') + ' ' + (b.client.lastName || '')).trim() || '—';
+      const veh = [b.vehicleType, b.vehicleModel].filter(Boolean).join(' — ');
+      return `
+        <article class="lcard" data-appt="${esc(b.sessionId)}">
+          <div class="lcard__top"><span class="lcard__name">${esc(name)}</span><span class="lcard__age">${esc(fmtDate(b.date))} · ${esc(b.time || '')}</span></div>
+          <div class="lcard__sub">${esc(b.serviceName || b.service)}${veh ? ' · ' + esc(veh) : ''}</div>
+          <div class="lcard__tags">
+            <span class="status-badge status-badge--${esc(b.status)}">${esc(STATUS_LABEL[b.status] || b.status)}</span>
+            <span class="tag">${esc(fmtEur(b.totalCents))}</span>
+          </div>
+          <div class="lcard__links">${contactLinks({ phone: b.client.phone, email: b.client.email }, b.client.firstName)}<button type="button" data-goto-booking="${esc(b.sessionId)}">Ouvrir</button></div>
+        </article>`;
+    }
+
+    function renderBoard() {
+      const q = norm(document.getElementById('boardSearch').value).trim();
+      const hit = (arr, fn) => q ? arr.filter(x => norm(fn(x)).includes(q)) : arr;
+      const leadText = l => [l.firstName, l.lastName, l.email, l.phone, l.vehicle, l.subject, l.message, l.channel, l.attribution && l.attribution.utm_campaign].join(' ');
+      const apptText = b => [b.client.firstName, b.client.lastName, b.client.email, b.client.phone, b.vehicleModel, b.serviceName].join(' ');
+      const st = pipeline.stats || {};
+      document.getElementById('lkNew').textContent = st.newCount ?? '—';
+      document.getElementById('lkCall').textContent = st.toCallCount ?? '—';
+      document.getElementById('lkWeek').textContent = st.received7d ?? '—';
+      document.getElementById('lkRate').textContent = st.conversionRate30d == null ? '—' : `${st.conversionRate30d} %`;
+      document.getElementById('lkDelay').textContent = st.avgFirstContactHours == null ? '—' : (st.avgFirstContactHours < 1 ? `${Math.round(st.avgFirstContactHours * 60)} min` : `${String(st.avgFirstContactHours).replace('.', ',')} h`);
+      document.getElementById('archivedBtn').textContent = `Archivés (${pipeline.archivedCount || 0})`;
+
+      let html = '';
+      for (const c of LEAD_COLS) {
+        const items = hit((pipeline.leads || []).filter(l => l.status === c.key), leadText);
+        html += `<section class="col" data-col="${c.key}" aria-label="${c.title}">
+          <div class="col__head"><span class="col__title"><i class="col__dot" style="background:${c.color}"></i>${c.title}</span><span class="col__count">${items.length}</span></div>
+          <div class="col__body">${items.length ? items.map(leadCardHTML).join('') : `<div class="col__empty">${c.empty}</div>`}</div></section>`;
+      }
+      const appts = hit(pipeline.appointments || [], apptText);
+      html += `<section class="col" data-col="confirmed" aria-label="Rendez-vous confirmés">
+        <div class="col__head"><span class="col__title"><i class="col__dot" style="background:var(--green)"></i>Rendez-vous confirmés</span><span class="col__count">${appts.length}</span></div>
+        <div class="col__body">${appts.length ? appts.map(apptCardHTML).join('') : '<div class="col__empty">Aucun rendez-vous confirmé</div>'}</div></section>`;
+      document.getElementById('board').innerHTML = html;
+    }
+
+    async function moveLead(id, status, silent) {
+      const l = (pipeline.leads || []).find(x => x.id === id);
+      if (!l || l.status === status) return;
+      const before = l.status;
+      l.status = status; renderBoard();
+      try {
+        await api('PATCH', `/api/admin/leads/${encodeURIComponent(id)}`, { status });
+        if (!silent) showToast(`Déplacé : ${LEAD_LABEL[status]}`);
+        loadPipeline(true);
+      } catch (e) { l.status = before; renderBoard(); showToast('Déplacement impossible', true); }
+    }
+
+    // clics sur le tableau (délégation) : boutons de déplacement, ouverture de la fiche, rendez-vous
+    document.getElementById('board').addEventListener('click', e => {
+      const mv = e.target.closest('[data-move]');
+      if (mv) { e.stopPropagation(); moveLead(mv.dataset.move, mv.dataset.to); return; }
+      if (e.target.closest('a')) return;
+      const go = e.target.closest('[data-goto-booking]');
+      if (go) { focusBooking(go.dataset.gotoBooking); return; }
+      const card = e.target.closest('[data-open]');
+      if (card) openLead(card.dataset.open);
+    });
+    // glisser-déposer entre colonnes
+    const boardEl = document.getElementById('board');
+    boardEl.addEventListener('dragstart', e => { const c = e.target.closest('.lcard[data-id]'); if (!c) return; e.dataTransfer.setData('text/plain', c.dataset.id); e.dataTransfer.effectAllowed = 'move'; c.classList.add('is-drag'); });
+    boardEl.addEventListener('dragend', e => { document.querySelectorAll('.is-drag,.is-over').forEach(x => x.classList.remove('is-drag', 'is-over')); });
+    boardEl.addEventListener('dragover', e => { const col = e.target.closest('.col'); if (col) { e.preventDefault(); document.querySelectorAll('.col.is-over').forEach(x => x !== col && x.classList.remove('is-over')); col.classList.add('is-over'); } });
+    boardEl.addEventListener('drop', e => {
+      const col = e.target.closest('.col'); if (!col) return;
+      e.preventDefault(); col.classList.remove('is-over');
+      const id = e.dataTransfer.getData('text/plain'); if (!id) return;
+      if (col.dataset.col === 'confirmed') { showToast('Un rendez-vous se crée depuis la fiche du lead : bouton « Créer le rendez-vous ».'); return; }
+      moveLead(id, col.dataset.col);
+    });
+    document.getElementById('boardSearch').addEventListener('input', renderBoard);
+
+    // ── Fiche détaillée ──
+    function findLead(id) { return (pipeline.leads || []).find(l => l.id === id) || archivedLeads.find(l => l.id === id); }
+    function openLead(id) {
+      const l = findLead(id); if (!l) return;
+      openLeadId = id;
+      const a = l.attribution || {};
+      const row = (k, v) => v ? `<dt>${k}</dt><dd>${v}</dd>` : '';
+      const name = ((l.firstName || '') + ' ' + (l.lastName || '')).trim() || '—';
+      const histLabel = h => ({ new: 'Reçu', to_call: 'Déplacé : À rappeler', contacted: 'Déplacé : Contacté', archived: 'Archivé', restored: 'Restauré' }[h.to] || h.to);
+      document.getElementById('leadDrawer').innerHTML = `
+        <div class="drawer__head">
+          <div><div class="drawer__name">${esc(name)}</div>
+            <div class="lcard__tags"><span class="tag">${esc(KIND_LABEL[l.kind] || 'Demande')}</span><span class="tag tag--src">${esc(l.channel || 'Site')}</span>${l.archived ? '<span class="tag">Archivé</span>' : ''}${l.bookingCount ? '<span class="tag tag--ok">Déjà client</span>' : ''}</div></div>
+          <button class="btn btn--ghost btn--sm" onclick="closeLead()" aria-label="Fermer la fiche">Fermer</button>
+        </div>
+        <div class="drawer__body">
+          <div class="drawer__actions">
+            ${l.phone ? `<a class="btn btn--ghost btn--sm" href="tel:+${esc(phoneIntl(l.phone))}">Appeler</a><a class="btn btn--ghost btn--sm" target="_blank" rel="noopener" href="https://wa.me/${esc(phoneIntl(l.phone))}?text=${encodeURIComponent('Bonjour ' + (l.firstName || '') + ', c\'est REYCE, à propos de votre demande.')}">WhatsApp</a>` : ''}
+            ${l.email ? `<a class="btn btn--ghost btn--sm" href="mailto:${esc(l.email)}">E-mail</a>` : ''}
+            <button class="btn btn--primary btn--sm" onclick="startBookingFromLead('${esc(l.id)}')">Créer le rendez-vous</button>
+          </div>
+          ${l.archived ? '' : `<div><p class="dr-title">Statut</p><select id="drStatus" onchange="moveLeadFromDrawer(this.value)">${LEAD_COLS.map(c => `<option value="${c.key}"${l.status === c.key ? ' selected' : ''}>${c.title}</option>`).join('')}</select></div>`}
+          <div><p class="dr-title">Coordonnées et demande</p><dl class="dl">
+            ${row('Téléphone', esc(l.phone))}${row('E-mail', esc(l.email))}${row('Véhicule', esc(l.vehicle))}
+            ${row('Objet', esc(l.subject))}${row('Prestations', esc((a.prestations || '').split(',').join(', ')))}
+            ${row('Reçu le', esc(fmtDateTime(l.createdAt)) + ' (' + esc(timeAgo(l.createdAt)) + ')')}
+            ${row('Canal', esc(l.channel))}${row('Campagne', esc(a.utm_campaign))}${row('Annonce', esc(a.utm_content))}${row('Recherche', esc(a.utm_term))}
+            ${row('Page d\'origine', esc(a.page))}${row('Photos jointes', l.photos ? String(l.photos) + ' (dans l\'e-mail reçu)' : '')}
+            ${row('Réservations', l.bookingCount ? String(l.bookingCount) : '')}
+          </dl></div>
+          ${l.message ? `<div><p class="dr-title">Message</p><div class="dr-msg">${esc(l.message)}</div></div>` : ''}
+          <div><p class="dr-title">Notes</p>
+            <textarea id="drNote" rows="2" placeholder="Ajouter une note (rappel prévu, échange, devis envoyé…)"></textarea>
+            <div style="margin-top:8px;"><button class="btn btn--ghost btn--sm" onclick="addLeadNote()">Ajouter la note</button></div>
+            ${(l.notes || []).slice().reverse().map(n => `<div class="note">${esc(n.text)}<small>${esc(fmtDateTime(n.at))}</small></div>`).join('')}
+          </div>
+          <div><p class="dr-title">Historique</p><ul class="hist">${(l.history || []).slice().reverse().map(h => `<li>${esc(fmtDateTime(h.at))} — ${esc(histLabel(h))}</li>`).join('')}</ul></div>
+          <div>${l.archived
+            ? `<button class="btn btn--ghost btn--sm" onclick="archiveLead('${esc(l.id)}', false)">Restaurer ce lead</button>`
+            : `<button class="btn btn--ghost btn--sm" onclick="archiveLead('${esc(l.id)}', true)">Archiver (pas de suite)</button>`}</div>
+        </div>`;
+      document.getElementById('leadDrawer').classList.add('is-open');
+      document.getElementById('leadDrawer').setAttribute('aria-hidden', 'false');
+      document.getElementById('drawerVeil').classList.add('is-open');
+    }
+    function closeLead() {
+      openLeadId = null;
+      document.getElementById('leadDrawer').classList.remove('is-open');
+      document.getElementById('leadDrawer').setAttribute('aria-hidden', 'true');
+      document.getElementById('drawerVeil').classList.remove('is-open');
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeLead(); closeNewLead(); closeCampaign(); } });
+
+    async function moveLeadFromDrawer(status) { if (openLeadId) { await moveLead(openLeadId, status); openLead(openLeadId); } }
+    async function addLeadNote() {
+      const ta = document.getElementById('drNote'), text = ta.value.trim();
+      if (!text || !openLeadId) return;
+      try {
+        const r = await api('PATCH', `/api/admin/leads/${encodeURIComponent(openLeadId)}`, { note: text });
+        const l = findLead(openLeadId); if (l) Object.assign(l, r.lead);
+        openLead(openLeadId); showToast('Note ajoutée');
+      } catch (e) { showToast('Note non enregistrée', true); }
+    }
+    async function archiveLead(id, archived) {
+      try {
+        await api('PATCH', `/api/admin/leads/${encodeURIComponent(id)}`, { archived });
+        closeLead(); showToast(archived ? 'Lead archivé' : 'Lead restauré');
+        loadPipeline(true);
+      } catch (e) { showToast('Action impossible', true); }
+    }
+    function startBookingFromLead(id) {
+      const l = findLead(id); if (!l) return;
+      closeLead(); quickNewBooking();
+      const set = (i, v) => { const el = document.getElementById(i); if (el) el.value = v || ''; };
+      set('nbFirstName', l.firstName); set('nbLastName', l.lastName); set('nbPhone', l.phone); set('nbEmail', l.email); set('nbVehicleModel', l.vehicle);
+      showToast('Coordonnées reprises : choisissez la prestation et le créneau');
+    }
+
+    // ── Archivés ──
+    async function loadArchived() {
+      try { archivedLeads = (await api('GET', '/api/admin/leads/archived')).leads || []; } catch (e) { archivedLeads = []; }
+      document.getElementById('archivedList').innerHTML = archivedLeads.length
+        ? archivedLeads.map(l => `<div class="booking-card" style="grid-template-columns:1fr auto;cursor:pointer;" onclick="openLead('${esc(l.id)}')"><div><div class="booking-card__val">${esc(((l.firstName || '') + ' ' + (l.lastName || '')).trim())}</div><div class="booking-card__time">${esc(l.vehicle || l.subject || '')} · ${esc(timeAgo(l.createdAt))}</div></div><span class="tag">${esc(l.channel || '')}</span></div>`).join('')
+        : '<div class="empty">Aucun lead archivé</div>';
+    }
+    function toggleArchived() {
+      showArchived = !showArchived;
+      document.getElementById('archivedBox').style.display = showArchived ? 'block' : 'none';
+      if (showArchived) loadArchived();
+    }
+
+    // ── Nouveau lead ──
+    function openNewLead() { document.getElementById('newLeadVeil').classList.add('is-open'); setTimeout(() => document.getElementById('nlFirst').focus(), 50); }
+    function closeNewLead() { document.getElementById('newLeadVeil').classList.remove('is-open'); }
+    async function saveNewLead() {
+      const v = id => document.getElementById(id).value.trim();
+      if (!v('nlFirst')) { showToast('Le prénom est obligatoire', true); return; }
+      try {
+        const r = await api('POST', '/api/admin/leads', { firstName: v('nlFirst'), lastName: v('nlLast'), phone: v('nlPhone'), email: v('nlEmail'), vehicle: v('nlVehicle'), channel: v('nlChannel'), message: v('nlMsg') });
+        if (r.error) { showToast(r.error, true); return; }
+        ['nlFirst', 'nlLast', 'nlPhone', 'nlEmail', 'nlVehicle', 'nlMsg'].forEach(i => { document.getElementById(i).value = ''; });
+        closeNewLead(); showToast('Lead ajouté'); loadPipeline(true);
+      } catch (e) { showToast('Lead non enregistré', true); }
+    }
+
+    // ── Campagnes ──
+    let campaignsData = { campaigns: [], attribution: [] };
+    let editingCampaign = null;
+    const CAMP_STATUS = { draft: 'Brouillon', pending: 'À lancer', active: 'En cours', paused: 'En pause', ended: 'Terminée' };
+
+    async function loadCampaigns() {
+      try { campaignsData = await api('GET', '/api/admin/campaigns'); renderCampaigns(); }
+      catch (e) { if (e.message !== 'Non autorisé') showToast('Campagnes indisponibles', true); }
+    }
+    function renderCampaigns() {
+      const list = document.getElementById('campList');
+      list.innerHTML = campaignsData.campaigns.length ? campaignsData.campaigns.map(c => {
+        const link = /google/i.test(c.platform) ? 'https://ads.google.com/' : (/meta|facebook|instagram/i.test(c.platform) ? 'https://adsmanager.facebook.com/' : '');
+        const s = c.stats || {};
+        return `<article class="camp">
+          <div class="camp__head"><div><div class="camp__name">${esc(c.name)}</div><div class="camp__plat">${esc(c.platform || '')}</div></div><span class="chip chip--${esc(c.status)}">${esc(CAMP_STATUS[c.status] || c.status)}</span></div>
+          <div class="camp__meta">${c.objective ? esc(c.objective) + '<br>' : ''}${c.dailyBudget ? esc(String(c.dailyBudget).replace('.', ',')) + ' € par jour' : 'Budget non renseigné'}${c.startDate ? ' · depuis le ' + esc(fmtDate(c.startDate)) : ''}${c.notes ? '<br>' + esc(c.notes) : ''}</div>
+          <div class="camp__stats"><div><b>${s.leads || 0}</b><span>Leads</span></div><div><b>${s.bookings || 0}</b><span>Réservations</span></div><div><b>${esc(fmtEur(s.revenueCents))}</b><span>Chiffre d'affaires</span></div></div>
+          <div class="camp__foot">
+            <button class="mini-btn" onclick="openCampaign('${esc(c.id)}')">Modifier</button>
+            ${link ? `<a class="mini-btn" style="text-decoration:none" href="${link}" target="_blank" rel="noopener">Ouvrir le gestionnaire</a>` : ''}
+            <button class="mini-btn" onclick="deleteCampaign('${esc(c.id)}')">Supprimer</button>
+          </div></article>`;
+      }).join('') : '<div class="empty">Aucune campagne enregistrée</div>';
+      document.getElementById('attrBody').innerHTML = campaignsData.attribution.length
+        ? campaignsData.attribution.map(g => `<tr><td>${esc(g.channel)}</td><td>${esc(g.campaign || '—')}</td><td class="num">${g.leads}</td><td class="num">${g.bookings}</td><td class="num">${esc(fmtEur(g.revenueCents))}</td><td>${g.lastAt ? esc(timeAgo(g.lastAt)) : '—'}</td></tr>`).join('')
+        : '<tr><td colspan="6" class="empty" style="text-transform:none;letter-spacing:0;">Aucune demande sur les 30 derniers jours</td></tr>';
+    }
+    function openCampaign(id) {
+      editingCampaign = id || null;
+      const c = id ? campaignsData.campaigns.find(x => x.id === id) : null;
+      document.getElementById('campTitle').textContent = c ? 'Modifier la campagne' : 'Nouvelle campagne';
+      const set = (i, v) => { document.getElementById(i).value = v == null ? '' : v; };
+      set('cpName', c && c.name); set('cpPlatform', (c && c.platform) || 'Meta (Instagram / Facebook)'); set('cpStatus', (c && c.status) || 'draft');
+      set('cpBudget', c && c.dailyBudget); set('cpStart', c && c.startDate); set('cpObjective', c && c.objective); set('cpUrl', c && c.url); set('cpNotes', c && c.notes);
+      document.getElementById('campVeil').classList.add('is-open');
+    }
+    function closeCampaign() { document.getElementById('campVeil').classList.remove('is-open'); }
+    async function saveCampaign() {
+      const v = id => document.getElementById(id).value.trim();
+      if (!v('cpName')) { showToast('Le nom est obligatoire', true); return; }
+      const body = { name: v('cpName'), platform: v('cpPlatform'), status: v('cpStatus'), dailyBudget: v('cpBudget'), startDate: v('cpStart'), objective: v('cpObjective'), url: v('cpUrl'), notes: v('cpNotes') };
+      try {
+        const r = editingCampaign ? await api('PATCH', `/api/admin/campaigns/${encodeURIComponent(editingCampaign)}`, body) : await api('POST', '/api/admin/campaigns', body);
+        if (r.error) { showToast(r.error, true); return; }
+        closeCampaign(); showToast('Campagne enregistrée'); loadCampaigns();
+      } catch (e) { showToast('Campagne non enregistrée', true); }
+    }
+    async function deleteCampaign(id) {
+      if (!confirm('Supprimer cette campagne du suivi ? Les leads déjà reçus ne sont pas supprimés.')) return;
+      try { await api('DELETE', `/api/admin/campaigns/${encodeURIComponent(id)}`); showToast('Campagne supprimée'); loadCampaigns(); }
+      catch (e) { showToast('Suppression impossible', true); }
+    }
+
+    // nouveaux leads : relève toutes les minutes tant que le CRM est ouvert
+    setInterval(() => {
+      if (document.hidden || !document.getElementById('app').classList.contains('is-visible')) return;
+      loadPipeline(true);
+    }, 60000);
 
     // ── Set min date on date inputs ───────────────────────────
     const today = new Date().toISOString().split('T')[0];
