@@ -1337,6 +1337,29 @@ async function createCalendarEvent(data, svc) {
   }
 }
 
+// Supprime un événement que le site avait créé (identifié par son id Google). Retourne true si l'événement
+// n'existe plus ensuite (supprimé maintenant, ou déjà supprimé).
+async function deleteCalendarEvent(eventId) {
+  const clientId = process.env.GMAIL_CLIENT_ID, clientSecret = process.env.GMAIL_CLIENT_SECRET, refreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN;
+  if (!eventId || !clientId || !clientSecret || !refreshToken) return false;
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: 'refresh_token' })
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok) throw new Error(`OAuth: ${JSON.stringify(tokenData)}`);
+    const calId = encodeURIComponent(process.env.GOOGLE_CALENDAR_ID || 'primary');
+    const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calId}/events/${encodeURIComponent(eventId)}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
+    });
+    return r.ok || r.status === 404 || r.status === 410;
+  } catch (err) {
+    console.error('[Calendar] ✗ Suppression impossible :', err.message);
+    return false;
+  }
+}
+
 // Crée l'événement Calendar puis enregistre son id / statut de synchro sur
 // la réservation. Une réservation payée n'est JAMAIS perdue si Calendar
 // échoue : on marque simplement google_sync_status="error" pour un retry
@@ -2446,6 +2469,59 @@ app.patch('/api/admin/campaigns/:id', async (req, res) => {
 app.delete('/api/admin/campaigns/:id', async (req, res) => {
   await prisma.eventLog.deleteMany({ where: { id: req.params.id, type: 'campaign' } });
   res.json({ ok: true });
+});
+
+// ── Remise à zéro des données de test ───────────────────────
+// Outil volontairement protégé : connexion admin + phrase de confirmation saisie à la main. Ne touche ni
+// au catalogue de prestations, ni aux disponibilités, ni aux campagnes.
+const RESET_PHRASE = 'REMETTRE A ZERO';
+app.get('/api/admin/reset-preview', async (req, res) => {
+  const [appts, leadCount, clientCount] = await Promise.all([
+    prisma.appointment.findMany({ where: { status: { not: 'pending_payment' } }, orderBy: [{ date: 'asc' }, { startTime: 'asc' }] }),
+    prisma.eventLog.count({ where: { type: 'lead' } }),
+    prisma.client.count()
+  ]);
+  const pending = await prisma.appointment.count({ where: { status: 'pending_payment' } });
+  res.json({
+    appointments: appts.length,
+    pendingPayment: pending,
+    withPayment: appts.filter(a => a.amountPaidCents > 0).length,
+    calendarEvents: (await prisma.appointment.count({ where: { googleEventId: { not: null } } })),
+    leads: leadCount,
+    clients: clientCount,
+    sample: appts.slice(0, 8).map(a => ({ date: dateToStr(a.date), time: a.startTime, name: `${a.guestFirstName} ${a.guestLastName}`.trim(), status: a.status }))
+  });
+});
+
+app.post('/api/admin/reset-data', async (req, res) => {
+  const b = req.body || {};
+  if (b.confirm !== RESET_PHRASE) return res.status(400).json({ error: `Pour confirmer, saisissez exactement : ${RESET_PHRASE}` });
+  const out = { appointments: 0, calendarEvents: 0, calendarFailed: 0, logs: 0, clients: 0, leads: 0 };
+  try {
+    if (b.appointments) {
+      const appts = await prisma.appointment.findMany({ select: { id: true, googleEventId: true } });
+      if (b.calendar) {
+        for (const a of appts) {
+          if (!a.googleEventId) continue;
+          if (await deleteCalendarEvent(a.googleEventId)) out.calendarEvents++; else out.calendarFailed++;
+        }
+      }
+      const ids = appts.map(a => a.id);
+      await prisma.$transaction(async tx => {
+        out.logs = (await tx.eventLog.deleteMany({ where: { appointmentId: { in: ids } } })).count;
+        out.appointments = (await tx.appointment.deleteMany({})).count; // les comptes rendus Care Report sont supprimés en cascade
+        if (b.clients) out.clients = (await tx.client.deleteMany({})).count; // les véhicules des clients suivent en cascade
+      });
+    } else if (b.clients) {
+      return res.status(400).json({ error: 'Les clients ne peuvent être supprimés qu\'avec les rendez-vous.' });
+    }
+    if (b.leads) out.leads = (await prisma.eventLog.deleteMany({ where: { type: 'lead' } })).count;
+    console.log('[Admin] Remise à zéro des données :', JSON.stringify(out));
+    res.json({ ok: true, ...out });
+  } catch (err) {
+    console.error('[Admin] Remise à zéro impossible :', err.message);
+    res.status(500).json({ error: 'La suppression a échoué : ' + String(err.message).split('\n').pop().slice(0, 160) });
+  }
 });
 
 // Liste des clients agrégée à partir des réservations (pas de compte

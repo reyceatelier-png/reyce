@@ -812,6 +812,17 @@
       .row2f { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+
+    /* ── Outils : remise à zéro ── */
+    .danger-card { max-width: 760px; background: var(--bg2); border: 1px solid var(--red); border-radius: 14px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; }
+    .danger-card h2 { font-size: 16px; font-weight: 500; color: var(--white); }
+    .danger-card p { font-size: 13px; color: var(--grey2); line-height: 1.6; }
+    .rs-opt { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; color: var(--grey1); cursor: pointer; }
+    .rs-opt input { width: auto; margin-top: 3px; }
+    .rs-opt small { display: block; color: var(--grey3); font-size: 11px; margin-top: 2px; }
+    .rs-sample { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--grey2); display: flex; flex-direction: column; gap: 4px; }
+    .rs-warn { padding: 10px 14px; border: 1px solid var(--amber); border-radius: 10px; font-size: 12px; color: var(--white); background: color-mix(in srgb, var(--amber) 9%, transparent); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -876,6 +887,9 @@
       </nav>
 
       <div class="side__foot">
+        <button class="tab" data-tab="tools" onclick="switchTab('tools')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/><path d="M10 11v6M14 11v6"/></svg>
+          Remise à zéro</button>
         <a class="tab" href="/" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
           Voir le site</a>
@@ -1005,6 +1019,22 @@
           <div class="mini__item"><div class="mini__val" id="dashCancelRate">—</div><div class="mini__label">Taux d'annulation</div></div>
         </div>
 
+      </div>
+
+      <!-- ── Panel : Remise à zéro des données de test ── -->
+      <div class="panel" id="panel-tools">
+        <div class="danger-card">
+          <h2>Remise à zéro des données de test</h2>
+          <p>Supprime <b>définitivement</b> les données choisies ci-dessous, pour repartir de zéro avant le lancement. Action irréversible. Le catalogue de prestations, les disponibilités, les créneaux bloqués et les campagnes ne sont pas touchés.</p>
+          <div id="resetPreview" class="rs-sample">Chargement…</div>
+          <label class="rs-opt"><input type="checkbox" id="rsAppts" checked><span>Tous les rendez-vous<small id="rsApptsN"></small></span></label>
+          <label class="rs-opt"><input type="checkbox" id="rsCal" checked><span>Les événements correspondants dans Google Agenda<small>Uniquement ceux créés par le site, repérés par leur identifiant.</small></span></label>
+          <label class="rs-opt"><input type="checkbox" id="rsClients" checked><span>Les clients et leurs véhicules<small id="rsClientsN"></small></span></label>
+          <label class="rs-opt"><input type="checkbox" id="rsLeads"><span>Les leads du pipeline<small id="rsLeadsN"></small></span></label>
+          <div><label for="rsPhrase" style="display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--grey3);margin-bottom:6px;">Pour confirmer, saisissez : REMETTRE A ZERO</label>
+            <input id="rsPhrase" autocomplete="off" placeholder="REMETTRE A ZERO" oninput="document.getElementById('rsGo').disabled = this.value !== 'REMETTRE A ZERO'"></div>
+          <div><button class="btn btn--danger" id="rsGo" disabled onclick="runReset()">Tout supprimer définitivement</button></div>
+        </div>
       </div>
 
       <!-- ── Panel : Leads (pipeline) ── -->
@@ -1466,7 +1496,7 @@
 
     // ── Tabs ─────────────────────────────────────────────────
     const TAB_TITLES = {
-      dashboard: 'Tableau de bord', leads: 'Leads', campaigns: 'Campagnes', bookings: 'Réservations', planning: 'Planning', clients: 'Clients',
+      dashboard: 'Tableau de bord', tools: 'Remise à zéro', leads: 'Leads', campaigns: 'Campagnes', bookings: 'Réservations', planning: 'Planning', clients: 'Clients',
       services: 'Prestations', availability: 'Disponibilités', marketing: 'Marketing'
     };
     function switchTab(name) {
@@ -1477,6 +1507,7 @@
       window.scrollTo(0, 0);
       if (name === 'dashboard') renderRevenue(); // le graphique se mesure sur un panneau visible
       if (name === 'leads') loadPipeline(true);
+      if (name === 'tools') loadResetPreview();
       if (name === 'campaigns') loadCampaigns();
     }
     function openSide()  { document.getElementById('side').classList.add('is-open');    document.getElementById('sideVeil').classList.add('is-open'); }
@@ -2891,6 +2922,39 @@ let openClientEmail = null;
       if (document.hidden || !document.getElementById('app').classList.contains('is-visible')) return;
       loadPipeline(true);
     }, 60000);
+
+    // ── Remise à zéro ──
+    async function loadResetPreview() {
+      try {
+        const d = await api('GET', '/api/admin/reset-preview');
+        document.getElementById('rsApptsN').textContent = `${d.appointments} rendez-vous` + (d.pendingPayment ? ` (+ ${d.pendingPayment} en attente de paiement)` : '');
+        document.getElementById('rsClientsN').textContent = `${d.clients} client${d.clients > 1 ? 's' : ''}`;
+        document.getElementById('rsLeadsN').textContent = `${d.leads} lead${d.leads > 1 ? 's' : ''}`;
+        document.getElementById('resetPreview').innerHTML =
+          (d.withPayment ? `<div class="rs-warn">Attention : ${d.withPayment} rendez-vous ont un paiement enregistré. Vérifiez qu'ils sont bien tous des tests.</div>` : '') +
+          (d.appointments ? `<p class="dr-title" style="margin:6px 0 4px;">Les premiers rendez-vous qui seront supprimés</p>` + d.sample.map(s => `<li>${esc(fmtDate(s.date))} ${esc(s.time)} — ${esc(s.name)} · ${esc(STATUS_LABEL[s.status] || s.status)}</li>`).join('') + (d.appointments > d.sample.length ? `<li>… et ${d.appointments - d.sample.length} autres</li>` : '') : '<li>Aucun rendez-vous à supprimer.</li>');
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Aperçu indisponible', true); }
+    }
+    async function runReset() {
+      const phrase = document.getElementById('rsPhrase').value;
+      if (phrase !== 'REMETTRE A ZERO') return;
+      const body = { confirm: phrase, appointments: document.getElementById('rsAppts').checked, calendar: document.getElementById('rsCal').checked, clients: document.getElementById('rsClients').checked, leads: document.getElementById('rsLeads').checked };
+      if (!body.appointments && !body.leads) { showToast('Rien n\'est coché', true); return; }
+      const btn = document.getElementById('rsGo'); btn.disabled = true; btn.textContent = 'Suppression…';
+      try {
+        const r = await api('POST', '/api/admin/reset-data', body);
+        if (r.error) { showToast(r.error, true); btn.textContent = 'Tout supprimer définitivement'; btn.disabled = false; return; }
+        const parts = [];
+        if (body.appointments) parts.push(`${r.appointments} rendez-vous`);
+        if (body.clients) parts.push(`${r.clients} clients`);
+        if (r.calendarEvents) parts.push(`${r.calendarEvents} événements Agenda`);
+        if (body.leads) parts.push(`${r.leads} leads`);
+        showToast('Supprimé : ' + parts.join(', ') + (r.calendarFailed ? ` (${r.calendarFailed} événement(s) Agenda à retirer à la main)` : ''));
+        document.getElementById('rsPhrase').value = '';
+        btn.textContent = 'Tout supprimer définitivement';
+        await loadAll(); loadResetPreview();
+      } catch (e) { btn.textContent = 'Tout supprimer définitivement'; showToast('La suppression a échoué', true); }
+    }
 
     // ── Set min date on date inputs ───────────────────────────
     const today = new Date().toISOString().split('T')[0];
