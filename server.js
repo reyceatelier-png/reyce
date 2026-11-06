@@ -1182,7 +1182,7 @@ function buildLeadAck(firstName, vehicleInfo, cible, subject) {
     <p>
       REYCE · Atelier automobile premium · Lyon<br>
       www.reyce.fr · @reyce.lyon<br><br>
-      Cet e-mail confirme la demande que vous venez de faire sur reyce.fr. Si vous n'en êtes pas à l'origine, ignorez-le : aucune suite ne sera donnée.
+      Cet e-mail confirme la demande que vous venez de faire sur www.reyce.fr. Si vous n'en êtes pas à l'origine, ignorez-le : aucune suite ne sera donnée.
     </p>
   </div>
 
@@ -1480,6 +1480,12 @@ app.use((req, res, next) => {
 //  - CSS et JS : 1 h puis revalidation par ETag, car non empreints — un
 //    correctif doit atteindre les visiteurs rapidement
 //  - pages HTML : inchangées (max-age=0), un changement de contenu est immédiat
+// L'accueil s'affiche sur « / » : /index.html (ancien lien, favoris, moteurs de recherche) y renvoie en 301.
+app.get('/index.html', (req, res) => {
+  const q = req.url.indexOf('?');
+  res.redirect(301, '/' + (q > -1 ? req.url.slice(q) : ''));
+});
+
 app.use(express.static(path.join(__dirname), {
   setHeaders(res, filePath) {
     // Le logo est affiché dans les e-mails envoyés aux clients : il doit pouvoir être
@@ -1609,7 +1615,7 @@ app.post('/api/contact', async (req, res) => {
     ${vehicleBlock}${subjectBlock}${sourceBlock}${messageBlock}
   </table>
   <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${safeFirst}</p>
-  <p class="foot">Reçu via le site reyce.fr</p>
+  <p class="foot">Reçu via le site www.reyce.fr</p>
 </div></body></html>`;
 
   console.log(`[Contact] Envoi → to: ${ownerEmail}`);
@@ -1680,7 +1686,7 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
     ${vehicleBlock}${messageBlock}${photoNote}${sourceBlock}
   </table>
   <p style="text-align:center;font-size:12px;color:#666;">Répondre directement à cet email pour contacter ${safeFirst}</p>
-  <p class="foot">Reçu via le site reyce.fr</p>
+  <p class="foot">Reçu via le site www.reyce.fr</p>
 </div></body></html>`;
 
   const attachments = files.map((f, i) => ({

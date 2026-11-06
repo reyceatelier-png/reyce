@@ -197,8 +197,9 @@
   /* ---- Active Nav Link ------------------------------------ */
   const currentPath = window.location.pathname.split('/').pop() || 'index.html';
   document.querySelectorAll('.nav__link[href]').forEach(link => {
-    const href = link.getAttribute('href').split('/').pop();
-    if (href === currentPath || (currentPath === '' && href === 'index.html')) {
+    // « / » (accueil sans index.html) vaut « index.html » pour le repérage du lien actif
+    const href = link.getAttribute('href').split('/').pop().split('#')[0] || 'index.html';
+    if (href === currentPath) {
       link.classList.add('is-active');
     }
   });
