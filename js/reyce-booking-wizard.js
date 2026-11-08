@@ -118,8 +118,24 @@ function searchVehicles(q,limit){
     else if(nf.indexOf(nq)>-1) sc=4;
     if(sc>-1) out.push({v:v,sc:sc});
   }
+  /* aucune correspondance directe : on tolère une faute de frappe (« volswagen », « clioo », « mercedez ») */
+  if(!out.length&&nq.length>=4){
+    for(var j=0;j<VLIST.length;j++){
+      var w=VLIST[j], tm=norm(w.modele), tf=norm(w.marque);
+      var d=Math.min(lev(nq,tm),lev(nq,tf),lev(nq,norm(w.full)));
+      if(d<=(nq.length>=7?2:1)) out.push({v:w,sc:10+d});
+    }
+  }
   out.sort(function(a,b){return a.sc-b.sc || a.v.full.length-b.v.full.length;});
   return out.slice(0,limit||7).map(function(o){return o.v;});
+}
+/* distance d'édition (nombre minimal de lettres à changer) */
+function lev(a,b){
+  if(Math.abs(a.length-b.length)>2) return 9;
+  var prev=[],cur,i,j;
+  for(j=0;j<=b.length;j++)prev[j]=j;
+  for(i=1;i<=a.length;i++){cur=[i];for(j=1;j<=b.length;j++){cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a.charAt(i-1)===b.charAt(j-1)?0:1));}prev=cur;}
+  return prev[b.length];
 }
 
 /* Modèle non reconnu : on ne devine jamais silencieusement. Le client
@@ -293,7 +309,7 @@ function fresh(){
   return {svc:null,group:null,more:[],marque:'',modele:'',gab:null,gabAuto:false,vehQuery:'',vehUnknown:false,
           clean:null,form:null,opts:[],optsOpen:false,promo:false,promoOpen:false,
           calYear:today.getFullYear(),calMonth:today.getMonth(),jourISO:null,jourLabel:null,heure:null,
-          photos:[],etat:'',prenom:'',nomFam:'',tel:'',email:'',msg:'',skip:{}};
+          photos:[],etat:'',contactPref:'',prenom:'',nomFam:'',tel:'',email:'',msg:'',skip:{}};
 }
 var state=fresh();
 var idx=0;
@@ -308,7 +324,7 @@ function stepsList(){
   if(state.svc==='nettoyage'){
     if(!state.skip.zone) s.push('zone');
     if(!state.skip.form) s.push('formule');
-    s.push('jour','heure','coord');
+    s.push('options','creneau','coord');
   } else s.push('details','coord');
   return s;
 }
@@ -379,7 +395,7 @@ function slotNote(){
 var elBack=document.getElementById('wzBack'), elFill=document.getElementById('wzFill'),
     elCount=document.getElementById('wzCount'), elSum=document.getElementById('wzSum'),
     elStep=document.getElementById('wzStep'), elOrder=document.getElementById('wzOrder');
-var STEP_NAMES={svc:'Prestation',autre:'Prestation',veh:'Véhicule',zone:'Soin',formule:'Formule',jour:'Date',heure:'Heure',details:'Précisions',coord:'Coordonnées'};
+var STEP_NAMES={svc:'Prestation',autre:'Prestation',veh:'Véhicule',zone:'Soin',formule:'Formule',options:'Options',creneau:'Date et heure',details:'Précisions',coord:'Coordonnées'};
 
 function setPanel(html){
   panel.classList.remove('panel-fade','panel-fwd','panel-back');
@@ -391,13 +407,12 @@ function setPanel(html){
 function passed(name){var L=stepsList(),i=L.indexOf(name);return i===-1?!!state.skip[name==='formule'?'form':name]:i<idx;}
 function summaryText(){
   var parts=[], f=chosenForm();
-  if(state.svc) parts.push(svcLabel(state.svc)+(state.more.length?' +'+state.more.length:''));
+  if(state.svc&&(state.svc!=='nettoyage'||state.more.length)) parts.push(svcLabel(state.svc)+(state.more.length?' +'+state.more.length:''));
   if(vehShort()&&passed('veh')) parts.push(vehShort());
   if(state.svc==='nettoyage'){
     if(state.clean&&passed('zone')) parts.push(CLEAN[state.clean].label);
     if(f&&passed('formule')) parts.push(f.k);
     var cur=stepsList()[idx];
-    if(state.jourLabel&&cur==='heure') parts.push(state.jourLabel);
     if(state.jourLabel&&state.heure&&cur==='coord') parts.push(state.jourLabel+' · '+state.heure);
     var gt=grandTotal(); if(f&&gt>0&&passed('formule')) parts.push(gt+' €');
   }
@@ -418,7 +433,7 @@ function render(){
   if(elFill) elFill.style.width=(((idx+1)/L.length)*100)+'%';
   if(elCount) elCount.textContent=(state.svc||state.group)?('Étape '+(idx+1)+' sur '+L.length):'Étape '+(idx+1);
   if(elStep) elStep.textContent=STEP_NAMES[name]||'';
-  var sum=idx>0?summaryText():'';
+  var sum=(idx>0&&name!=='coord')?summaryText():'';
   if(elSum){elSum.hidden=!sum;elSum.textContent=sum;}
   setPanel(R[name]());
   (B[name]||function(){})();
@@ -452,9 +467,9 @@ function renderOrder(){
     if(state.clean&&passed('zone')) soin.push(CLEAN[state.clean].label);
     if(f&&passed('formule')) soin.push(f.k);
     h+=orRow('soin','Soin',soin.join(' · '));
-    var dt=(state.jourLabel&&passed('jour'))?state.jourLabel+((state.heure&&passed('heure'))?' · '+state.heure:''):'';
+    var dt=(state.jourLabel&&state.heure&&passed('creneau'))?state.jourLabel+' · '+state.heure:'';
     h+=orRow('date','Date et heure',dt);
-    if(state.opts.length) h+=orRow('opt','Options',state.opts.length+(state.opts.length>1?' options':' option')+' · +'+optsTotal()+' €');
+    if(state.opts.length&&passed('options')) h+=orRow('opt','Options',state.opts.length+(state.opts.length>1?' options':' option')+' · +'+optsTotal()+' €');
     var gt=grandTotal();
     if(f&&gt>0&&passed('formule')) h+='<div class="wz-or__total"><span>Total</span><b>'+gt+' € <small>TTC</small></b></div>';
     else h+='<p class="wz-or__hint">Le total s\'affiche dès que vous choisissez votre formule.</p>';
@@ -503,11 +518,11 @@ function bindInputs(){
 }
 function contactFields(){
   return '<div class="row2">'+
-    '<div class="field"><label for="prenom">Prénom</label><input id="prenom" autocomplete="given-name" placeholder="Prénom" value="'+esc(state.prenom)+'"></div>'+
-    '<div class="field"><label for="nomFam">Nom</label><input id="nomFam" autocomplete="family-name" placeholder="Nom" value="'+esc(state.nomFam)+'"></div>'+
+    '<div class="field"><label for="prenom">Prénom</label><input id="prenom" autocomplete="given-name" autocapitalize="words" enterkeyhint="next" placeholder="Votre prénom" value="'+esc(state.prenom)+'"></div>'+
+    '<div class="field"><label for="nomFam">Nom</label><input id="nomFam" autocomplete="family-name" autocapitalize="words" enterkeyhint="next" placeholder="Votre nom" value="'+esc(state.nomFam)+'"></div>'+
   '</div><div class="row2">'+
-    '<div class="field"><label for="tel">Téléphone</label><input id="tel" type="tel" autocomplete="tel" placeholder="06 …" value="'+esc(state.tel)+'"></div>'+
-    '<div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="vous@email.com" value="'+esc(state.email)+'"></div>'+
+    '<div class="field"><label for="tel">Téléphone</label><input id="tel" type="tel" inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="06 12 34 56 78" value="'+esc(state.tel)+'"></div>'+
+    '<div class="field"><label for="email">E-mail</label><input id="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" enterkeyhint="done" placeholder="nom@exemple.fr" value="'+esc(state.email)+'"></div>'+
   '</div>';
 }
 function bindCard(el,fn){
@@ -517,12 +532,21 @@ function bindCard(el,fn){
 
 var R={}, B={};
 
+/* pictogrammes des prestations (traits fins, comme le reste de l'interface) */
+var TAG_SHORT={'Réservation immédiate':'En ligne'};
+var SVC_ICO={
+  nettoyage:'<svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.7 1.8L21.5 18.5l-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"/></svg>',
+  ppf:'<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5.2c0 4.4-2.9 8-7 9.8-4.1-1.8-7-5.4-7-9.8V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg>',
+  ceramique:'<svg viewBox="0 0 24 24"><path d="M7 4h10l4 5-9 11L3 9z"/><path d="M3 9h18M9 4l3 5 3-5M12 9v11"/></svg>',
+  polissage:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 4v2.5M20 12h-2.5"/></svg>',
+  autre:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>'
+};
 /* ================= 1 · PRESTATION ================= */
 R.svc=function(){
-  var h='<h2 class="wz-q">Que souhaitez-vous faire ?</h2><div class="wz-opts">';
+  var h='<h2 class="wz-q">Que souhaitez-vous faire ?</h2><p class="wz-hint">Touchez une carte pour commencer.</p><div class="wz-opts">';
   SVC.forEach(function(s){
-    h+='<button type="button" class="wz-opt" data-svc="'+s.k+'"><span class="wz-t"><b>'+s.label+'</b><span>'+s.sub+'</span></span>'+
-       '<span class="wz-tag'+(s.book?' book':'')+'">'+s.tag+'</span></button>';
+    h+='<button type="button" class="wz-opt" data-svc="'+s.k+'"><span class="wz-opt-ico" aria-hidden="true">'+(SVC_ICO[s.k]||SVC_ICO.autre)+'</span><span class="wz-t"><b>'+s.label+'</b><span>'+s.sub+'</span></span>'+
+       '<span class="wz-tag'+(s.book?' book':'')+'"><span class="tl">'+s.tag+'</span><span class="ts">'+(TAG_SHORT[s.tag]||s.tag)+'</span></span></button>';
   });
   return h+'</div>';
 };
@@ -553,7 +577,7 @@ B.autre=function(){
 /* ================= 2 · VÉHICULE ================= */
 R.veh=function(){
   var nett=state.svc==='nettoyage';
-  var h='<h2 class="wz-q">Quel est votre véhicule ?</h2>';
+  var h='<h2 class="wz-q">Quel est votre véhicule ?</h2><p class="wz-hint">Écrivez la marque ou le modèle, par exemple « Clio » ou « BMW ». Une liste vous est proposée.</p>';
   if(nett&&state.vehUnknown){
     h+='<p class="wz-note">'+(state.vehQuery?'<b>'+esc(state.vehQuery)+'</b> ne figure pas encore dans notre base. ':'')+'Indiquez son gabarit : c\'est lui qui détermine le tarif.</p><div class="wz-opts">';
     for(var gk in GABARITS){h+='<button type="button" class="wz-opt" data-gab="'+gk+'"><span class="wz-t"><b>'+GABARITS[gk].label+'</b><span>'+GABARITS[gk].desc+'</span></span></button>';}
@@ -633,7 +657,7 @@ B.veh=function(){
 
 /* ================= 3 · ZONE (nettoyage) ================= */
 R.zone=function(){
-  var h='<h2 class="wz-q">Intérieur, extérieur ou les deux ?</h2><div class="wz-opts">';
+  var h='<h2 class="wz-q">Intérieur, extérieur ou les deux ?</h2><p class="wz-hint">Choisissez ce que vous souhaitez faire nettoyer.</p><div class="wz-opts">';
   ZONES.forEach(function(z){
     h+='<button type="button" class="wz-opt'+(state.clean===z[0]?' sel':'')+'" data-zone="'+z[0]+'"><span class="wz-t"><b>'+z[1]+'</b>'+
        (z[0]==='duo'?'<span>Le véhicule repris dans son ensemble</span>':'')+'</span>'+
@@ -652,7 +676,7 @@ B.zone=function(){
 /* ================= 4 · FORMULE (nettoyage) ================= */
 R.formule=function(){
   var fs=CLEAN[state.clean].formules;
-  var h='<h2 class="wz-q">Quelle formule ?</h2><div class="wz-opts wz-forms">';
+  var h='<h2 class="wz-q">Quelle formule ?</h2><p class="wz-hint">Touchez la formule qui vous convient. Vous pourrez ajouter des options ensuite.</p><div class="wz-opts wz-forms">';
   fs.forEach(function(f,i){
     var tag=f.top?'Signature REYCE':(f.reco?'Le plus choisi':'');
     var det='';
@@ -678,7 +702,35 @@ B.formule=function(){
   });});
 };
 
-/* ================= 5 · JOUR (nettoyage) ================= */
+/* ================= 5 · OPTIONS (nettoyage) ================= */
+R.options=function(){
+  var vis=visibleOptions(), showVar=false;
+  var h='<h2 class="wz-q">Souhaitez-vous ajouter une option ?</h2><p class="wz-hint">C\'est facultatif. Touchez une option pour l\'ajouter, touchez-la encore pour la retirer.</p><div class="wz-opts wz-optlist">';
+  vis.forEach(function(op){
+    var on=state.opts.indexOf(op.id)>-1; if(on&&op.variable)showVar=true;
+    h+='<button type="button" class="wz-opt wz-optrow'+(on?' sel':'')+'" data-opt="'+op.id+'" aria-pressed="'+on+'">'+
+       '<span class="wz-check" aria-hidden="true">'+(on?'✓':'+')+'</span>'+
+       '<span class="wz-t"><b>'+op.nom+'</b><span>'+op.desc+'</span></span>'+
+       '<span class="wz-price">'+(op.variable?'<i>dès</i> ':'')+'+'+op.prix+' €</span></button>';
+  });
+  h+='</div><p class="wz-note" id="optNote"'+(showVar?'':' hidden')+'>'+OPTS_VARIABLE_NOTE+'</p>';
+  h+='<div class="wz-after"><button type="button" class="btn solid wz-cta" id="wzGo"></button></div>';
+  return h;
+};
+function optsCta(){var n=state.opts.length;return n?'Continuer avec '+n+' option'+(n>1?'s':'')+' · +'+optsTotal()+' €':'Continuer sans option';}
+B.options=function(){
+  var go=document.getElementById('wzGo'); go.textContent=optsCta();
+  panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){
+    var id=b.dataset.opt,k=state.opts.indexOf(id); if(k>-1)state.opts.splice(k,1);else state.opts.push(id);
+    var on=k===-1; b.classList.toggle('sel',on); b.setAttribute('aria-pressed',on); b.querySelector('.wz-check').textContent=on?'✓':'+';
+    var vis=visibleOptions(), anyVar=state.opts.some(function(i){var o=vis.find(function(x){return x.id===i;});return o&&o.variable;});
+    document.getElementById('optNote').hidden=!anyVar; go.textContent=optsCta(); renderOrder();
+    pushEvt({event:'option_toggled', option:id, selected:on});
+  });});
+  go.addEventListener('click',goNext);
+};
+
+/* ================= 6 · CRÉNEAU (nettoyage) : le jour et l'heure sur un seul écran ================= */
 function calendarHtml(){
   var dow=['L','M','M','J','V','S','D'];
   var h='<div class="cal-nav"><button type="button" class="cal-nav__btn" id="calPrev" aria-label="Mois précédent">‹</button><span class="mono">'+MONTHS_FR[state.calMonth]+' '+state.calYear+'</span><button type="button" class="cal-nav__btn" id="calNext" aria-label="Mois suivant">›</button></div><div class="cal">';
@@ -696,59 +748,127 @@ function calendarHtml(){
   }
   return h+'</div>';
 }
-R.jour=function(){
-  return '<h2 class="wz-q">Quel jour ?</h2><div id="calWrap">'+calendarHtml()+'</div>'+
-         '<p class="wz-note" id="slotNote">Du lundi au samedi · arrivées de 09:00 à 19:00</p>';
+
+var DAYS_FR=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+var MONTHS_SHORT=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function isoOf(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function nextOpenDays(n){
+  var out=[],t=new Date();
+  for(var i=0;out.length<n&&i<40;i++){var x=new Date(t.getFullYear(),t.getMonth(),t.getDate()+i);if(x.getDay()!==0)out.push(x);}
+  return out;
+}
+function dayLabelLong(iso){
+  var p=iso.split('-'),d=new Date(+p[0],+p[1]-1,+p[2]);
+  return ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][d.getDay()]+' '+d.getDate()+' '+MONTHS_FR[d.getMonth()].toLowerCase();
+}
+var dayCache={};
+function dayKey(iso){return serviceId()+'|'+iso;}
+function loadDay(iso,cb){
+  var key=dayKey(iso);
+  if(dayCache[key]&&!dayCache[key].loading){cb&&cb(dayCache[key]);return;}
+  if(dayCache[key]&&dayCache[key].loading){dayCache[key].waiters.push(cb);return;}
+  var entry=dayCache[key]={loading:true,all:[],free:[],closed:null,waiters:[cb]};
+  function finish(d){
+    dayCache[key]={loading:false,all:(d&&d.all)||[],free:(d&&d.slots)||[],closed:(d&&d.closed)||(d?null:'error')};
+    entry.waiters.forEach(function(w){w&&w(dayCache[key]);});
+  }
+  fetch('/api/slots?service='+encodeURIComponent(serviceId())+'&date='+encodeURIComponent(iso))
+    .then(function(r){return r.ok?r.json():null;}).then(finish).catch(function(){finish(null);});
+}
+function slotMsg(c){
+  if(c.closed==='weekend') return 'L\'atelier est fermé le dimanche : choisissez un jour entre lundi et samedi.';
+  if(c.closed==='late') return 'Il n\'y a plus d\'arrivée possible aujourd\'hui : choisissez un autre jour.';
+  if(c.closed==='past') return 'Ce jour est passé : choisissez un autre jour.';
+  if(c.closed==='error') return 'Impossible de charger les disponibilités. Réessayez dans un instant.';
+  if(c.closed) return 'Aucun horaire ce jour-là. Choisissez un autre jour.';
+  if(!c.free.length) return 'Toutes les arrivées de ce jour sont déjà réservées. Choisissez un autre jour.';
+  return '';
+}
+R.creneau=function(){
+  var days=nextOpenDays(10);
+  var h='<h2 class="wz-q">Quand souhaitez-vous venir ?</h2><p class="wz-hint">Touchez un jour, puis l\'heure à laquelle vous déposez votre véhicule.</p>';
+  h+='<div class="wz-days" id="dayStrip" role="group" aria-label="Jours disponibles">';
+  days.forEach(function(d){
+    h+='<button type="button" class="wz-day" data-iso="'+isoOf(d)+'" aria-pressed="false"><span class="dw">'+DAYS_FR[d.getDay()]+'</span><b>'+d.getDate()+'</b><span class="dm">'+MONTHS_SHORT[d.getMonth()]+'</span><i class="ds">…</i></button>';
+  });
+  h+='</div><p class="wz-link wz-more"><button type="button" class="link-soft" id="moreDates" aria-expanded="false">Choisir un autre jour dans le calendrier</button></p>';
+  h+='<div id="calWrap" hidden></div>';
+  h+='<p class="wz-slotshead" id="slotsHead"></p><div class="wz-chips" id="heureChips" aria-live="polite"></div>';
+  h+='<p class="wz-note">Du lundi au samedi, arrivées de 09:00 à 19:00. Un rendez-vous mobilise l\'atelier au moins 3 heures : les horaires barrés sont déjà pris.</p>';
+  return h;
 };
-B.jour=function(){
-  function bindCal(){
-    var prev=document.getElementById('calPrev'), nxt=document.getElementById('calNext');
-    if(prev)prev.onclick=function(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}redraw();};
-    if(nxt)nxt.onclick=function(){state.calMonth++;if(state.calMonth>11){state.calMonth=0;state.calYear++;}redraw();};
-    document.querySelectorAll('#calWrap [data-iso]').forEach(function(c){bindCard(c,function(){
-      state.jourISO=c.dataset.iso;state.jourLabel=c.dataset.label;state.heure=null;
-      var note=document.getElementById('slotNote'); if(note)note.textContent='Recherche des disponibilités…';
-      fetchSlots(function(){
-        var msg=slotNote();
-        if(msg){var n=document.getElementById('slotNote');if(n)n.textContent=msg;redraw(true);return;}
-        goNext();
-      });
+B.creneau=function(){
+  var strip=document.getElementById('dayStrip'), chips=document.getElementById('heureChips'), head=document.getElementById('slotsHead');
+  var btns=[].slice.call(strip.querySelectorAll('.wz-day')), autoDone=!!state.jourISO;
+  function info(iso){return dayCache[dayKey(iso)];}
+  function paintDay(b){
+    var iso=b.dataset.iso,c=info(iso),s=b.querySelector('.ds');
+    b.classList.remove('full','loading');
+    if(!c||c.loading){b.classList.add('loading');s.textContent='…';b.disabled=false;}
+    else if(c.free.length){b.disabled=false;s.textContent=c.free.length+(c.free.length>1?' horaires':' horaire');}
+    else{b.classList.add('full');b.disabled=true;s.textContent=(c.closed==='late'||c.closed==='past')?'Passé':'Complet';}
+    var on=state.jourISO===iso; b.classList.toggle('sel',on); b.setAttribute('aria-pressed',on);
+  }
+  function paintAll(){btns.forEach(paintDay);}
+  function paintChips(){
+    var iso=state.jourISO;
+    if(!iso){head.textContent='';chips.innerHTML='<span class="wz-note">Recherche des disponibilités…</span>';return;}
+    var c=info(iso);
+    head.textContent='Heures disponibles — '+dayLabelLong(iso);
+    if(!c||c.loading){chips.innerHTML='<span class="wz-note">Recherche des disponibilités…</span>';return;}
+    var msg=slotMsg(c);
+    if(msg){chips.innerHTML='<p class="wz-note">'+msg+'</p>';return;}
+    chips.innerHTML=c.all.map(function(t){var free=c.free.indexOf(t)>-1;
+      return '<button type="button" class="wz-chip'+((state.heure===t&&free)?' sel':'')+(free?'':' taken')+'" data-t="'+t+'"'+(free?'':' disabled')+'>'+t+'</button>';}).join('');
+    chips.querySelectorAll('[data-t]').forEach(function(b){b.addEventListener('click',function(){
+      if(b.disabled)return; state.heure=b.dataset.t;
+      pushEvt({event:'slot_selected', slot_time:state.heure, slot_date:state.jourISO});
+      goNext();
     });});
   }
-  function redraw(keepNote){
-    var w=document.getElementById('calWrap'); if(w){w.innerHTML=calendarHtml();bindCal();}
-    if(!keepNote){var n=document.getElementById('slotNote');if(n)n.textContent='Du lundi au samedi · arrivées de 09:00 à 19:00';}
+  function selectDay(iso){
+    state.jourISO=iso; state.jourLabel=dayLabelLong(iso); state.heure=null; autoDone=true;
+    paintAll(); paintChips();
+    loadDay(iso,function(){paintAll();paintChips();});
   }
-  bindCal();
-};
-
-/* ================= 6 · HEURE (nettoyage) ================= */
-R.heure=function(){
-  var h='<h2 class="wz-q">À quelle heure ?</h2><div class="wz-chips" id="heureChips">';
-  if(!slotState.all.length) h+='<span class="wz-note">Recherche des disponibilités…</span>';
-  slotState.all.forEach(function(t){
-    var free=slotState.free.indexOf(t)>-1;
-    h+='<button type="button" class="wz-chip'+(state.heure===t?' sel':'')+(free?'':' taken')+'" data-t="'+t+'"'+(free?'':' disabled')+'>'+t+'</button>';
+  function maybeAuto(){ /* le premier jour qui a de la place est présélectionné : un seul toucher suffit pour l'heure */
+    if(autoDone)return;
+    for(var i=0;i<btns.length;i++){var c=info(btns[i].dataset.iso); if(!c||c.loading)return; if(c.free.length){selectDay(btns[i].dataset.iso);return;}}
+    autoDone=true; paintChips();
+  }
+  btns.forEach(function(b){
+    b.addEventListener('click',function(){ if(b.disabled)return; selectDay(b.dataset.iso); });
+    loadDay(b.dataset.iso,function(){paintDay(b);maybeAuto();});
   });
-  return h+'</div><p class="wz-note">Un rendez-vous mobilise l\'atelier au moins 3 heures : les horaires barrés sont déjà pris.</p>';
-};
-B.heure=function(){
-  if(slotState.date!==state.jourISO||slotState.svc!==serviceId()||!slotState.all.length){
-    fetchSlots(function(){render();}); return;
+  /* autre jour : calendrier du mois */
+  var more=document.getElementById('moreDates'), wrap=document.getElementById('calWrap');
+  function bindCal(){
+    var prev=document.getElementById('calPrev'), nxt=document.getElementById('calNext');
+    if(prev)prev.onclick=function(){state.calMonth--;if(state.calMonth<0){state.calMonth=11;state.calYear--;}drawCal();};
+    if(nxt)nxt.onclick=function(){state.calMonth++;if(state.calMonth>11){state.calMonth=0;state.calYear++;}drawCal();};
+    wrap.querySelectorAll('[data-iso]').forEach(function(c){bindCard(c,function(){
+      wrap.hidden=true; more.setAttribute('aria-expanded','false'); more.textContent='Choisir un autre jour dans le calendrier';
+      selectDay(c.dataset.iso);
+      try{head.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}
+    });});
   }
-  panel.querySelectorAll('[data-t]').forEach(function(b){b.addEventListener('click',function(){
-    if(b.disabled)return; state.heure=b.dataset.t;
-    pushEvt({event:'slot_selected', slot_time:state.heure, slot_date:state.jourISO});
-    goNext();
-  });});
+  function drawCal(){wrap.innerHTML=calendarHtml();bindCal();}
+  more.addEventListener('click',function(){
+    wrap.hidden=!wrap.hidden; more.setAttribute('aria-expanded',String(!wrap.hidden));
+    more.textContent=wrap.hidden?'Choisir un autre jour dans le calendrier':'Masquer le calendrier';
+    if(!wrap.hidden)drawCal();
+  });
+  paintAll(); paintChips(); maybeAuto();
 };
 
 /* ================= DÉTAILS (devis) ================= */
 R.details=function(){
   var others=SVC.filter(function(s){return s.k!=='nettoyage'&&s.k!=='autre'&&s.k!==state.svc;}).concat(AUTRE.filter(function(s){return s.k!==state.svc&&s.k!=='autre';}));
-  var h='<h2 class="wz-q">Quelques précisions</h2>'+
+  var h='<h2 class="wz-q">Quelques précisions</h2><p class="wz-hint">Tout est facultatif : ces informations nous aident à préparer votre devis.</p>'+
     '<div class="field"><label id="etatLbl">Votre véhicule est…</label><div class="wz-pills" role="radiogroup" aria-labelledby="etatLbl">'+
     [['neuf','Neuf'],['occasion','D\'occasion']].map(function(x){return '<button type="button" class="wz-pill'+(state.etat===x[0]?' sel':'')+'" data-etat="'+x[0]+'" role="radio" aria-checked="'+(state.etat===x[0])+'">'+x[1]+'</button>';}).join('')+'</div></div>'+
+    '<div class="field"><label id="prefLbl">Comment préférez-vous être recontacté ?</label><div class="wz-pills" role="radiogroup" aria-labelledby="prefLbl">'+
+    [['telephone','Par téléphone'],['whatsapp','Par WhatsApp'],['email','Par e-mail']].map(function(x){return '<button type="button" class="wz-pill'+(state.contactPref===x[0]?' sel':'')+'" data-pref="'+x[0]+'" role="radio" aria-checked="'+(state.contactPref===x[0])+'">'+x[1]+'</button>';}).join('')+'</div></div>'+
     '<div class="field"><label for="msg">Un détail à nous préciser ? (facultatif)</label><textarea id="msg" rows="3" placeholder="Couleur, état de la peinture, finition souhaitée, délai…">'+esc(state.msg)+'</textarea></div>'+
     '<div class="field"><label>Aussi intéressé par ? (facultatif)</label><div class="wz-pills">'+
     others.map(function(s){return '<button type="button" class="wz-pill'+(state.more.indexOf(s.k)>-1?' sel':'')+'" data-more="'+s.k+'" aria-pressed="'+(state.more.indexOf(s.k)>-1)+'">'+s.label+'</button>';}).join('')+'</div></div>'+
@@ -766,6 +886,10 @@ B.details=function(){
   panel.querySelectorAll('[data-etat]').forEach(function(b){b.addEventListener('click',function(){
     state.etat=(state.etat===b.dataset.etat)?'':b.dataset.etat;
     panel.querySelectorAll('[data-etat]').forEach(function(x){var on=x.dataset.etat===state.etat;x.classList.toggle('sel',on);x.setAttribute('aria-checked',on);});
+  });});
+  panel.querySelectorAll('[data-pref]').forEach(function(b){b.addEventListener('click',function(){
+    state.contactPref=(state.contactPref===b.dataset.pref)?'':b.dataset.pref;
+    panel.querySelectorAll('[data-pref]').forEach(function(x){var on=x.dataset.pref===state.contactPref;x.classList.toggle('sel',on);x.setAttribute('aria-checked',on);});
   });});
   panel.querySelectorAll('[data-more]').forEach(function(b){b.addEventListener('click',function(){
     var k=b.dataset.more,i=state.more.indexOf(k); if(i>-1)state.more.splice(i,1);else state.more.push(k);
@@ -785,44 +909,43 @@ B.details=function(){
 };
 
 /* ================= COORDONNÉES + CONFIRMATION ================= */
+function jumpTo(name,fallback){
+  var L=stepsList(),i=L.indexOf(name); if(i<0&&fallback)i=L.indexOf(fallback); if(i<0)return;
+  idx=i; navDirection='back'; render(); scrollToStage();
+}
+function recapRow(label,val,step,fallback){
+  return '<div><span>'+label+'</span><b>'+esc(val)+'</b><button type="button" class="wz-edit" data-edit="'+step+'"'+(fallback?' data-fb="'+fallback+'"':'')+' aria-label="Modifier : '+label+'">Modifier</button></div>';
+}
 R.coord=function(){
   var nett=flowType()==='prestation', f=chosenForm();
-  var h='<h2 class="wz-q">'+(nett?'Dernière étape':'Vos coordonnées')+'</h2>';
-  h+=contactFields();
+  var h='<h2 class="wz-q">'+(nett?'Dernière étape : vos coordonnées':'Vos coordonnées')+'</h2><p class="wz-hint">'+(nett?'Nous les utilisons seulement pour confirmer et vous rappeler votre rendez-vous.':'Nous vous recontactons avec une proposition chiffrée.')+'</p>';
   if(nett){
     var st=subTotal(), gt=grandTotal();
-    h+='<div class="wz-recap" style="margin:14px 0 0"><div class="wz-total"><span>Total</span><b>'+((state.promo&&promoEligible())?'<s>'+st+' €</s> ':'')+gt+' € TTC</b></div>'+
-       (optsTotal()>0?'<div><span>dont options</span><b>'+optsTotal()+' €</b></div>':'')+'</div>';
+    h+='<div class="wz-recap wz-recap--edit">'+
+       recapRow('Véhicule',vehDisplay()||'—','veh')+
+       recapRow('Soin',CLEAN[state.clean].label+(f?' · '+f.k:''),'formule','zone')+
+       (state.opts.length?recapRow('Options',state.opts.length+(state.opts.length>1?' options':' option')+' · +'+optsTotal()+' €','options'):'')+
+       recapRow('Date et heure',(state.jourLabel||'')+' à '+(state.heure||''),'creneau')+
+       '<div class="wz-total"><span>Total</span><b>'+((state.promo&&promoEligible())?'<s>'+st+' €</s> ':'')+gt+' € TTC</b></div></div>';
   }
-
+  h+=contactFields();
   if(nett){
-    h+='<details class="wz-fold"'+(state.optsOpen?' open':'')+' id="optFold"><summary>Ajouter une option (facultatif)'+(state.opts.length?' · '+state.opts.length:'')+'</summary><div class="optgrid" style="margin-top:10px">';
-    var showVar=false;
-    visibleOptions().forEach(function(op){
-      var on=state.opts.indexOf(op.id)>-1; if(on&&op.variable)showVar=true;
-      h+='<button type="button" class="optcard'+(on?' sel':'')+'" data-opt="'+op.id+'" aria-pressed="'+on+'"><span class="optck">'+(on?'✓':'+')+'</span><span class="optbody"><b>'+op.nom+'</b><span class="optd">'+op.desc+'</span></span><span class="optp"><i>à partir de</i>'+op.prix+'&nbsp;€</span></button>';
-    });
-    h+='</div>'+(showVar?'<p class="optnote">'+OPTS_VARIABLE_NOTE+'</p>':'')+'</details>';
     if(PROMO.active&&!(state.promo&&promoEligible())){
       h+='<details class="wz-fold"'+(state.promoOpen?' open':'')+' id="promoFold"><summary>J\'ai un code promo</summary><div class="promo-field" style="margin-top:10px"><input id="promoInput" placeholder="Code promo"><button type="button" id="promoBtn">Appliquer</button></div><p class="promo-hint" id="promoHint">Code −10 % valable sur les formules Premium et Expérience.</p></details>';
     } else if(state.promo&&promoEligible()){
       h+='<div class="promo-ok">✓ Code '+PROMO.code+' appliqué — <span class="x">−10 %</span></div>';
     }
-    h+='<p class="wz-note">Votre créneau est confirmé immédiatement ; le règlement se fait sur place selon l\'état réel du véhicule.</p>';
+    h+='<p class="wz-note">Aucun paiement en ligne : votre créneau est confirmé immédiatement et vous réglez sur place, selon l\'état réel du véhicule. Vous recevez la confirmation par e-mail.</p>';
   } else {
     h+='<p class="wz-note">Nous revenons vers vous sous 24 h avec une proposition chiffrée.</p>';
   }
-  h+='<div class="wz-after"><button type="button" class="btn solid wz-cta" id="wzGo">'+(nett?(STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer le rendez-vous'):'Envoyer ma demande')+'</button></div>';
+  h+='<div class="wz-after"><button type="button" class="btn solid wz-cta" id="wzGo">'+(nett?(STRIPE_ENABLED?'Payer l\'acompte et confirmer':'Confirmer mon rendez-vous'):'Envoyer ma demande')+'</button></div>';
   return h;
 };
 B.coord=function(){
   bindInputs();
-  var of=document.getElementById('optFold'); if(of)of.addEventListener('toggle',function(){state.optsOpen=of.open;});
   var pf=document.getElementById('promoFold'); if(pf)pf.addEventListener('toggle',function(){state.promoOpen=pf.open;});
-  panel.querySelectorAll('[data-opt]').forEach(function(b){b.addEventListener('click',function(){
-    var id=b.dataset.opt,k=state.opts.indexOf(id); if(k>-1)state.opts.splice(k,1);else state.opts.push(id);
-    state.optsOpen=true;pushEvt({event:'option_toggled', option:id, selected:k===-1});render();
-  });});
+  panel.querySelectorAll('[data-edit]').forEach(function(b){b.addEventListener('click',function(){jumpTo(b.dataset.edit,b.dataset.fb);});});
   var pb=document.getElementById('promoBtn');
   if(pb)pb.addEventListener('click',function(){
     var v=(document.getElementById('promoInput').value||'').trim().toUpperCase(), hint=document.getElementById('promoHint');
@@ -870,6 +993,7 @@ function done(){
   var sel=[state.svc].concat(state.more), labels=sel.map(svcLabel);
   var parts=['Prestations souhaitées : '+labels.join(', ')];
   if(state.etat) parts.push('Véhicule '+(state.etat==='neuf'?'neuf':'d\'occasion'));
+  if(state.contactPref) parts.push('Contact souhaité : '+({telephone:'par téléphone',whatsapp:'par WhatsApp',email:'par e-mail'}[state.contactPref]));
   if((state.msg||'').trim()) parts.push(state.msg.trim());
   var source='Rendez-vous en ligne (rendez-vous.html) | prestations='+sel.join(',');
   var utm=utmNoteLine(); if(utm) source+=' | '+utm.replace(/^Source : /,'');
@@ -903,6 +1027,17 @@ document.addEventListener('click',function(e){
   var a=e.target.closest('a[href^="tel:"]');
   if(a) pushEvt({event:'click_phone', booking_type:flowType()});
 },true);
+
+/* « A+ » : agrandit les textes de tout le parcours (mémorisé sur l'appareil) */
+(function(){
+  var b=document.getElementById('wzZoom'); if(!b) return;
+  function apply(on){document.documentElement.classList.toggle('wz-big',on);b.setAttribute('aria-pressed',String(on));}
+  try{apply(localStorage.getItem('reyceBigText')==='1');}catch(e){}
+  b.addEventListener('click',function(){
+    var on=!document.documentElement.classList.contains('wz-big'); apply(on);
+    try{localStorage.setItem('reyceBigText',on?'1':'0');}catch(e){}
+  });
+})();
 
 /* ============================================================
    LIENS D'ARRIVÉE (annonces Google Ads, pages du site)
