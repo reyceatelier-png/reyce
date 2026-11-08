@@ -83,10 +83,11 @@ html.intro-seen #pre{display:none}
 
 /* ---- curseur personnalisé ---- */
 @media (hover:hover) and (pointer:fine){
-  body.cursor-on,body.cursor-on a,body.cursor-on button,body.cursor-on .chip,body.cursor-on .opt,body.cursor-on .rcard,body.cursor-on .bcard{cursor:none}
-  #cdot{position:fixed;top:0;left:0;width:6px;height:6px;border-radius:50%;background:#fff;z-index:950;pointer-events:none;
+  body.cursor-on,body.cursor-on a,body.cursor-on button,body.cursor-on label,body.cursor-on summary,body.cursor-on .chip,body.cursor-on .opt,body.cursor-on .rcard,body.cursor-on .bcard,body.cursor-on .wz-opt,body.cursor-on .wz-fcard,body.cursor-on .cc,body.cursor-on .cc-veil{cursor:none}
+  body.cursor-on input,body.cursor-on textarea,body.cursor-on select{cursor:text}
+  #cdot{position:fixed;top:0;left:0;width:6px;height:6px;border-radius:50%;background:#fff;z-index:2147483001;pointer-events:none;
     mix-blend-mode:difference;transition:opacity .2s ease;will-change:transform}
-  #cring{position:fixed;top:0;left:0;width:38px;height:38px;border:1px solid rgba(255,255,255,.55);border-radius:50%;z-index:949;pointer-events:none;
+  #cring{position:fixed;top:0;left:0;width:38px;height:38px;border:1px solid rgba(255,255,255,.55);border-radius:50%;z-index:2147483000;pointer-events:none;
     mix-blend-mode:difference;will-change:transform;
     transition:border-color .2s ease,background-color .2s ease,opacity .2s ease}
   #cring.hot{border-color:#fff;background:rgba(255,255,255,.08)}

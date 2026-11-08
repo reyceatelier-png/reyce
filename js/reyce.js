@@ -18,11 +18,15 @@
     ring.style.transform='translate('+rx+'px,'+ry+'px) translate(-50%,-50%) scale('+sc.toFixed(3)+')';
     requestAnimationFrame(loop);})();
   function setScale(v){ts=v}
-  var hot='a,button,.chip,.opt,.rcard,.bcard,.svc,.tcard,.formcard,.optcard,.gabo';
-  document.querySelectorAll(hot).forEach(function(el){
-    el.addEventListener('mouseenter',function(){ring.classList.add('hot');dot.classList.add('hot');setScale(1.7)});
-    el.addEventListener('mouseleave',function(){ring.classList.remove('hot');dot.classList.remove('hot');setScale(1)});
-  });
+  /* « élément cliquable » : détecté à la volée (délégation), donc aussi pour ce qui est créé après le chargement —
+     fenêtre des cookies, écrans du parcours de réservation. */
+  var hot='a,button,label,summary,.chip,.opt,.rcard,.bcard,.svc,.tcard,.formcard,.optcard,.gabo,.wz-opt,.wz-fcard,.wz-day,.wz-chip,.wz-pill,.wz-edit,.wz-back,.wz-zoom,.cc-btn,.cc-link,.cc-row,.cal .d[data-iso]';
+  var isHot=false;
+  document.addEventListener('mouseover',function(e){
+    var on=!!(e.target.closest&&e.target.closest(hot));
+    if(on===isHot)return; isHot=on;
+    ring.classList.toggle('hot',on);dot.classList.toggle('hot',on);setScale(on?1.7:1);
+  },{passive:true});
   var ba=document.getElementById('ba');
   if(ba){ba.addEventListener('mouseenter',function(){ring.classList.add('drag');setScale(2)});
          ba.addEventListener('mouseleave',function(){ring.classList.remove('drag');setScale(1)});}
