@@ -232,7 +232,8 @@
   .gx-works{grid-template-columns:1fr;max-width:520px;margin:0 auto}
 }
 @media(max-width:640px){
-  .gx-reel__bars{display:none}
+  /* barres masquées à l'écran mais actives : leur animation fait défiler les photos */
+  .gx-reel__bars{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
   .gx-reel__num{display:block;margin-left:auto;margin-right:14px}
   .gx-hero{min-height:max(100svh,700px)}
   .gx-hero__in{padding-bottom:300px}
