@@ -84,6 +84,21 @@ const publicLimiter = rateLimit({
   message: { error: 'Trop de requêtes, réessayez plus tard.' },
 });
 
+// Lectures publiques (créneaux, réservation, compte rendu, tarifs) : assez large pour le parcours de réservation
+// (une semaine de créneaux = plusieurs appels), mais borné contre l'extraction automatisée.
+const readLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes, réessayez plus tard.' },
+});
+app.use(['/api/slots', '/api/booking', '/api/public', '/api/care'], readLimiter);
+// Les réponses de l'API contiennent des données de clients : jamais mises en cache (navigateur ou intermédiaire).
+app.use('/api', (req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+// Fonctions du navigateur que le site n'utilise pas : refusées d'office.
+app.use((req, res, next) => { res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'); next(); });
+
 // Toute route async qui rejette (ex. base de données injoignable) doit
 // répondre 500 au client au lieu de crasher tout le process Node (rejet de
 // promesse non capturé). On enveloppe automatiquement chaque handler async
@@ -1010,9 +1025,42 @@ function escapeHtml(str) {
 function sanitizeHeaderValue(str) {
   return String(str || '').replace(/[\r\n]+/g, ' ').trim();
 }
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Une adresse ne peut contenir ni guillemet, ni apostrophe, ni chevron, ni barre oblique inverse :
+// ces caractères permettraient d'injecter du code dans l'espace d'administration.
+const EMAIL_RE = /^[^\s@<>"'`\\]+@[^\s@<>"'`\\]+\.[^\s@<>"'`\\]+$/;
 function isValidEmail(str) {
   return typeof str === 'string' && str.length <= 254 && EMAIL_RE.test(str.trim());
+}
+
+// ── Sécurité : neutralisation de tout texte saisi par un visiteur ──────────
+// Noms, modèle de véhicule, notes, messages… sont affichés plus tard dans le CRM et dans des e-mails.
+// On supprime à la source ce qui permettrait d'y glisser du HTML ou du JavaScript : chevrons et barre
+// oblique inverse supprimés, guillemets et apostrophes remplacés par leurs formes typographiques (« O'Brien » → « O’Brien »).
+function cleanText(v, max, multiline) {
+  let t = String(v == null ? '' : v);
+  t = multiline ? t.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ') : t.replace(/[\u0000-\u001f\u007f]/g, ' ');
+  return t.replace(/'/g, '\u2019').replace(/["`]/g, '\u201d').replace(/[<>\\]/g, '').trim().slice(0, max || 200);
+}
+function cleanPhone(v) { return String(v == null ? '' : v).replace(/[^0-9+().\s-]/g, '').trim().slice(0, 25); }
+function cleanClient(c) {
+  const o = c && typeof c === 'object' ? c : {};
+  return {
+    firstName: cleanText(o.firstName, 80),
+    lastName:  cleanText(o.lastName, 80),
+    email:     typeof o.email === 'string' ? o.email.trim().slice(0, 254) : '',
+    phone:     cleanPhone(o.phone),
+    notes:     o.notes ? cleanText(o.notes, 1000, true) : undefined
+  };
+}
+// Une pièce jointe n'est acceptée que si son contenu est réellement une photo (le type annoncé par le navigateur ne prouve rien).
+function imageKind(f) {
+  const b = f && f.buffer;
+  if (!b || b.length < 12) return null;
+  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return { ext: 'jpg', mime: 'image/jpeg' };
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return { ext: 'png', mime: 'image/png' };
+  if (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') return { ext: 'webp', mime: 'image/webp' };
+  if (b.toString('ascii', 4, 8) === 'ftyp' && /^(heic|heix|hevc|heim|heis|mif1|msf1)/.test(b.toString('ascii', 8, 12))) return { ext: 'heic', mime: 'image/heic' };
+  return null;
 }
 
 // ── Envoi via Gmail REST API (HTTPS port 443) ─────────────────
@@ -1481,6 +1529,8 @@ app.use((req, res, next) => {
 //    correctif doit atteindre les visiteurs rapidement
 //  - pages HTML : inchangées (max-age=0), un changement de contenu est immédiat
 // L'accueil s'affiche sur « / » : /index.html (ancien lien, favoris, moteurs de recherche) y renvoie en 301.
+// L'espace d'administration ne doit jamais être indexé ni mis en cache.
+app.use('/admin.html', (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); res.setHeader('Cache-Control', 'no-store'); next(); });
 app.get('/index.html', (req, res) => {
   const q = req.url.indexOf('?');
   res.redirect(301, '/' + (q > -1 ? req.url.slice(q) : ''));
@@ -1512,7 +1562,7 @@ app.use(express.static(path.join(__dirname), {
 // la demande n'est pas perdue. Stockage : table EventLog (type « lead »), sans migration ; le
 // champ payload contient la fiche complète (coordonnées, véhicule, source, statut, notes, historique).
 const LEAD_STATUSES = ['new', 'to_call', 'contacted'];
-const clipText = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+const clipText = (v, n) => cleanText(v, n, true);
 
 // Source écrite par les formulaires : « Landing ppf (ppf.html) | cible=neuve | utm_source=… » ou
 // « Rendez-vous en ligne (rendez-vous.html) | prestations=ppf | utm_source=… · utm_medium=… ».
@@ -1625,8 +1675,8 @@ app.post('/api/contact', async (req, res) => {
     res.json({ ok: true });
     if (isDevis) sendLeadAck(email, firstName, vehicleInfo, source, subject);
   } catch (err) {
-    console.error('[Contact] ✗ Erreur Brevo :', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[Contact] ✗ Erreur d\'envoi :', err.message);
+    res.status(500).json({ error: 'Envoi impossible pour le moment. Réessayez dans un instant ou appelez-nous au 07 63 00 43 85.' });
   }
 });
 
@@ -1641,6 +1691,10 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
   }
   if (!isValidEmail(email)) {
     return res.status(400).json({ error: 'Adresse email invalide' });
+  }
+  const uploaded = Array.isArray(req.files) ? req.files : [];
+  if (uploaded.some(f => !imageKind(f))) {
+    return res.status(400).json({ error: 'Seules les photos (JPEG, PNG, WebP ou HEIC) sont acceptées.' });
   }
 
   await recordLead({ kind: 'devis', firstName, lastName, email, phone, vehicleInfo, subject, message, source, photos: Array.isArray(req.files) ? req.files.length : 0 });
@@ -1689,11 +1743,10 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
   <p class="foot">Reçu via le site www.reyce.fr</p>
 </div></body></html>`;
 
-  const attachments = files.map((f, i) => ({
-    filename: f.originalname || `photo-${i + 1}.jpg`,
-    contentType: f.mimetype,
-    buffer: f.buffer
-  }));
+  const attachments = files.map((f, i) => {
+    const kind = imageKind(f);
+    return { filename: `photo-${i + 1}.${kind.ext}`, contentType: kind.mime, buffer: f.buffer };
+  });
 
   console.log(`[Devis photos] Envoi → to: ${ownerEmail} (${files.length} photo(s))`);
   try {
@@ -1703,7 +1756,7 @@ app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (r
     sendLeadAck(email, firstName, vehicleInfo, source, subject);
   } catch (err) {
     console.error('[Devis photos] ✗ Erreur :', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Envoi impossible pour le moment. Réessayez dans un instant ou appelez-nous au 07 63 00 43 85.' });
   }
 });
 
@@ -1728,8 +1781,8 @@ app.get('/api/slots', async (req, res) => {
 // l'écriture est volontairement "best effort" : elle ne doit jamais faire
 // échouer la réservation en cours.
 app.post('/api/vehicle-unknown', publicLimiter, express.json({ limit: '4kb' }), async (req, res) => {
-  const query = typeof req.body?.query === 'string' ? req.body.query.trim().slice(0, 120) : '';
-  const category = typeof req.body?.category === 'string' ? req.body.category.trim().slice(0, 40) : null;
+  const query = typeof req.body?.query === 'string' ? cleanText(req.body.query, 120) : '';
+  const category = typeof req.body?.category === 'string' ? cleanText(req.body.category, 40) : null;
   if (!query) return res.status(400).json({ error: 'Saisie manquante' });
   try {
     await prisma.eventLog.create({
@@ -1792,7 +1845,11 @@ async function notifyOwnerBookingFailure(ctx, err) {
 
 app.use('/api/create-checkout-session', publicLimiter, express.json());
 app.post('/api/create-checkout-session', async (req, res) => {
-  const { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType, opts } = req.body;
+  let { service, vehicleType, vehicleModel, tintOption, date, time, paymentType, opts } = req.body;
+  const client = cleanClient(req.body.client);
+  vehicleType  = Object.prototype.hasOwnProperty.call(GABARIT_SUPP_CENTS, vehicleType) ? vehicleType : undefined;
+  vehicleModel = vehicleModel ? cleanText(vehicleModel, 120) : undefined;
+  tintOption   = tintOption ? cleanText(tintOption, 60) : undefined;
 
   if (!SERVICES[service])
     return res.status(400).json({ error: 'Prestation invalide' });
@@ -1881,7 +1938,11 @@ app.post('/api/create-checkout-session', async (req, res) => {
 // webhook Stripe, mais sans étape de paiement.
 app.use('/api/create-booking', publicLimiter, express.json());
 app.post('/api/create-booking', async (req, res) => {
-  const { service, vehicleType, vehicleModel, tintOption, date, time, client, opts } = req.body;
+  let { service, vehicleType, vehicleModel, tintOption, date, time,  opts } = req.body;
+  const client = cleanClient(req.body.client);
+  vehicleType  = Object.prototype.hasOwnProperty.call(GABARIT_SUPP_CENTS, vehicleType) ? vehicleType : undefined;
+  vehicleModel = vehicleModel ? cleanText(vehicleModel, 120) : undefined;
+  tintOption   = tintOption ? cleanText(tintOption, 60) : undefined;
 
   if (!SERVICES[service])
     return res.status(400).json({ error: 'Prestation invalide' });
