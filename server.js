@@ -1508,6 +1508,25 @@ app.post('/api/webhook',
 // reste (code serveur, schéma de base de données, .env*, node_modules)
 // devient invisible par URL directe, sans réorganiser les 120 pages
 // existantes qui référencent leurs assets en chemin relatif.
+// ── Adresses propres : /prestations plutôt que /prestations.html ──────────
+// Chaque page du dépôt (fichier .html à la racine) est servie sans extension. L'ancienne adresse avec « .html »
+// (liens existants, favoris, moteurs de recherche, annonces) renvoie en 301 vers la nouvelle, requête conservée (utm, gclid, fbclid).
+// Les pages transactionnelles gardent leur adresse : liens déjà envoyés par e-mail, retour de paiement, page de remerciement des annonces.
+const fs = require('fs');
+const KEEP_HTML   = new Set(['index', '404', 'admin', 'merci-devis', 'confirmation', 'rdv-confirmation', 'care-report', 'cancel']);
+const CLEAN_PAGES = new Set(fs.readdirSync(__dirname).filter(f => /^[a-z0-9][a-z0-9-]*\.html$/i.test(f)).map(f => f.slice(0, -5).toLowerCase()).filter(n => !KEEP_HTML.has(n)));
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const m = /^\/([a-z0-9][a-z0-9-]*)(\.html|\/)?$/i.exec(req.path);
+  const name = m && m[1].toLowerCase();
+  if (!m || !CLEAN_PAGES.has(name)) return next();
+  if (m[2] || name !== m[1]) {
+    const q = req.originalUrl.indexOf('?');
+    return res.redirect(301, '/' + name + (q > -1 ? req.originalUrl.slice(q) : ''));
+  }
+  res.sendFile(path.join(__dirname, name + '.html'));
+});
+
 const PUBLIC_DIRS  = ['assets', 'css', 'js'];
 const PUBLIC_FILES = ['robots.txt', 'sitemap.xml', 'llms.txt'];
 app.use((req, res, next) => {
@@ -1917,7 +1936,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
       customer_email: client.email,
       locale:         'fr',
       success_url:    `${process.env.BASE_URL}/confirmation.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:     `${process.env.BASE_URL}/rendez-vous.html`,
+      cancel_url:     `${process.env.BASE_URL}/rendez-vous`,
       metadata: {
         bookingType: 'reyce',
         bookingData: JSON.stringify(bookingData)
@@ -2477,9 +2496,9 @@ async function ensureCampaignSeed() {
   if (n > 0) return;
   await prisma.eventLog.createMany({ data: [
     { type: 'campaign', payload: { name: 'REYCE – Car Spa – Prospects', platform: 'Meta (Instagram / Facebook)', objective: 'Prospects · évènement Lead', status: 'draft',
-      notes: 'Reels · Lyon + 50 km · 25 ans et plus · destination : page de réservation.', url: 'https://www.reyce.fr/rendez-vous.html', dailyBudget: null, startDate: '' } },
+      notes: 'Reels · Lyon + 50 km · 25 ans et plus · destination : page de réservation.', url: 'https://www.reyce.fr/rendez-vous', dailyBudget: null, startDate: '' } },
     { type: 'campaign', payload: { name: 'Google Ads – PPF', platform: 'Google Ads', objective: 'Demandes de devis PPF', status: 'pending',
-      notes: 'À lancer après la validation de l\'annonceur par Google.', url: 'https://www.reyce.fr/ppf.html', dailyBudget: null, startDate: '' } }
+      notes: 'À lancer après la validation de l\'annonceur par Google.', url: 'https://www.reyce.fr/ppf', dailyBudget: null, startDate: '' } }
   ] });
 }
 

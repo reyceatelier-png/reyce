@@ -141,7 +141,7 @@
     var main = el('div', { 'class': 'cc-main' }, [
       el('p', { 'class': 'cc-text', text: 'REYCE utilise des cookies pour mesurer l’audience du site et l’efficacité de ses annonces. Rien n’est activé sans votre accord, et vous pouvez changer d’avis à tout moment depuis « Gérer les cookies », en bas de page.' }),
       el('p', { 'class': 'cc-text' }, [
-        el('a', { href: 'confidentialite.html', text: 'Politique de confidentialité' })
+        el('a', { href: '/confidentialite', text: 'Politique de confidentialité' })
       ]),
       el('div', { 'class': 'cc-actions' }, [
         btn('Tout refuser', 'cc-btn', function () { choose(false, false); }),

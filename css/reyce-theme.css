@@ -1,0 +1,107 @@
+/* REYCE — thème commun à toutes les pages (verre noir, titres serrés, boutons en pilule).
+   Chargé après reyce.css. Les règles de contenu sont limitées à main:not(.gx) : la page d'accueil a son propre fichier (reyce-premium.css). */
+
+/* en-tête : bouton « Réserver » en pilule de verre */
+nav.main a.cta{border-radius:99px;padding:12px 24px;background:var(--gl-tile);border:1px solid var(--gl-line-hi);box-shadow:var(--gl-sheen);font-weight:600}
+nav.main a.cta:hover{background:#fff;color:#000;border-color:#fff;box-shadow:0 14px 34px -12px rgba(255,255,255,.55)}
+nav.main a.active::after{box-shadow:none;opacity:.8}
+.foot-sig .meta{letter-spacing:.2em}
+header.stuck{background:rgba(8,8,10,.55);-webkit-backdrop-filter:blur(26px) saturate(170%);backdrop-filter:blur(26px) saturate(170%);border-color:var(--gl-line)}
+
+/* ---------- titres : phrases en minuscules, graisse forte, approche serrée ---------- */
+main:not(.gx) .phero h1{font-weight:700;text-transform:none;font-size:clamp(2.7rem,7.2vw,6.4rem);line-height:.97;letter-spacing:-.055em;margin-top:20px;text-wrap:balance}
+main:not(.gx) .phero p{color:rgba(255,255,255,.76);font-size:clamp(1rem,1.3vw,1.14rem);line-height:1.65;max-width:52ch}
+main:not(.gx) .sec-head h2{font-weight:700;text-transform:none;font-size:clamp(2rem,5vw,4.3rem);line-height:1.02;letter-spacing:-.048em;max-width:20ch}
+main:not(.gx) .cta-band h2{font-weight:700;text-transform:none;font-size:clamp(2.1rem,5vw,4.1rem);line-height:1.02;letter-spacing:-.048em;max-width:18ch}
+main:not(.gx) .resa .aside h3,main:not(.gx) .panel h4,main:not(.gx) .lp-form h3{font-weight:700;text-transform:none;letter-spacing:-.04em}
+main:not(.gx) .mani h2{text-transform:none;font-weight:300;letter-spacing:-.045em}
+main:not(.gx) .mani h2 b{font-weight:700}
+main:not(.gx) .proto li h3,main:not(.gx) .univers h3,main:not(.gx) .rcard h3,main:not(.gx) .rail h3,main:not(.gx) .nsvc span,main:not(.gx) .st-step b,main:not(.gx) .tier-card h3{text-transform:none;font-weight:700;letter-spacing:-.035em}
+main:not(.gx) .univers h3{font-size:clamp(1.6rem,3vw,2.4rem);line-height:1.04}
+main:not(.gx) .rcard h3{font-size:1.5rem;line-height:1.08}
+main:not(.gx) .rail h3{font-size:1.45rem}
+main:not(.gx) .nsvc span{font-size:1.4rem}
+main:not(.gx) .st-step b{font-size:1.05rem;line-height:1.25}
+main:not(.gx) .proto li h3{font-size:1.25rem}
+main:not(.gx) .ticks::before,main:not(.gx) .ticks::after{display:none}
+/* ---------- boutons : pilules ---------- */
+main:not(.gx) .btn{border-radius:99px;padding:17px 30px;font-weight:600;letter-spacing:.14em;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.3);box-shadow:var(--gl-sheen);
+  transition:background .25s,border-color .25s,color .25s,transform .45s var(--gl-spring),box-shadow .3s}
+main:not(.gx) .btn:hover:not(:disabled){background:rgba(255,255,255,.17);border-color:rgba(255,255,255,.55);color:#fff;transform:translateY(-2px);box-shadow:var(--gl-sheen)}
+main:not(.gx) .btn.solid{background:#fff;color:#000;border-color:#fff;box-shadow:0 18px 40px -16px rgba(255,255,255,.5)}
+main:not(.gx) .btn.solid:hover:not(:disabled){background:#fff;color:#000;transform:translateY(-3px);box-shadow:0 26px 52px -16px rgba(255,255,255,.68)}
+main:not(.gx) .btn.ghost{background:none;border-color:transparent;box-shadow:none;padding-left:0}
+main:not(.gx) .btn.ghost:hover:not(:disabled){background:none;transform:none}
+main:not(.gx) .btn-line{border-radius:0}
+main:not(.gx) .chip,main:not(.gx) .more-row a,main:not(.gx) .lp-usp li{border-radius:99px}
+main:not(.gx) .chip{background:var(--gl-tile);border-color:var(--gl-line);font-weight:600}
+main:not(.gx) .chip:hover{border-color:var(--gl-line-hi);background:var(--gl-tile-hover)}
+main:not(.gx) .chip.sel{background:#fff;color:#000;border-color:#fff}
+main:not(.gx) .more-row a{background:var(--gl-tile);border-color:var(--gl-line)}
+main:not(.gx) .more-row a:hover{background:var(--gl-tile-hover);color:#fff;border-color:var(--gl-line-hi)}
+main:not(.gx) .lp-usp li{background:rgba(0,0,0,.45);border-color:var(--gl-line)}
+/* ---------- cartes de verre ---------- */
+main:not(.gx) .tier-grid{gap:16px}
+main:not(.gx) .tier-card{border-radius:28px;border:1px solid var(--gl-line);box-shadow:var(--gl-sheen);
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0) 44%),rgba(12,12,15,.8)}
+main:not(.gx) .tier-card.featured{border-color:rgba(255,255,255,.5);background:linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,0) 50%),rgba(18,18,22,.88);box-shadow:var(--gl-sheen),0 26px 60px -34px rgba(255,255,255,.4)}
+main:not(.gx) .tier-card .price{font-weight:700;letter-spacing:-.04em;font-size:1.9rem}
+main:not(.gx) .incl{border:0;gap:12px}
+main:not(.gx) .incl div{border:1px solid var(--gl-line);border-radius:20px;box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 50%),rgba(12,12,15,.7)}
+main:not(.gx) .svc-facts{border:1px solid var(--gl-line);border-radius:26px;padding:4px 26px;box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0) 40%),rgba(12,12,15,.72)}
+main:not(.gx) .svc-facts div:last-child{border-bottom:0}
+main:not(.gx) .svc-gal{gap:14px}
+main:not(.gx) .svc-gal img{border-radius:24px;border-color:var(--gl-line)}
+main:not(.gx) .next-svc{gap:14px}
+main:not(.gx) .nsvc{border-radius:28px;min-height:230px;border-color:var(--gl-line)}
+main:not(.gx) .faq{border-top:0;display:grid;gap:10px}
+main:not(.gx) .faq details{border:1px solid var(--gl-line);border-radius:22px;padding:0 26px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 60%),rgba(12,12,15,.72);transition:border-color .3s,background .3s}
+main:not(.gx) .faq details[open]{border-color:var(--gl-line-hi);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0) 60%),rgba(16,16,20,.82)}
+main:not(.gx) .faq summary{padding:22px 0;font-weight:600}
+main:not(.gx) .faq details p{padding-bottom:24px}
+main:not(.gx) .cta-band{border-radius:38px;border:1px solid var(--gl-line);box-shadow:var(--gl-sheen),var(--gl-shadow);
+  background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,0) 42%),var(--gl-veil)}
+main:not(.gx) .exp-callout{border-radius:30px;border:1px solid var(--gl-line-hi);box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0) 40%),rgba(14,14,18,.8)}
+main:not(.gx) .story{gap:14px;border:0}
+main:not(.gx) .story .st-step:nth-child(n){border:1px solid var(--gl-line);border-radius:26px;overflow:hidden;box-shadow:var(--gl-sheen)}
+main:not(.gx) .proto ol{border-top:0;display:grid;gap:10px}
+main:not(.gx) .proto li{border:1px solid var(--gl-line);border-radius:22px;padding:22px 26px;box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 60%),rgba(12,12,15,.72)}
+main:not(.gx) .proto li .pn{opacity:.38}
+main:not(.gx) .rgrid{gap:14px}
+main:not(.gx) .rcard{border-radius:28px;border-color:var(--gl-line)}
+main:not(.gx) .rcard::before{display:none}
+main:not(.gx) .rcard .rc-count{border-radius:99px;background:rgba(8,8,10,.6);padding:6px 12px}
+main:not(.gx) .univers{gap:14px}
+main:not(.gx) .univers a{border-radius:32px;border-color:var(--gl-line)}
+main:not(.gx) .univers-more{border-top:0;padding-top:0}
+main:not(.gx) .rail{gap:14px}
+main:not(.gx) .rail article{border-radius:28px;overflow:hidden}
+main:not(.gx) .resa{border-radius:34px;overflow:hidden;border-color:var(--gl-line);box-shadow:var(--gl-sheen),var(--gl-shadow);background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,0) 30%),var(--gl-veil)}
+main:not(.gx) .resa .aside{border-right-color:var(--gl-line)}
+main:not(.gx) .ba-wrap{border-radius:28px;border-color:var(--gl-line)}
+main:not(.gx) .field input,main:not(.gx) .field select,main:not(.gx) .field textarea{background:var(--gl-well);border:1px solid var(--gl-line);border-radius:16px;padding:15px 18px;box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+main:not(.gx) .field input:focus,main:not(.gx) .field select:focus,main:not(.gx) .field textarea:focus{border-color:rgba(255,255,255,.75);box-shadow:0 0 0 4px rgba(255,255,255,.09),inset 0 1px 2px rgba(0,0,0,.5)}
+main:not(.gx) .lp-file{border-radius:18px;border-color:var(--gl-line-hi)}
+
+/* ---------- finitions : composants restants ---------- */
+main:not(.gx) h1,main:not(.gx) h2,main:not(.gx) h3,main:not(.gx) h4{text-transform:none}
+main:not(.gx) .proto li{grid-template-columns:clamp(44px,5vw,64px) 1fr}
+main:not(.gx) .val-grid{border:0;gap:14px;margin-top:0}
+main:not(.gx) .val-grid div,main:not(.gx) .val-grid div:last-child{border:1px solid var(--gl-line);border-radius:24px;box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 50%),rgba(12,12,15,.72)}
+main:not(.gx) .val-grid div:hover{background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,0) 50%),rgba(18,18,22,.8)}
+main:not(.gx) .val-grid h3{font-weight:700;letter-spacing:-.03em;font-size:1.2rem}
+main:not(.gx) .lp-compare{border:0;gap:14px}
+main:not(.gx) .lp-compare>div{border:1px solid var(--gl-line);border-radius:26px;box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,0) 50%),rgba(12,12,15,.72)}
+main:not(.gx) .lp-compare>div+div{background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,0) 50%),rgba(18,18,22,.82)}
+main:not(.gx) .lp-compare h3,main:not(.gx) .legal-doc h3{font-weight:700;letter-spacing:-.03em}
+main:not(.gx) .lp-real-empty{border-radius:26px;border-color:var(--gl-line-hi)}
+main:not(.gx) .lp-split{border:0;gap:14px}
+main:not(.gx) .lp-split .lp-media{border-radius:28px;border:1px solid var(--gl-line)}
+main:not(.gx) .lp-split .lp-body{border:1px solid var(--gl-line);border-radius:28px;box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0) 40%),rgba(12,12,15,.78)}
+main:not(.gx) .hero-car{border-radius:32px;overflow:hidden;border-color:var(--gl-line);box-shadow:var(--gl-shadow)}
+main:not(.gx) .merci-in h1,main:not(.gx) .conf-inner h1{text-transform:none}
+main:not(.gx) .legal-doc .art{border-top-color:var(--gl-line)}
+main:not(.gx) .wz-title{font-weight:700;letter-spacing:-.045em}
+main:not(.gx) .rail article.txt{display:flex;align-items:flex-end;border:1px solid var(--gl-line);box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,0) 44%),rgba(12,12,15,.78)}
+main:not(.gx) .rail article.txt::after{display:none}
+main:not(.gx) .rail article.txt h3{font-size:1.6rem}

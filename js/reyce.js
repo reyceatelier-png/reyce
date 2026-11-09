@@ -136,9 +136,9 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
   var ppf=/^\/(ppf-|pourquoi-faire-un-ppf|pourquoi-proteger-une-voiture-neuve|realisation-ppf|guide-ppf)/.test(location.pathname);
   if(ppf){
     var wa='https://wa.me/33763004385?text=Bonjour%20Reyce%2C%20je%20souhaite%20un%20devis%20PPF%20pour%20mon%20v%C3%A9hicule%20%3A%20%5Bmod%C3%A8le%2C%20ann%C3%A9e%2C%20neuf%20ou%20non%5D.';
-    bar.innerHTML='<a class="mb-call" href="tel:+33763004385" data-ev="mbar_call">Appeler</a><a class="mb-wa" href="'+wa+'" target="_blank" rel="noopener" data-ev="mbar_wa">WhatsApp</a><a class="mb-book" href="ppf.html#devis" data-ev="mbar_devis">Devis PPF</a>';
+    bar.innerHTML='<a class="mb-call" href="tel:+33763004385" data-ev="mbar_call">Appeler</a><a class="mb-wa" href="'+wa+'" target="_blank" rel="noopener" data-ev="mbar_wa">WhatsApp</a><a class="mb-book" href="/ppf#devis" data-ev="mbar_devis">Devis PPF</a>';
   }else{
-  bar.innerHTML='<a class="mb-call" href="tel:+33763004385" data-ev="mbar_call">Appeler</a><a class="mb-book" href="rendez-vous.html" data-ev="mbar_book">Réserver</a>';
+  bar.innerHTML='<a class="mb-call" href="tel:+33763004385" data-ev="mbar_call">Appeler</a><a class="mb-book" href="/rendez-vous" data-ev="mbar_book">Réserver</a>';
   }
   document.body.appendChild(bar);document.body.classList.add('has-mbar');
   function sync(){bar.classList.toggle('on',window.scrollY>360)}
@@ -152,12 +152,14 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
 // n'est pas chargé (c'est-à-dire tant que le consentement n'est pas donné).
 (function(){
   window.dataLayer=window.dataLayer||[];
+  // Nom de la page sans extension (« ppf »), que l'adresse soit /ppf ou /ppf.html
+  function slug(){return location.pathname.replace(/^\//,'').replace(/\/$/,'').replace(/\.html$/,'')||'index';}
   function pageType(){
-    var p=location.pathname.replace(/^\//,'')||'index.html';
-    if(p==='index.html')return 'accueil';
-    if(/^ppf-(voiture-neuve|tesla|sportives)\.html$/.test(p))return 'landing_ppf_cible';
-    if(p==='ppf.html')return 'landing_ppf';
-    if(/^(polissage|ceramique)\.html$/.test(p))return 'landing_service';
+    var p=slug();
+    if(p==='index')return 'accueil';
+    if(/^ppf-(voiture-neuve|tesla|sportives)$/.test(p))return 'landing_ppf_cible';
+    if(p==='ppf')return 'landing_ppf';
+    if(/^(polissage|ceramique)$/.test(p))return 'landing_service';
     if(/^(ppf|polissage|ceramique|nettoyage|covering)-/.test(p))return 'page_locale';
     if(/^(realisation|guide)/.test(p))return 'contenu';
     return 'page';
@@ -178,6 +180,6 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
     if(/^tel:/i.test(h))ev='click_phone';
     else if(/^https?:\/\/(wa\.me|api\.whatsapp\.com)\//i.test(h))ev='click_whatsapp';
     if(!ev)return;
-    window.dataLayer.push({event:ev,link_location:emplacement(a),page_type:pageType(),cible:cible(),lead_source:(location.pathname.replace(/^\//,'')||'index.html')});
+    window.dataLayer.push({event:ev,link_location:emplacement(a),page_type:pageType(),cible:cible(),lead_source:slug()+'.html'});
   },true);
 })();

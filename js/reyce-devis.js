@@ -104,7 +104,8 @@
     var subjectMap = { ppf: 'Devis PPF', polissage: 'Devis polissage', ceramique: 'Devis céramique' };
     var subject = subjectMap[service] || 'Demande de devis';
     // Jamais l'URL complète : seulement la page, la cible et, avec consentement, l'attribution.
-    var sourceParts = ['Landing ' + service + ' (' + window.location.pathname.replace(/^\//, '') + ')', 'cible=' + cible];
+    var pageName = (window.location.pathname.replace(/^\//, '').replace(/\.html$/, '') || 'index') + '.html';   // même libellé qu'avant les adresses propres
+    var sourceParts = ['Landing ' + service + ' (' + pageName + ')', 'cible=' + cible];
     ATTR_FIELDS.forEach(function (k) { var v = val(k); if (v) sourceParts.push(k + '=' + v); });
     var sourceTag = sourceParts.join(' | ');
 
@@ -116,7 +117,7 @@
       }
       push({
         event: 'generate_lead', service: service, form_location: 'landing_' + service, currency: 'EUR', value: 0,
-        lead_source: window.location.pathname.replace(/^\//, '') || 'index.html',
+        lead_source: (window.location.pathname.replace(/^\//, '').replace(/\.html$/, '') || 'index') + '.html',
         link_location: 'form',
         page_type: (window.reyceTrack && window.reyceTrack.pageType()) || 'landing_ppf',
         cible: cible,
