@@ -102,6 +102,11 @@ main:not(.gx) .hero-car{border-radius:32px;overflow:hidden;border-color:var(--gl
 main:not(.gx) .merci-in h1,main:not(.gx) .conf-inner h1{text-transform:none}
 main:not(.gx) .legal-doc .art{border-top-color:var(--gl-line)}
 main:not(.gx) .wz-title{font-weight:700;letter-spacing:-.045em}
-main:not(.gx) .rail article.txt{display:flex;align-items:flex-end;border:1px solid var(--gl-line);box-shadow:var(--gl-sheen);background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,0) 44%),rgba(12,12,15,.78)}
+main:not(.gx) .rail article.txt{display:flex;align-items:flex-end;border:1px solid var(--gl-line);box-shadow:var(--gl-sheen);background:radial-gradient(110% 70% at 18% 0%,rgba(255,255,255,.13),transparent 62%),linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0) 44%),rgba(12,12,15,.82)}
 main:not(.gx) .rail article.txt::after{display:none}
 main:not(.gx) .rail article.txt h3{font-size:1.6rem}
+main:not(.gx) .wz-or__title{text-transform:uppercase}
+@media(max-width:700px){main:not(.gx) .phero.phero--court{min-height:0;padding-top:128px}}
+/* boutons aux libellés longs (noms de communes) : ils passent à la ligne au lieu de dépasser de l'écran */
+main:not(.gx) .btn{max-width:100%}
+main:not(.gx) .lp-cta-row .btn{white-space:normal;text-align:center;line-height:1.4}

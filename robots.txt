@@ -5,6 +5,8 @@ Disallow: /api/
 Disallow: /cancel.html
 Disallow: /confirmation.html
 Disallow: /merci-devis.html
+Disallow: /rdv-confirmation.html
+Disallow: /care-report.html
 
 # Robots d'indexation IA / moteurs de réponse — autorisés explicitement
 # (déjà couverts par User-agent: * ci-dessus, listés ici pour clarté)
