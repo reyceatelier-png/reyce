@@ -110,3 +110,66 @@ main:not(.gx) .wz-or__title{text-transform:uppercase}
 /* boutons aux libellés longs (noms de communes) : ils passent à la ligne au lieu de dépasser de l'écran */
 main:not(.gx) .btn{max-width:100%}
 main:not(.gx) .lp-cta-row .btn{white-space:normal;text-align:center;line-height:1.4}
+
+/* ============================================================
+   TÉLÉPHONE : plus d'air, un texte plus lisible, moins de cadres, des photos qui respirent
+   ============================================================ */
+@media(max-width:700px){
+  :root{--pad:24px;--dim:rgba(255,255,255,.76);--dim-2:rgba(255,255,255,.52)}
+  body{font-weight:400;letter-spacing:.005em}
+  /* pied de page : liens faciles à toucher */
+  footer .foot-grid{gap:44px}
+  footer .col a{display:block;padding:8px 0;font-size:1rem}
+  footer .col p{font-size:1rem;line-height:1.7}
+  footer .col-t{margin-bottom:10px}
+}
+
+@media(max-width:700px){/* texte courant : plus gros, plus net */
+main:not(.gx) .wrap p,main:not(.gx) .phero p,main:not(.gx) .wrap li,main:not(.gx) .lead p,main:not(.gx) .faq details p{font-size:1.06rem;line-height:1.74;font-weight:400;color:rgba(255,255,255,.86)}
+main:not(.gx) .phero p{font-size:1.1rem;color:rgba(255,255,255,.9)}
+main:not(.gx) .wrap .lp-note,main:not(.gx) .wrap .fnote,main:not(.gx) .wrap small{font-size:.92rem;line-height:1.65}
+/* petites étiquettes : lisibles, moins serrées ; les mentions décoratives du coin disparaissent */
+main:not(.gx) .mono,main:not(.gx) .crumb,main:not(.gx) .crumb a,main:not(.gx) .crumb span,main:not(.gx) .fk,main:not(.gx) .tk,main:not(.gx) .lp-glabel,main:not(.gx) .sec-head .idx,main:not(.gx) .proto .lead .mono,main:not(.gx) .svc-facts div span:first-child{font-size:.74rem;letter-spacing:.16em}
+main:not(.gx) .sec-head .idx{display:none}
+main:not(.gx) .lp-usp li{font-size:.72rem;letter-spacing:.08em;padding:9px 14px}
+/* rythme vertical */
+main:not(.gx) .sec-head{padding-top:92px;margin-bottom:34px}
+main:not(.gx) .sec-head h2,main:not(.gx) .cta-band h2{line-height:1.08}
+main:not(.gx) .phero h1{line-height:1.04}
+main:not(.gx) .phero{padding-bottom:40px}
+main:not(.gx) .phero .pbg{filter:brightness(.82) contrast(1.03)}
+main:not(.gx) .phero .pscrim{background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.05) 38%,rgba(0,0,0,.92))}
+main:not(.gx) .lp-cta-row{gap:14px;margin-top:34px}
+main:not(.gx) .btn{min-height:54px;display:inline-flex;align-items:center;justify-content:center}
+/* moins de petites boîtes : les listes deviennent des lignes séparées par un filet fin */
+main:not(.gx) .incl{gap:0}
+main:not(.gx) .incl div,main:not(.gx) .incl div:last-child{background:none;box-shadow:none;border:0;border-bottom:1px solid var(--gl-line);border-radius:0;padding:20px 2px}
+main:not(.gx) .incl div:last-child{border-bottom:0}
+main:not(.gx) .incl div .tick{opacity:.55}
+main:not(.gx) .proto ol{gap:0}
+main:not(.gx) .proto li{background:none;box-shadow:none;border:0;border-bottom:1px solid var(--gl-line);border-radius:0;padding:24px 0}
+main:not(.gx) .proto li:last-child{border-bottom:0}
+/* cartes qui comptent (tarifs, garanties, comparatifs) : plus d'espace à l'intérieur et entre elles */
+main:not(.gx) .tier-grid,main:not(.gx) .lp-compare,main:not(.gx) .val-grid{gap:16px}
+main:not(.gx) .val-grid{grid-template-columns:1fr}
+main:not(.gx) .tier-card{padding:30px 26px}
+main:not(.gx) .lp-compare>div,main:not(.gx) .val-grid div,main:not(.gx) .val-grid div:last-child{padding:28px 26px}
+main:not(.gx) .svc-facts{padding:6px 24px}
+main:not(.gx) .svc-facts div{padding:18px 0}
+main:not(.gx) .faq{gap:12px}
+main:not(.gx) .faq details{padding:0 24px}
+main:not(.gx) .faq summary{padding:24px 0;font-size:1.06rem;line-height:1.45}
+/* photos : grandes, sur toute la largeur, avec de l'air autour */
+main:not(.gx) .svc-gal{grid-template-columns:1fr;gap:18px}
+main:not(.gx) .svc-gal img{aspect-ratio:4/3;border-radius:28px}
+main:not(.gx) .story{gap:18px}
+main:not(.gx) .rgrid{gap:18px}
+main:not(.gx) .next-svc{gap:16px}
+main:not(.gx) .nsvc{min-height:280px;padding:28px}
+main:not(.gx) .nsvc span{font-size:1.5rem}
+main:not(.gx) .lp-split .lp-media{min-height:300px}
+main:not(.gx) .hero-car{margin-bottom:8px}
+/* formulaires */
+main:not(.gx) .lp-form{padding:28px 22px}
+main:not(.gx) .field input,main:not(.gx) .field select,main:not(.gx) .field textarea{padding:17px 18px;font-size:16px}
+main:not(.gx) .lp-choice span{padding:13px 16px;font-size:.7rem}}

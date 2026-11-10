@@ -265,3 +265,28 @@
   .gx-link::after{display:none}
   .gx-card .gx-link{border-bottom:1px solid rgba(255,255,255,.4);padding-bottom:4px}
 }
+
+/* ---- TÉLÉPHONE : le titre d'abord (plus petit), puis une grande photo, puis le texte ---- */
+@media(max-width:900px){
+  .gx{--gx-photo:min(58svh,520px)}
+  .gx-hero{display:flex;flex-direction:column;align-items:stretch;min-height:0;padding:96px 0 0;overflow:visible}
+  .gx-hero__in{display:contents}
+  .gx-hero__shade{display:none}
+  .gx-hero .gx-eyebrow{order:1;margin:0 var(--gx-pad)}
+  .gx-h1{order:2;margin:12px var(--gx-pad) 24px;font-size:clamp(2.1rem,10vw,2.9rem);line-height:1;letter-spacing:-.05em}
+  .gx-hero__media{order:3;position:relative;inset:auto;z-index:0;height:var(--gx-photo);margin:0 var(--gx-pad);border-radius:30px;overflow:hidden;border:1px solid var(--gl-line)}
+  .gx-slide img,.gx-slide.is-wide img{width:100%;height:100%;-webkit-mask-image:none;mask-image:none}
+  .gx-reel{order:4;position:static;margin:16px var(--gx-pad) 0;animation:none;justify-content:space-between}
+  .gx-reel__cap{text-align:left;order:-1}
+  .gx-hero .gx-lead{order:5;margin:30px var(--gx-pad) 0}
+  .gx-hero .gx-cta{order:6;margin:26px var(--gx-pad) 0}
+  .gx-dock{order:7;position:static;margin:36px var(--gx-pad) 0;animation:none}
+}
+@media(max-width:640px){
+  .gx-sec{padding:clamp(76px,12vh,120px) 0}
+  .gx-sub,.gx-card p{font-size:1.05rem;line-height:1.72}
+  .gx-dock span{font-size:.92rem}
+  .gx-tile p{font-size:1rem}
+  .gx-j__do li,.gx-amen p,.gx-spa p{font-size:1rem;line-height:1.6}
+  .gx-steps,.gx-spa,.gx-amen,.gx-works,.gx-bento{gap:18px}
+}
