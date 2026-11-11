@@ -1587,7 +1587,7 @@ app.get('/.well-known/security.txt', (req, res) => {
 });
 
 const PUBLIC_DIRS  = ['assets', 'css', 'js'];
-const PUBLIC_FILES = ['robots.txt', 'sitemap.xml', 'llms.txt'];
+const PUBLIC_FILES = ['robots.txt', 'sitemap.xml', 'llms.txt', 'favicon.ico'];   // favicon.ico : Google et les navigateurs le demandent à la racine
 app.use((req, res, next) => {
   const reqPath = req.path.split('?')[0];
   // Toute requête vers /api/... est gérée plus bas dans ce fichier — ce
