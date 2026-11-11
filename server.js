@@ -1068,6 +1068,9 @@ function sanitizeHeaderValue(str) {
 // Une adresse ne peut contenir ni guillemet, ni apostrophe, ni chevron, ni barre oblique inverse :
 // ces caractères permettraient d'injecter du code dans l'espace d'administration.
 const EMAIL_RE = /^[^\s@<>"'`\\]+@[^\s@<>"'`\\]+\.[^\s@<>"'`\\]+$/;
+// Journaux du serveur : jamais une adresse e-mail ni un numéro de téléphone en clair (on garde de quoi retrouver un message sans exposer la personne).
+function maskEmail(e) { const s = String(e || ''); const i = s.indexOf('@'); return i > 1 ? s[0] + '***' + s.slice(i) : (s ? '***' : ''); }
+function maskPhone(p) { const d = String(p || '').replace(/\D/g, ''); return d.length > 4 ? '••••' + d.slice(-2) : '••'; }
 function isValidEmail(str) {
   return typeof str === 'string' && str.length <= 254 && EMAIL_RE.test(str.trim());
 }
@@ -1322,9 +1325,9 @@ async function sendConfirmationEmails(data, svc) {
   try {
     const ics = [{ filename: 'rendez-vous-reyce.ics', contentType: 'text/calendar; charset=UTF-8; method=PUBLISH', buffer: Buffer.from(buildIcs(data, svc, data.sessionId || undefined), 'utf8') }];
     await sendEmail(data.client.email, clientMail.subject, clientMail.html, ics);
-    console.log(`[Email] ✓ Client → ${data.client.email}`);
+    console.log(`[Email] ✓ Client → ${maskEmail(data.client.email)}`);
   } catch (err) {
-    console.error(`[Email] ✗ Client → ${data.client.email} | ${err.message}`);
+    console.error(`[Email] ✗ Client → ${maskEmail(data.client.email)} | ${err.message}`);
   }
 
   try {
@@ -1360,7 +1363,7 @@ async function sendSMS(to, body) {
   });
 
   if (!res.ok) { const e = await res.text(); throw new Error(`Twilio ${res.status}: ${e}`); }
-  console.log(`[SMS] ✓ Envoyé → ${phone}`);
+  console.log(`[SMS] ✓ Envoyé → ${maskPhone(phone)}`);
   return res.json();
 }
 
@@ -2756,7 +2759,7 @@ app.post('/api/admin/marketing/send', async (req, res) => {
       sent++;
     } catch (err) {
       failed++;
-      console.error(`[Marketing] ✗ ${email} :`, err.message);
+      console.error(`[Marketing] ✗ ${maskEmail(email)} :`, err.message);
     }
     await new Promise(r => setTimeout(r, 300));
   }
@@ -3070,7 +3073,7 @@ app.post('/api/admin/send-reminder', async (req, res) => {
     if (booking.client?.phone) {
       await sendSMS(booking.client.phone, `REYCE — Rappel : rendez-vous ${formatDate(booking.date)} à ${booking.time}. 47 chemin du Pras, La Mulatière. À demain !`).catch(() => {});
     }
-    console.log(`[Admin] ✓ Email "rappel" → ${booking.client.email}`);
+    console.log(`[Admin] ✓ Email "rappel" → ${maskEmail(booking.client.email)}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('[Admin] ✗ send-reminder :', err.message);
@@ -3110,7 +3113,7 @@ app.post('/api/admin/send-ready', async (req, res) => {
     if (booking.client?.phone) {
       await sendSMS(booking.client.phone, `REYCE — Votre véhicule est prêt. Chaque détail a été traité avec précision. À tout de suite ! 47 chemin du Pras, La Mulatière.`).catch(() => {});
     }
-    console.log(`[Admin] ✓ Email "prêt" → ${booking.client.email}`);
+    console.log(`[Admin] ✓ Email "prêt" → ${maskEmail(booking.client.email)}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('[Admin] ✗ send-ready :', err.message);
@@ -3147,7 +3150,7 @@ app.post('/api/admin/send-review', async (req, res) => {
 
   try {
     await sendEmail(booking.client.email, 'Merci pour votre confiance — REYCE', html);
-    console.log(`[Admin] ✓ Email "avis" → ${booking.client.email}`);
+    console.log(`[Admin] ✓ Email "avis" → ${maskEmail(booking.client.email)}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('[Admin] ✗ send-review :', err.message);
@@ -3245,7 +3248,7 @@ async function runReminders(opts) {
         const ics = [{ filename: 'rendez-vous-reyce.ics', contentType: 'text/calendar; charset=UTF-8; method=PUBLISH', buffer: Buffer.from(buildIcs(booking, catalog[row.serviceId] || SERVICES[row.serviceId], row.stripeSessionId), 'utf8') }];
         await sendEmail(row.guestEmail, mail.subject, mail.html, ics, { replyTo: process.env.OWNER_EMAIL || process.env.GMAIL_USER });
         result.envoyes++;
-        console.log(`[Rappel] ✓ ${row.guestEmail} · ${result.date} ${row.startTime}`);
+        console.log(`[Rappel] ✓ ${maskEmail(row.guestEmail)} · ${result.date} ${row.startTime}`);
       } catch (err) {
         result.erreurs++;
         await prisma.eventLog.delete({ where: { id: log.id } }).catch(() => {});   // sera retenté au prochain passage
