@@ -255,6 +255,8 @@ var PROMO={active:true, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', fo
    ============================================================ */
 window.dataLayer=window.dataLayer||[];
 function pushEvt(o){try{window.dataLayer.push(o);}catch(e){}}
+/* Libellé de véhicule envoyé aux outils de mesure : jamais une adresse e-mail ni un numéro de téléphone saisi dans le mauvais champ. */
+function safeLabel(s){s=String(s==null?'':s).trim().slice(0,40);return(!s||/@/.test(s)||/\d{6,}/.test(s.replace(/[\s.\-]/g,'')))?null:s;}
 var _started=false;
 function trackStart(){
   if(_started)return;_started=true;
@@ -645,7 +647,7 @@ B.veh=function(){
     if(state.marque&&state.gab!==bt.dataset.gab){state.marque='';state.modele='';state.vehQuery='';}
     state.gab=bt.dataset.gab;state.gabAuto=false;state.vehUnknown=false;
     logUnknownVehicle(state.vehQuery,state.gab);
-    pushEvt({event:'vehicle_selected', vehicle_type:state.gab, vehicle_label:state.vehQuery||null, recognised:false});
+    pushEvt({event:'vehicle_selected', vehicle_type:state.gab, vehicle_label:safeLabel(state.vehQuery), recognised:false});
     goNext();
   });});
   var noModel=document.getElementById('noModel');
@@ -982,7 +984,7 @@ function done(){
         if(data.sessionId){
           /* booking_complete : uniquement après confirmation réelle du serveur. */
           pushEvt({event:'booking_complete',service:serviceId(),formula:f.k,service_area:state.clean,clean_type:state.clean,
-                   vehicle_type:state.gab,vehicle_label:vehLabel()||null,journey:'direct',value:grandTotal(),currency:'EUR'});
+                   vehicle_type:state.gab,vehicle_label:safeLabel(vehLabel()),journey:'direct',value:grandTotal(),currency:'EUR'});
           var qs='session_id='+encodeURIComponent(data.sessionId),utm=utmQueryString(); if(utm)qs+='&'+utm;
           setTimeout(function(){window.location.href='/confirmation.html?'+qs;},250);
         }
