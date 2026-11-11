@@ -209,7 +209,7 @@ nav.main a.cta:hover{background:#fff;color:#000;box-shadow:0 0 22px rgba(255,255
 .burger.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
 #drawer{position:fixed;inset:0;z-index:110;background:#000;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 var(--pad);transform:translateY(-100%);transition:transform .6s var(--ease);visibility:hidden}
 #drawer.open{transform:none;visibility:visible}
-#drawer a{font-family:var(--disp);font-weight:600;font-size:2.3rem;text-transform:uppercase;padding:10px 0;border-bottom:1px solid var(--line-soft);color:#fff}
+#drawer a{font-family:var(--disp);font-weight:600;font-size:clamp(1.3rem,calc(10vw - 8px),2.3rem);text-transform:uppercase;padding:10px 0;border-bottom:1px solid var(--line-soft);color:#fff}
 #drawer a .n{font-weight:500;font-size:.6rem;color:var(--dim-2);vertical-align:super;margin-right:14px;letter-spacing:.2em}
 
 
