@@ -21,9 +21,29 @@ const PORT     = process.env.PORT || 3000;
 // au lieu de celle du visiteur, et le rate limiting ne servirait à rien.
 app.set('trust proxy', 1);
 
+// ── Adresse canonique : https://www.reyce.fr ───────────────────
+// Le domaine sans « www » et toute requête en HTTP simple sont renvoyés (301) vers l'adresse HTTPS avec www, chemin et
+// paramètres de campagne conservés. Ne concerne que les pages (GET/HEAD) : jamais les appels d'API ni le webhook de paiement.
+// (Le domaine sans www ne répond que si le DNS pointe vers ce serveur ou redirige vers www : voir la procédure chez le registrar.)
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const host  = String(req.headers['x-forwarded-host'] || req.headers.host || '').toLowerCase().split(':')[0];
+  const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  if (host === 'reyce.fr' || (host === 'www.reyce.fr' && proto === 'http')) {
+    // une seule redirection : l'ancienne adresse « .html » est aussi convertie en adresse propre
+    let path = req.path;
+    const m = /^\/([a-z0-9][a-z0-9-]*)\.html$/i.exec(path);
+    if (path === '/index.html') path = '/';
+    else if (m && CLEAN_PAGES.has(m[1].toLowerCase())) path = '/' + m[1].toLowerCase();
+    const q = req.originalUrl.indexOf('?');
+    return res.redirect(301, 'https://www.reyce.fr' + path + (q > -1 ? req.originalUrl.slice(q) : ''));
+  }
+  next();
+});
+
 // ── En-têtes de sécurité ──────────────────────────────────────
 // CSP construite à partir de ce que le site charge réellement (vérifié dans
-// les pages HTML) : Google Fonts, Google Tag Manager (script inline + son
+// les pages HTML) : polices hébergées sur le site, Google Tag Manager (script inline + son
 // iframe noscript), et le JSON-LD inline présent sur presque toutes les
 // pages. Aucun Stripe.js côté client : le paiement redirige vers une session
 // Stripe créée côté serveur, donc rien à autoriser pour Stripe ici.
@@ -42,8 +62,8 @@ app.use(helmet({
       // <script> déjà admis par scriptSrc : sans cette ligne, helmet les bloque (script-src-attr 'none') et
       // les boutons de l'espace d'administration ne répondent plus.
       scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      fontSrc: ["'self'"],
       imgSrc: ["'self'", 'data:', 'https:'],
       connectSrc: ["'self'", 'https://www.googletagmanager.com', 'https://*.google-analytics.com', 'https://analytics.google.com',
         'https://*.google.com', 'https://*.google.fr', 'https://*.g.doubleclick.net', 'https://ad.doubleclick.net',
@@ -82,6 +102,23 @@ const publicLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes, réessayez plus tard.' },
+});
+
+// Formulaires qui envoient des e-mails : un visiteur normal en envoie un ou deux, pas dix.
+const formLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de demandes envoyées. Réessayez dans un moment ou appelez-nous au 07 63 00 43 85.' },
+});
+// Création de réservation : empêche de bloquer tous les créneaux de l'atelier avec de fausses réservations.
+const bookingLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de réservations depuis cette connexion. Appelez-nous au 07 63 00 43 85 pour réserver.' },
 });
 
 // Lectures publiques (créneaux, réservation, compte rendu, tarifs) : assez large pour le parcours de réservation
@@ -747,7 +784,10 @@ function calendarButtonHtml(data, svc) {
 // Jeton signé (HMAC) sans stockage : identifiant du rendez-vous + date limite. La page reçoit le
 // jeton dans l'adresse ; seul un clic sur le bouton de cette page enregistre la confirmation, ce qui
 // évite qu'un antivirus ou un aperçu de messagerie « confirme » à la place du client.
-function apptTokenSecret() { return process.env.APP_SECRET || process.env.ADMIN_TOKEN || 'reyce-dev-secret'; }
+// Secret des liens signés : APP_SECRET, sinon ADMIN_TOKEN ; à défaut, un secret aléatoire propre au processus
+// (les liens signés cessent alors d'être valides au redémarrage, mais personne ne peut les forger).
+const FALLBACK_APP_SECRET = crypto.randomBytes(32).toString('hex');
+function apptTokenSecret() { return process.env.APP_SECRET || process.env.ADMIN_TOKEN || FALLBACK_APP_SECRET; }
 function signApptToken(id, expMs) {
   const p = Buffer.from(`${id}.${expMs}`).toString('base64url');
   const sig = crypto.createHmac('sha256', apptTokenSecret()).update(p).digest('base64url').slice(0, 32);
@@ -1156,7 +1196,15 @@ function buildLeadAck(firstName, vehicleInfo, cible, subject) {
   const veh = vehicleInfo ? escapeHtml(String(vehicleInfo).slice(0, 120)) : '';
   const prestation = escapeHtml(String(subject || 'Demande de devis').slice(0, 80));
   const about = CIBLES[cible] || 'votre véhicule';
-  const wa = 'https://wa.me/33763004385?text=' + encodeURIComponent('Bonjour Reyce, je viens de faire une demande de devis PPF sur votre site.');
+  // Sujet réel de la demande (l'accusé disait toujours « PPF », même pour un polissage, une céramique ou une demande professionnelle)
+  const subj = String(subject || '').toLowerCase();
+  const TOPICS = [[/ppf/, 'au PPF', 'PPF'], [/polissage/, 'au polissage', 'polissage'], [/c[ée]ramique/, 'à la protection céramique', 'céramique'],
+                  [/professionnel/, 'à nos services pour les professionnels', 'professionnel'], [/car staging/, 'au Car Staging', 'Car Staging']];
+  const hits = TOPICS.filter(t => t[0].test(subj));
+  const topic = hits.length === 1 ? hits[0][1] : 'à nos prestations';
+  const topicShort = hits.length === 1 ? hits[0][2] : '';
+  const forWhat = hits.length === 1 && hits[0][2] === 'professionnel' ? '' : ' pour ' + about;
+  const wa = 'https://wa.me/33763004385?text=' + encodeURIComponent('Bonjour Reyce, je viens de faire une demande de devis' + (topicShort ? ' ' + topicShort : '') + ' sur votre site.');
   // Même charte que l'e-mail de confirmation de rendez-vous (buildClientEmail).
   const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -1200,7 +1248,7 @@ function buildLeadAck(firstName, vehicleInfo, cible, subject) {
   <p class="title">Votre demande<br>est bien reçue.</p>
   <p class="sub">
     Bonjour ${first},<br>
-    merci de l'intérêt que vous portez au PPF pour ${about}. Nous étudions votre demande et revenons vers vous par téléphone ou par e-mail.
+    merci de l'intérêt que vous portez ${topic}${forWhat}. Nous étudions votre demande et revenons vers vous par téléphone ou par e-mail.
   </p>
 
   <div class="badge">Récapitulatif de votre demande</div>
@@ -1527,6 +1575,14 @@ app.use((req, res, next) => {
   res.sendFile(path.join(__dirname, name + '.html'));
 });
 
+app.get('/.well-known/security.txt', (req, res) => {
+  res.type('text/plain; charset=utf-8').send(
+    'Contact: mailto:reyceatelier@gmail.com\n' +
+    'Expires: 2027-11-10T00:00:00.000Z\n' +
+    'Preferred-Languages: fr, en\n' +
+    'Canonical: https://www.reyce.fr/.well-known/security.txt\n');
+});
+
 const PUBLIC_DIRS  = ['assets', 'css', 'js'];
 const PUBLIC_FILES = ['robots.txt', 'sitemap.xml', 'llms.txt'];
 app.use((req, res, next) => {
@@ -1626,7 +1682,7 @@ async function recordLead({ kind, firstName, lastName, email, phone, vehicleInfo
 }
 
 // ── Contact / Devis ──────────────────────────────────────────
-app.use('/api/contact', publicLimiter, express.json());
+app.use('/api/contact', formLimiter, express.json());
 app.post('/api/contact', async (req, res) => {
   const { type, firstName, lastName, email, phone, subject, message, source, vehicleInfo } = req.body;
 
@@ -1637,7 +1693,8 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ error: 'Adresse email invalide' });
   }
 
-  await recordLead({ kind: type === 'devis' ? 'devis' : 'message', firstName, lastName, email, phone, vehicleInfo, subject, message, source });
+  const isPro = type === 'devis' && /professionnel/i.test(String(subject || ''));
+  await recordLead({ kind: isPro ? 'pro' : (type === 'devis' ? 'devis' : 'message'), firstName, lastName, email, phone, vehicleInfo, subject, message, source });
 
   if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_REFRESH_TOKEN) {
     console.log('[Contact] Variables Gmail OAuth2 manquantes — email ignoré');
@@ -1702,7 +1759,7 @@ app.post('/api/contact', async (req, res) => {
 // ============================================================
 // Demande de devis "projet" avec photos jointes (jusqu'à 3)
 // ============================================================
-app.post('/api/devis-photos', publicLimiter, upload.array('photos', 3), async (req, res) => {
+app.post('/api/devis-photos', formLimiter, upload.array('photos', 3), async (req, res) => {
   const { firstName, lastName, email, phone, subject, message, vehicleInfo, source } = req.body;
 
   if (!email || !firstName) {
@@ -1862,7 +1919,7 @@ async function notifyOwnerBookingFailure(ctx, err) {
   return true;
 }
 
-app.use('/api/create-checkout-session', publicLimiter, express.json());
+app.use('/api/create-checkout-session', bookingLimiter, express.json());
 app.post('/api/create-checkout-session', async (req, res) => {
   let { service, vehicleType, vehicleModel, tintOption, date, time, paymentType, opts } = req.body;
   const client = cleanClient(req.body.client);
@@ -1955,7 +2012,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
 // Réservation directe sans paiement en ligne (acompte/Stripe désactivés) :
 // le créneau est bloqué et confirmé immédiatement, comme le ferait le
 // webhook Stripe, mais sans étape de paiement.
-app.use('/api/create-booking', publicLimiter, express.json());
+app.use('/api/create-booking', bookingLimiter, express.json());
 app.post('/api/create-booking', async (req, res) => {
   let { service, vehicleType, vehicleModel, tintOption, date, time,  opts } = req.body;
   const client = cleanClient(req.body.client);
@@ -2010,18 +2067,26 @@ app.post('/api/create-booking', async (req, res) => {
   res.json({ ok: true, sessionId: booking.stripeSessionId });
 });
 
+// Données renvoyées à la page de confirmation : uniquement ce qu'elle affiche (jamais l'e-mail, le téléphone,
+// les notes du client ni les notes internes de l'atelier).
+function publicBooking(b, extra) {
+  const c = b.client || {};
+  return Object.assign({
+    sessionId: b.sessionId, service: b.service, serviceName: b.serviceName,
+    vehicleType: b.vehicleType, vehicleModel: b.vehicleModel, tintOption: b.tintOption,
+    date: b.date, time: b.time, durationMin: b.durationMin, totalCents: b.totalCents, paymentType: b.paymentType,
+    client: { firstName: c.firstName, lastName: c.lastName }
+  }, extra || {});
+}
 app.get('/api/booking/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
+  if (!/^[A-Za-z0-9_-]{8,200}$/.test(sessionId)) return res.status(404).json({ error: 'Réservation introuvable' });
 
   // Réservation directe (sans Stripe) : les infos sont en base, pas côté Stripe.
   if (sessionId.startsWith('local_')) {
     const booking = await findBookingBySessionId(sessionId);
     if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
-    return res.json({
-      ...booking,
-      paymentStatus: 'on_site',
-      depositAmount: 0
-    });
+    return res.json(publicBooking(booking, { paymentStatus: 'on_site', depositAmount: 0 }));
   }
 
   try {
@@ -2033,13 +2098,8 @@ app.get('/api/booking/:sessionId', async (req, res) => {
     const data = JSON.parse(session.metadata.bookingData);
     const svc  = SERVICES[data.service];
 
-    res.json({
-      ...data,
-      serviceName:   svc?.name || data.service,
-      depositAmount: (svc?.depositCents || 0) / 100,
-      paymentStatus: session.payment_status,
-      sessionId:     session.id
-    });
+    res.json(publicBooking({ ...data, serviceName: svc?.name || data.service, sessionId: session.id, durationMin: svc?.durationMin },
+      { depositAmount: (svc?.depositCents || 0) / 100, paymentStatus: session.payment_status }));
   } catch {
     res.status(404).json({ error: 'Réservation introuvable' });
   }
@@ -2052,6 +2112,9 @@ app.get('/api/booking/:sessionId', async (req, res) => {
 // Le mot de passe (la variable ADMIN_TOKEN) n'est saisi qu'une fois par appareil : le serveur répond
 // par un cookie signé (HttpOnly, SameSite=Strict, Secure en HTTPS), valable 30 jours. Changer
 // ADMIN_TOKEN invalide toutes les sessions. L'en-tête x-admin-token reste accepté (scripts, tests).
+if (process.env.ADMIN_TOKEN && process.env.ADMIN_TOKEN.length < 16) {
+  console.warn('[Sécurité] ADMIN_TOKEN fait moins de 16 caractères : choisissez un mot de passe plus long (Railway > Variables).');
+}
 const ADMIN_COOKIE = 'reyce_admin';
 const ADMIN_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 function sameSecret(a, b) {
@@ -2087,9 +2150,12 @@ function requireAdmin(req, res, next) {
 }
 
 // Connexion / déconnexion / état de la session : déclarées avant le garde requireAdmin.
-app.post('/api/admin/login', adminLimiter, express.json(), (req, res) => {
+app.post('/api/admin/login', adminLimiter, express.json(), async (req, res) => {
   const { password, remember } = req.body || {};
-  if (!adminTokenMatches(password)) return res.status(401).json({ error: 'Mot de passe incorrect.' });
+  if (!adminTokenMatches(password)) {
+    await new Promise(r => setTimeout(r, 700));
+    return res.status(401).json({ error: 'Mot de passe incorrect.' });
+  }
   const attrs = [`${ADMIN_COOKIE}=${encodeURIComponent(signAdminSession(Date.now() + ADMIN_SESSION_MS))}`, 'Path=/api/admin', 'HttpOnly', 'SameSite=Strict'];
   if (remember !== false) attrs.push(`Max-Age=${Math.floor(ADMIN_SESSION_MS / 1000)}`); // sinon : cookie de session, effacé à la fermeture du navigateur
   if (req.secure) attrs.push('Secure');
@@ -2103,6 +2169,21 @@ app.post('/api/admin/logout', (req, res) => {
 app.get('/api/admin/session', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({ authenticated: verifyAdminSession(readCookie(req, ADMIN_COOKIE)) });
+});
+
+// Protection CSRF supplémentaire (en plus du cookie SameSite=Strict) : une requête qui modifie des données
+// d'administration ne peut pas venir d'un autre site. Les scripts sans en-tête Origin (tests, curl) restent acceptés.
+app.use('/api/admin', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  const site = req.headers['sec-fetch-site'];
+  if (site && site !== 'same-origin' && site !== 'none') return res.status(403).json({ error: 'Origine refusée.' });
+  const origin = req.headers.origin;
+  if (origin) {
+    let ok = false;
+    try { ok = new URL(origin).host === (req.headers['x-forwarded-host'] || req.headers.host); } catch (e) { ok = false; }
+    if (!ok) return res.status(403).json({ error: 'Origine refusée.' });
+  }
+  next();
 });
 
 // Limite de taille relevée pour les photos du Care Report (data URLs) —
@@ -2823,7 +2904,7 @@ app.put('/api/admin/care-report/:sessionId', async (req, res) => {
 
   const { photosBefore, photosAfter, intervention, protections, observations, careAdvice, nextService, published } = req.body;
   const MAX_PHOTOS = 8;
-  const clampPhotos = (arr) => (Array.isArray(arr) ? arr.filter(x => typeof x === 'string').slice(0, MAX_PHOTOS) : []);
+  const clampPhotos = (arr) => (Array.isArray(arr) ? arr.filter(x => typeof x === 'string' && /^data:image\/(jpeg|png|webp|heic);base64,[A-Za-z0-9+/=]+$/.test(x)).slice(0, MAX_PHOTOS) : []);
 
   const data = {
     photosBefore: clampPhotos(photosBefore),

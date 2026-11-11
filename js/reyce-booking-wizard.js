@@ -288,13 +288,13 @@ var SVC=[
   {k:'ppf',       label:'PPF',                   sub:'Film de protection de la peinture', tag:'Sur devis'},
   {k:'ceramique', label:'Céramique',             sub:'Protection durable et brillance', tag:'Sur devis'},
   {k:'polissage', label:'Polissage',             sub:'Correction du vernis', tag:'Sur devis'},
-  {k:'autre',     label:'Autre prestation',      sub:'Covering, vitres teintées, jantes, Car Staging…', tag:'Sur devis'}
+  {k:'staging',   label:'Car Staging',           sub:'Remise à neuf complète en une journée', tag:'Sur devis'},
+  {k:'autre',     label:'Autre prestation',      sub:'Covering, vitres teintées, jantes…', tag:'Sur devis'}
 ];
 var AUTRE=[
   {k:'covering', label:'Covering',             sub:'Changement de teinte ou de finition'},
   {k:'vitres',   label:'Vitres teintées',      sub:'Film teinté, teinte au choix'},
   {k:'jantes',   label:'Rénovation de jantes', sub:'Décapage, réparation, remise en peinture'},
-  {k:'staging',  label:'Car Staging',          sub:'Remise à neuf en une journée'},
   {k:'autre',    label:'Autre projet',         sub:'Dites-nous ce que vous avez en tête'}
 ];
 function svcLabel(k){
@@ -539,6 +539,7 @@ var SVC_ICO={
   ppf:'<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5.2c0 4.4-2.9 8-7 9.8-4.1-1.8-7-5.4-7-9.8V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg>',
   ceramique:'<svg viewBox="0 0 24 24"><path d="M7 4h10l4 5-9 11L3 9z"/><path d="M3 9h18M9 4l3 5 3-5M12 9v11"/></svg>',
   polissage:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 4v2.5M20 12h-2.5"/></svg>',
+  staging:'<svg viewBox="0 0 24 24"><path d="M4 16.5V13l1.7-4.2A2 2 0 0 1 7.5 7.5h9a2 2 0 0 1 1.8 1.3L20 13v3.5"/><path d="M3.5 13h17M6 16.5V18M18 16.5V18"/><circle cx="7.5" cy="14.8" r=".9"/><circle cx="16.5" cy="14.8" r=".9"/><path d="M12 3.2l.6 1.5 1.5.6-1.5.6L12 7.4l-.6-1.5-1.5-.6 1.5-.6z"/></svg>',
   autre:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>'
 };
 /* ================= 1 · PRESTATION ================= */
@@ -1005,7 +1006,7 @@ function done(){
     var main=sel.filter(function(k){return k==='ppf'||k==='ceramique'||k==='polissage';});
     pushEvt({event:'generate_lead',service:main.length===1?main[0]:'rendez-vous',form_location:'rendez_vous',currency:'EUR',value:0,
              lead_source:'rendez-vous.html',link_location:'form',page_type:'rendez_vous',cible:'general',formule:sel.join(',')});
-    var target='merci-devis.html?service='+encodeURIComponent(main.length===1?main[0]:'rendez-vous');
+    var target='/merci-devis.html?service='+encodeURIComponent(main.length===1?main[0]:'rendez-vous');
     setTimeout(function(){window.location.href=target;},250);
   };
   if(state.photos.length){

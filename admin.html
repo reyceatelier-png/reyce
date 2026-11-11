@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#08090a">
   <script>try{document.documentElement.setAttribute("data-theme",localStorage.getItem("reyceAdminTheme")==="light"?"light":"dark")}catch(e){document.documentElement.setAttribute("data-theme","dark")}</script>
@@ -2607,7 +2608,7 @@ let openClientEmail = null;
       { key: 'contacted', title: 'Déjà contactés',  color: 'var(--violet)', empty: 'Aucun lead contacté' }
     ];
     const LEAD_LABEL = { new: 'Nouveau', to_call: 'À rappeler', contacted: 'Contacté' };
-    const KIND_LABEL = { devis: 'Devis', message: 'Message', manuel: 'Saisie manuelle' };
+    const KIND_LABEL = { devis: 'Devis', pro: 'Devis professionnel', message: 'Message', manuel: 'Saisie manuelle', soiree: 'Soirée' };
 
     function timeAgo(iso) {
       const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);

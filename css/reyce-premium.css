@@ -3,7 +3,7 @@
    Noir profond, très grande typographie, photographies plein cadre, panneaux de verre
    (noir transparent flouté) posés sur les images. Tout est scopé sous .gx.
    ============================================================ */
-.gx{--gx-pad:clamp(20px,5vw,72px);--gx-max:1360px;background:#000;overflow-x:clip}
+.gx{--gx-pad:clamp(20px,5vw,72px);--gx-max:1360px;background:#000;overflow-x:hidden;overflow-x:clip}
 .gx-wrap{width:100%;max-width:var(--gx-max);margin:0 auto;padding:0 var(--gx-pad)}
 .gx-sec{padding:clamp(84px,14vh,176px) 0}
 .gx-eyebrow{font:600 .72rem/1.2 var(--disp);letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.66)}
@@ -24,7 +24,7 @@
 .gx-link:hover::after{width:56px}
 
 /* ---- HÉRO ---- */
-.gx-hero{position:relative;isolation:isolate;overflow:clip;min-height:max(100svh,660px);display:flex;align-items:flex-end}
+.gx-hero{position:relative;isolation:isolate;overflow:hidden;overflow:clip;min-height:max(100vh,660px);min-height:max(100svh,660px);display:flex;align-items:flex-end}
 .gx-hero__media{position:absolute;inset:0;z-index:-2;background:#000}
 .gx-slide{position:absolute;inset:0;margin:0;opacity:0;transition:opacity 1.8s cubic-bezier(.4,0,.2,1)}
 .gx-slide.is-active{opacity:1;z-index:1}
@@ -61,11 +61,11 @@
 .gx-h1{font-weight:700;font-size:clamp(3.4rem,min(12vw,11vh),11rem);line-height:.9;letter-spacing:-.06em;margin:22px 0 26px}
 @media(min-width:641px) and (min-height:860px){.gx-h1{font-size:clamp(3.4rem,min(12vw,13vh),11rem)}}
 .gx-h1 span{display:block}
-.gx-h1 .o{color:rgba(255,255,255,.3)}
+.gx-h1 .o{color:rgba(255,255,255,.5)}
 .gx-hero__in{text-shadow:0 2px 28px rgba(0,0,0,.5)}
 .gx-lead{max-width:46ch;font-size:clamp(1rem,1.5vw,1.2rem);line-height:1.62;color:rgba(255,255,255,.8)}
 .gx-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
-.gx-dock{position:absolute;left:var(--gx-pad);right:var(--gx-pad);bottom:clamp(22px,4.5vh,44px);display:grid;grid-template-columns:repeat(4,1fr);border-radius:28px;overflow:hidden;
+.gx-dock{position:absolute;left:var(--gx-pad);right:var(--gx-pad);bottom:clamp(22px,4.5vh,44px);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-radius:28px;overflow:hidden;
   background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0)),rgba(10,10,13,.5);border:1px solid var(--gl-line);
   -webkit-backdrop-filter:var(--gl-blur);backdrop-filter:var(--gl-blur);box-shadow:var(--gl-sheen),var(--gl-shadow)}
 .gx-dock div{padding:22px 26px;border-left:1px solid var(--gl-line)}
@@ -78,7 +78,7 @@
 .gx-hero .gx-lead{animation-delay:.45s}.gx-hero .gx-cta{animation-delay:.55s}.gx-dock{animation-delay:.7s}
 
 /* ---- PRESTATIONS : grille de tuiles ---- */
-.gx-bento{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.gx-bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
 .gx-tile{position:relative;isolation:isolate;overflow:hidden;border-radius:32px;background:#0a0a0a;border:1px solid var(--gl-line);min-height:460px;grid-column:span 4;display:block;color:#fff;text-decoration:none}
 .gx-tile--xl{grid-column:span 7;min-height:600px}
 .gx-tile--lg{grid-column:span 5;min-height:600px}
@@ -94,14 +94,14 @@
 .gx-tile:hover .go::after{transform:translateX(5px)}
 
 /* petites tuiles : titre seul (le texte apparaît au survol) pour que le véhicule reste bien visible */
-.gx-tile:not(.gx-tile--xl):not(.gx-tile--lg){min-height:500px}
+.gx-bento>.gx-tile:not(.gx-tile--xl):not(.gx-tile--lg){min-height:500px}
 .gx-tile:not(.gx-tile--xl):not(.gx-tile--lg) .gx-tile__cap p{max-height:0;opacity:0;margin-top:0;overflow:hidden;transition:max-height .5s var(--ease),opacity .4s,margin .4s}
 @media(hover:hover){.gx-tile:not(.gx-tile--xl):not(.gx-tile--lg):hover .gx-tile__cap p,.gx-tile:not(.gx-tile--xl):not(.gx-tile--lg):focus-visible .gx-tile__cap p{max-height:7em;opacity:1;margin-top:9px}}
 .gx-works .gx-tile__cap{padding:16px 20px}
 .gx-works .gx-tile .go{margin-top:12px}
 
 /* ---- L'ATELIER ---- */
-.gx-split{display:grid;grid-template-columns:1.15fr .85fr;align-items:center}
+.gx-split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);align-items:center}
 .gx-photo{position:relative;margin:0;border-radius:34px;overflow:hidden;aspect-ratio:4/5;border:1px solid var(--gl-line)}
 .gx-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .gx-panel{position:relative;z-index:2;margin-left:-80px;padding:clamp(28px,4vw,54px);border-radius:34px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0) 40%),rgba(10,10,13,.52);
@@ -113,7 +113,7 @@
 .gx-chips li{padding:10px 17px;border-radius:99px;font-size:.88rem;background:rgba(0,0,0,.5);border:1px solid var(--gl-line);color:rgba(255,255,255,.86)}
 
 /* ---- HISTOIRE : photo plein cadre et carte de verre ---- */
-.gx-story{position:relative;isolation:isolate;overflow:clip;min-height:min(100svh,920px);display:flex;align-items:center;padding:clamp(70px,12vh,140px) 0}
+.gx-story{position:relative;isolation:isolate;overflow:hidden;overflow:clip;min-height:min(100vh,920px);min-height:min(100svh,920px);display:flex;align-items:center;padding:clamp(70px,12vh,140px) 0}
 .gx-story{background:#000}
 .gx-story>img{position:absolute;top:0;right:0;width:76%;height:100%;object-fit:cover;z-index:-2;filter:brightness(.95);
   -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 36%);mask-image:linear-gradient(90deg,transparent 0,#000 36%)}
@@ -124,7 +124,7 @@
 
 /* ---- PROTOCOLE ---- */
 .gx-proto{position:relative;isolation:isolate;background:linear-gradient(rgba(0,0,0,.25),rgba(0,0,0,.65)),url(../assets/img/fond-verre.jpg) center/cover no-repeat}
-.gx-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.gx-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .gx-step{position:relative;padding:30px 28px 32px;border-radius:30px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,0) 44%),rgba(10,10,13,.5);
   border:1px solid var(--gl-line);-webkit-backdrop-filter:var(--gl-blur);backdrop-filter:var(--gl-blur);box-shadow:var(--gl-sheen);transition:transform .5s var(--gl-spring),border-color .3s}
 .gx-step:hover{transform:translateY(-6px);border-color:var(--gl-line-hi)}
@@ -159,7 +159,7 @@
 .gx-j__note{margin:clamp(40px,8vh,90px) 0 0;text-align:center;font-size:1rem;color:rgba(255,255,255,.72)}
 
 /* ---- CAR SPA : deux grandes photos, puis les services d'attente ---- */
-.gx-spa{display:grid;grid-template-columns:7fr 5fr;gap:16px}
+.gx-spa{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:16px}
 .gx-spa figure{position:relative;margin:0;isolation:isolate;overflow:hidden;border-radius:32px;height:clamp(380px,42vw,590px);border:1px solid var(--gl-line)}
 .gx-spa img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;filter:brightness(.9);transition:transform 1.4s var(--ease)}
 .gx-spa figure:hover img{transform:scale(1.05)}
@@ -167,20 +167,20 @@
   -webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);box-shadow:var(--gl-sheen)}
 .gx-spa h3{font-size:1.3rem;font-weight:600;letter-spacing:-.03em}
 .gx-spa p{margin-top:6px;font-size:.92rem;line-height:1.5;color:rgba(255,255,255,.74)}
-.gx-amen{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+.gx-amen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
 .gx-amen>div{padding:28px 30px 30px;border-radius:28px;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,0) 44%),rgba(10,10,13,.5);border:1px solid var(--gl-line);box-shadow:var(--gl-sheen)}
 .gx-amen h3{font-size:1.25rem;font-weight:600;letter-spacing:-.03em}
 .gx-amen p{margin-top:10px;font-size:.95rem;line-height:1.6;color:rgba(255,255,255,.7)}
 
 /* ---- RÉALISATIONS ---- */
-.gx-works{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.gx-works{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .gx-works .gx-tile{grid-column:auto;min-height:0;aspect-ratio:4/5}
 
 /* ---- APPEL FINAL ---- */
-.gx-final{position:relative;isolation:isolate;overflow:clip;padding:clamp(80px,14vh,170px) 0}
+.gx-final{position:relative;isolation:isolate;overflow:hidden;overflow:clip;padding:clamp(80px,14vh,170px) 0}
 .gx-final>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;filter:brightness(.78)}
 .gx-final::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,#000 0%,rgba(0,0,0,0) 34%,rgba(0,0,0,.55) 100%)}
-.gx-cta-panel{display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center;padding:clamp(30px,5vw,64px);border-radius:38px;
+.gx-cta-panel{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:30px;align-items:center;padding:clamp(30px,5vw,64px);border-radius:38px;
   background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,0) 40%),rgba(10,10,13,.5);border:1px solid var(--gl-line);
   -webkit-backdrop-filter:var(--gl-blur);backdrop-filter:var(--gl-blur);box-shadow:var(--gl-sheen),var(--gl-shadow)}
 .gx-cta-panel .gx-h2{font-size:clamp(2.2rem,5.6vw,4.8rem);margin-top:0}
@@ -192,17 +192,17 @@
 
 /* ---- ADAPTATIONS ---- */
 @media(max-width:1000px){
-  .gx-bento{grid-template-columns:1fr 1fr}
+  .gx-bento{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .gx-tile,.gx-tile--xl,.gx-tile--lg{grid-column:span 1;min-height:420px}
   .gx-tile--xl{grid-column:1/-1;min-height:520px}
-  .gx-steps{grid-template-columns:1fr 1fr}
-  .gx-spa{grid-template-columns:1fr}
+  .gx-steps{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .gx-spa{grid-template-columns:minmax(0,1fr)}
   .gx-spa figure{height:min(70vw,480px)}
-  .gx-amen{grid-template-columns:1fr}
-  .gx-split{grid-template-columns:1fr}
+  .gx-amen{grid-template-columns:minmax(0,1fr)}
+  .gx-split{grid-template-columns:minmax(0,1fr)}
   .gx-photo{aspect-ratio:4/3}
   .gx-panel{margin:-70px 14px 0}
-  .gx-cta-panel{grid-template-columns:1fr}
+  .gx-cta-panel{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:1100px){
   .gx-reel{position:static;justify-content:space-between;margin-top:26px;animation:none}
@@ -212,7 +212,7 @@
 @media(max-width:900px){
   .gx-slide img,.gx-slide.is-wide img{filter:brightness(var(--bm,.85));width:100%;height:58%;object-position:var(--mx,50%) var(--my,55%);transform-origin:50% 50%;
     -webkit-mask-image:linear-gradient(180deg,#000 38%,transparent 100%);mask-image:linear-gradient(180deg,#000 38%,transparent 100%)}
-  .gx-j{grid-template-columns:1fr}
+  .gx-j{grid-template-columns:minmax(0,1fr)}
   .gx-j__stage{display:none}
   .gx-j__list{display:grid;gap:16px}
   .gx-j__step,.gx-j:not(.is-live) .gx-j__step{min-height:0;opacity:1;padding:0 0 26px;border-radius:30px;overflow:hidden;cursor:auto;
@@ -229,22 +229,22 @@
   .gx-story .gx-wrap{position:relative;margin-top:-64px}
 }
 @media(max-width:700px){
-  .gx-works{grid-template-columns:1fr;max-width:520px;margin:0 auto}
+  .gx-works{grid-template-columns:minmax(0,1fr);max-width:520px;margin:0 auto}
 }
 @media(max-width:640px){
   /* barres masquées à l'écran mais actives : leur animation fait défiler les photos */
   .gx-reel__bars{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
   .gx-reel__num{display:block;margin-left:auto;margin-right:14px}
-  .gx-hero{min-height:max(100svh,700px)}
+  .gx-hero{min-height:max(100vh,700px);min-height:max(100svh,700px)}
   .gx-hero__in{padding-bottom:300px}
-  .gx-dock{grid-template-columns:1fr 1fr;border-radius:24px}
+  .gx-dock{grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-radius:24px}
   .gx-dock div{padding:16px 18px}
   .gx-dock div:nth-child(3){border-left:0;border-top:1px solid var(--gl-line)}
   .gx-dock div:nth-child(4){border-top:1px solid var(--gl-line)}
   .gx-btn{width:100%}
-  .gx-bento{grid-template-columns:1fr}
+  .gx-bento{grid-template-columns:minmax(0,1fr)}
   .gx-tile,.gx-tile--xl,.gx-tile--lg{min-height:440px}
-  .gx-steps{grid-template-columns:1fr}
+  .gx-steps{grid-template-columns:minmax(0,1fr)}
   .gx-spa figure{height:min(96vw,420px)}
 }
 @media(prefers-reduced-motion:reduce){
@@ -268,7 +268,7 @@
 
 /* ---- TÉLÉPHONE : le titre d'abord (plus petit), puis une grande photo, puis le texte ---- */
 @media(max-width:900px){
-  .gx{--gx-photo:min(58svh,520px)}
+  .gx{--gx-photo:min(58vh,520px);--gx-photo:min(58svh,520px)}
   .gx-hero{display:flex;flex-direction:column;align-items:stretch;min-height:0;padding:96px 0 0;overflow:visible}
   .gx-hero__in{display:contents}
   .gx-hero__shade{display:none}
@@ -290,3 +290,22 @@
   .gx-j__do li,.gx-amen p,.gx-spa p{font-size:1rem;line-height:1.6}
   .gx-steps,.gx-spa,.gx-amen,.gx-works,.gx-bento{gap:18px}
 }
+
+/* ---- finitions de robustesse (petits écrans, zones tactiles) ---- */
+.gx-link{padding:12px 0}
+@media(max-width:900px){
+  .gx-j__step h3{font-size:clamp(1.6rem,8.2vw,2.3rem);overflow-wrap:anywhere}
+  .gx-reel__pp{width:44px;height:44px}
+  .gx-h1,.gx-h2,.gx-tile h3,.gx-card p{overflow-wrap:break-word}
+}
+
+/* tuiles larges (Car Staging, Professionnels) : une rangée de deux sous la grille des prestations */
+.gx-tile--half{grid-column:span 6;min-height:460px}
+@media(max-width:1000px){.gx-tile--half{grid-column:span 1}}
+.gx-bento>.gx-tile.gx-tile--half .gx-tile__cap p{max-height:none;opacity:1;margin-top:9px}
+/* tuiles larges : la photo en haut, le texte dans un bandeau dessous (la voiture n'est jamais recouverte) */
+.gx-bento>.gx-tile.gx-tile--half{display:flex;flex-direction:column;background:#0a0a0a;height:620px;min-height:0}
+.gx-bento>.gx-tile.gx-tile--half img{position:relative;inset:auto;flex:1 1 0;min-height:0;height:0;z-index:0}
+.gx-bento>.gx-tile.gx-tile--half .gx-tile__cap{position:relative;left:auto;right:auto;bottom:auto;flex:0 0 auto;margin:0;border:0;border-top:1px solid var(--gl-line);border-radius:0;
+  background:rgba(8,8,10,.9);-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none;padding:22px 26px 24px;min-height:236px}
+@media(max-width:640px){.gx-bento>.gx-tile.gx-tile--half .gx-tile__cap p{display:none}.gx-bento>.gx-tile.gx-tile--half .gx-tile__cap{min-height:0}.gx-bento>.gx-tile.gx-tile--half{height:440px}}

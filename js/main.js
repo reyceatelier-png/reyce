@@ -470,7 +470,23 @@
         console.error('[Contact] Erreur réseau :', err);
       }
 
-      // Show success UI (always — user experience)
+      // Échec (adresse refusée, serveur indisponible, réseau coupé) : on le dit, le message reste dans le formulaire
+      if (!ok) {
+        if (btn) { btn.textContent = originalText; btn.disabled = false; }
+        let err = form.querySelector('.form-error');
+        if (!err) {
+          err = document.createElement('p');
+          err.className = 'form-error';
+          err.setAttribute('role', 'alert');
+          err.style.cssText = 'margin:0 0 16px;padding:14px 18px;border:1px solid rgba(255,255,255,.4);border-radius:16px;font-size:.92rem;line-height:1.6;color:#fff';
+          if (btn && btn.parentNode) btn.parentNode.insertBefore(err, btn); else form.appendChild(err);
+        }
+        err.textContent = 'Votre message n’a pas pu être envoyé. Vérifiez votre adresse e-mail puis réessayez, ou appelez-nous au 07 63 00 43 85.';
+        return;
+      }
+      const old = form.querySelector('.form-error'); if (old) old.remove();
+
+      // Succès
       const successEl = form.closest('[data-form-wrap]')?.querySelector('.success-message');
       if (successEl) {
         form.style.display = 'none';

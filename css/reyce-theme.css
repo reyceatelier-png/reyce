@@ -173,3 +173,42 @@ main:not(.gx) .hero-car{margin-bottom:8px}
 main:not(.gx) .lp-form{padding:28px 22px}
 main:not(.gx) .field input,main:not(.gx) .field select,main:not(.gx) .field textarea{padding:17px 18px;font-size:16px}
 main:not(.gx) .lp-choice span{padding:13px 16px;font-size:.7rem}}
+
+/* ============================================================
+   SOLIDITÉ : rien ne peut dépasser de l'écran ni de sa carte (mots longs, e-mails, listes déroulantes, tableaux)
+   ============================================================ */
+.field select,.field input,.field textarea{width:100%;max-width:100%;min-width:0}
+a[href^="mailto:"],a[href^="tel:"]{overflow-wrap:anywhere}
+.cc-manage{padding:12px 6px;margin:-12px -6px}
+.lp-file input{font-size:16px;max-width:100%}
+
+main:not(.gx) :where(.svc-intro,.case-body,.incl,.svc-gal,.next-svc,.case-meta,.tier-grid,.tier-detail,.steps3,.pq-grid,.trip,.atelier,.resa,.proto,.histoire,.feature,.rgrid,.bgrid,.svc-grid,.opt-grid,.row2,.rtype,.lp-compare,.lp-grid2,.lp-steps,.lp-split,.need2,.areasel,.story,.univers,.clean3,.forms,.optgrid,.amen,.avis-grid,.val-grid)>*{min-width:0}
+main:not(.gx) p,main:not(.gx) li,main:not(.gx) h1,main:not(.gx) h2,main:not(.gx) h3,main:not(.gx) h4,main:not(.gx) figcaption,main:not(.gx) td,main:not(.gx) th,main:not(.gx) dd,main:not(.gx) dt,main:not(.gx) summary,main:not(.gx) blockquote{overflow-wrap:break-word}
+main:not(.gx) .resa .aside p,main:not(.gx) .resa .aside a,main:not(.gx) .resa .aside span,main:not(.gx) .lp-phone,main:not(.gx) .conf-address__value{overflow-wrap:anywhere}
+main:not(.gx) .svc-facts div,main:not(.gx) .care-facts div,main:not(.gx) .conf-row,main:not(.gx) .trajet-ville div{flex-wrap:wrap}
+main:not(.gx) .svc-facts div span:last-child,main:not(.gx) .conf-row__value{min-width:0}
+main:not(.gx) table{max-width:100%}
+main:not(.gx) .mono a,main:not(.gx) .crumb a{padding:12px 0}
+main:not(.gx) .zone-links a,main:not(.gx) .more-row a,main:not(.gx) .lp-cta-row a{min-height:44px;display:inline-flex;align-items:center}
+main:not(.gx) .zone-links a{padding-left:14px;padding-right:14px}
+
+/* image de fond des en-têtes de page : vraie image (plusieurs tailles selon l'écran) plutôt qu'un fond CSS */
+.phero .pbg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+
+/* réservation : l'espace de la première étape est réservé dès le chargement (évite que la page saute quand elle s'affiche) */
+.wz-panel:empty{min-height:520px}
+@media(max-width:360px){.wz-panel:empty{min-height:740px}}
+
+/* menu à sept entrées : version resserrée sur les petits écrans d'ordinateur et les tablettes en paysage */
+nav.main a{white-space:nowrap}
+@media(min-width:1001px) and (max-width:1240px){
+  nav.main{gap:clamp(12px,1.8vw,24px)}
+  nav.main a{letter-spacing:.12em;font-size:.66rem}
+  nav.main a.cta{padding:10px 16px}
+  header{padding-left:clamp(20px,3vw,44px);padding-right:clamp(20px,3vw,44px)}
+}
+
+/* pied de page à quatre colonnes : studio, navigation, prestations, contact */
+.foot-grid{grid-template-columns:minmax(0,1.3fr) repeat(3,minmax(0,1fr));gap:36px}
+@media(max-width:1000px){.foot-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px 28px}}
+@media(max-width:640px){.foot-grid{grid-template-columns:minmax(0,1fr)}}

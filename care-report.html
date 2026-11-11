@@ -10,8 +10,7 @@
 <title>Votre Care Report — REYCE</title>
 <meta name="description" content="Le compte-rendu personnalisé de l'intervention réalisée sur votre véhicule chez REYCE.">
 <meta name="robots" content="noindex, nofollow">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="assets/fonts/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/reyce.css">
 <link rel="stylesheet" href="css/reyce-theme.css">
 <style>
@@ -57,7 +56,7 @@
 <main id="content" class="care-wrap" style="display:none">
   <div class="care-logo"><img src="assets/images/logo.png" alt="REYCE"><span>REYCE</span></div>
 
-  <p class="care-hello">Bonjour <span id="cFirstName"></span>.</p>
+  <h1 class="care-hello">Bonjour <span id="cFirstName"></span>.</h1>
   <p class="care-sub">Voici le compte-rendu personnalisé de l'intervention réalisée sur votre véhicule. Nous avons pris soin de chaque détail.</p>
 
   <div class="care-facts" id="cFacts"></div>
@@ -130,7 +129,7 @@
         data.vehicleLabel ? ['Véhicule', data.vehicleLabel] : null
       ].filter(Boolean);
       document.getElementById('cFacts').innerHTML = facts.map(([l, v]) =>
-        `<div><span>${l}</span><span>${v}</span></div>`
+        `<div><span>${esc(l)}</span><span>${esc(v)}</span></div>`
       ).join('');
 
       const hasPhotos = (data.photosBefore && data.photosBefore.length) || (data.photosAfter && data.photosAfter.length);
@@ -151,9 +150,10 @@
     })
     .catch(fail);
 
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   function renderPhotos(list) {
     if (!list || !list.length) return '<div class="care-gallery-empty">—</div>';
-    return list.map(src => `<img src="${src}" alt="" loading="lazy">`).join('');
+    return list.filter(src => /^data:image\/(jpeg|png|webp|heic);base64,[A-Za-z0-9+\/=]+$/.test(String(src))).map(src => `<img src="${esc(src)}" alt="Photo de l’intervention" loading="lazy">`).join('');
   }
 
   function fillSection(sectionId, textId, value) {

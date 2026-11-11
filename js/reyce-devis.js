@@ -80,6 +80,9 @@
     var email = val('email');
     var phone = val('phone');
 
+    var isPro = service === 'pro';
+    var entreprise = val('entreprise');
+    if (isPro && !entreprise) return showErr('Merci d’indiquer le nom de votre entreprise.');
     if (!nom) return showErr('Merci d’indiquer votre nom.');
     if (!phone) return showErr('Un numéro de téléphone est nécessaire pour vous recontacter.');
     if (!email || !EMAIL_RE.test(email)) return showErr('Merci d’indiquer une adresse e-mail valide.');
@@ -91,17 +94,31 @@
     /* --- composition du message qualifiant --- */
     var vParts = [val('marque'), val('modele'), val('annee'), val('couleur')].filter(Boolean);
     var vehicleInfo = vParts.join(' · ');
+    var besoins = [];
+    if (isPro) {
+      [].forEach.call(form.querySelectorAll('input[name="besoin"]:checked'), function (i) { besoins.push(i.value); });
+      vehicleInfo = ['Pro', entreprise, val('volume')].filter(Boolean).join(' · ');
+    }
 
     var lines = [];
     var proteg = form.querySelector('input[name="protection"]:checked');
     var etat   = form.querySelector('input[name="etat"]:checked');
     if (proteg) lines.push('Prestation souhaitée : ' + proteg.value);
     if (etat)   lines.push('État du véhicule : ' + etat.value);
+    if (isPro) {
+      lines.push('Entreprise : ' + entreprise);
+      if (val('activite')) lines.push('Activité : ' + val('activite'));
+      if (besoins.length) lines.push('Besoin : ' + besoins.join(', '));
+      var vol = [val('volume'), val('frequence')].filter(Boolean).join(' · ');
+      if (vol) lines.push('Volume : ' + vol);
+      var rap = form.querySelector('input[name="rappel"]:checked'), cre = form.querySelector('input[name="creneau"]:checked');
+      if (rap) lines.push('Rappel souhaité : ' + rap.value + (cre && cre.value !== 'Peu importe' ? ' · ' + cre.value.toLowerCase() : ''));
+    }
     var extra = val('message');
     if (extra) lines.push(extra);
     var message = lines.join('\n');
 
-    var subjectMap = { ppf: 'Devis PPF', polissage: 'Devis polissage', ceramique: 'Devis céramique' };
+    var subjectMap = { ppf: 'Devis PPF', polissage: 'Devis polissage', ceramique: 'Devis céramique', pro: 'Devis professionnel' };
     var subject = subjectMap[service] || 'Demande de devis';
     // Jamais l'URL complète : seulement la page, la cible et, avec consentement, l'attribution.
     var pageName = (window.location.pathname.replace(/^\//, '').replace(/\.html$/, '') || 'index') + '.html';   // même libellé qu'avant les adresses propres
@@ -121,9 +138,10 @@
         link_location: 'form',
         page_type: (window.reyceTrack && window.reyceTrack.pageType()) || 'landing_ppf',
         cible: cible,
-        formule: proteg ? proteg.value : ''
+        lead_type: isPro ? 'professionnel' : 'particulier',
+        formule: isPro ? besoins.join(',') : (proteg ? proteg.value : '')
       });
-      var target = 'merci-devis.html?service=' + encodeURIComponent(service);
+      var target = '/merci-devis.html?service=' + encodeURIComponent(service);
       setTimeout(function () { window.location.href = target; }, 250);
     };
 

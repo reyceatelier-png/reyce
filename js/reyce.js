@@ -159,6 +159,7 @@ function countUp(el){var t=parseInt(el.dataset.count,10),d=1400,s=null;
     if(p==='index')return 'accueil';
     if(/^ppf-(voiture-neuve|tesla|sportives)$/.test(p))return 'landing_ppf_cible';
     if(p==='ppf')return 'landing_ppf';
+    if(p==='professionnels')return 'landing_pro';
     if(/^(polissage|ceramique)$/.test(p))return 'landing_service';
     if(/^(ppf|polissage|ceramique|nettoyage|covering)-/.test(p))return 'page_locale';
     if(/^(realisation|guide)/.test(p))return 'contenu';
