@@ -74,60 +74,52 @@
   }
   applyEvent();
 
-  /* ---------- le fil lumineux : quatre chapitres pilotés par le défilement, réversibles ---------- */
+  /* ---------- ouverture : le logo s'allume, contournable ---------- */
+  (function intro() {
+    var el = $('intro'); if (!el) return;
+    var done = false;
+    function end(skipped) {
+      if (done) return; done = true;
+      if (skipped) root.classList.remove('opening');                                                   // l'invitation apparaît tout de suite
+      try { sessionStorage.setItem('rv-intro', '1'); } catch (e) {}
+      document.removeEventListener('keydown', onKey); el.removeEventListener('pointerdown', onTap);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, skipped ? 50 : 0);
+    }
+    function onKey() { end(true); } function onTap() { end(true); }
+    if (!root.classList.contains('opening')) { if (el.parentNode) el.parentNode.removeChild(el); return; }
+    el.addEventListener('pointerdown', onTap); document.addEventListener('keydown', onKey);
+    setTimeout(function () { end(false); }, 4700);                                                     // filet de sécurité : l'invitation n'est jamais retenue
+  })();
+
+  /* ---------- les portes s'ouvrent : une scène pilotée par le défilement, réversible ---------- */
   (function story() {
-    var chs = [].slice.call(document.querySelectorAll('.ch')); if (!chs.length) return;
-    var rail = $('rail'), nowEl = $('railNow'), reply = $('railReply');
+    var ch = document.querySelector('.ch1'); if (!ch) return;
     var animated = root.classList.contains('anim');
-    var NAMES = ["L’atelier", 'Les voitures', 'L’histoire', 'La table'];
     var clamp = function (v) { return v < 0 ? 0 : v > 1 ? 1 : v; };
     var ease = function (t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
     var seg = function (p, a, b) { return ease(clamp((p - a) / (b - a))); };
-    /* le rythme de chaque chapitre : quand chaque élément apparaît (fraction de la progression du chapitre) */
-    var PLAN = [
-      function (p, set) { set('open', seg(p, .02, .46)); set('title', seg(p, .26, .50)); set('text', seg(p, .46, .70)); set('settle', clamp(p)); },
-      function (p, set) { var b = seg(p, .30, .54), c = seg(p, .62, .88); set('title', seg(p, .02, .18)); set('text', seg(p, .10, .26)); set('b', b); set('c', c); set('s1', 1 - b); set('s2', b * (1 - c)); set('s3', c); },
-      function (p, set) { set('title', seg(p, .08, .28)); set('img', seg(p, 0, .24)); set('img2', seg(p, .46, .74)); set('l1', seg(p, .24, .40)); set('l2', seg(p, .42, .58)); set('l3', seg(p, .60, .76)); },
-      function (p, set) { set('title', seg(p, .04, .24)); set('settle', clamp(p)); set('w1', seg(p, .26, .42)); set('w2', seg(p, .46, .62)); set('w3', seg(p, .66, .82)); }
-    ];
-    var tops = [], heights = [], vh = window.innerHeight, ticking = false, lastIdx = -1;
-    function measure() {
-      vh = window.innerHeight;
-      var sy = window.pageYOffset;
-      chs.forEach(function (c, i) { var r = c.getBoundingClientRect(); tops[i] = r.top + sy; heights[i] = c.offsetHeight; });
-    }
+    var top = 0, height = 0, vh = window.innerHeight, ticking = false;
+    function measure() { vh = window.innerHeight; top = ch.getBoundingClientRect().top + window.pageYOffset; height = ch.offsetHeight; }
     function update() {
       ticking = false;
-      var y = window.pageYOffset, total = 0, cur = -1, inStory = false;
-      var first = tops[0], last = tops[chs.length - 1] + heights[chs.length - 1];
-      inStory = y + vh * .5 > first && y + vh * .5 < last;
-      chs.forEach(function (c, i) {
-        var range = Math.max(1, heights[i] - (animated ? vh : 0));
-        var p = animated ? clamp((y - tops[i]) / range) : clamp((y + vh * .5 - tops[i]) / heights[i]);
-        if (animated && y + vh > tops[i] - vh && y < tops[i] + heights[i] + vh) PLAN[i](p, function (k, v) { c.style.setProperty('--' + k, v.toFixed(3)); });
-        if (animated) c.style.setProperty('--p', p.toFixed(3));
-        if (y + vh * .5 >= tops[i]) cur = i;
-        if (y + vh * .5 >= tops[i]) total = i + p; 
-      });
-      var tp = clamp(total / (chs.length - 1 + (animated ? 0 : 0)));
-      rail.style.setProperty('--tp', tp.toFixed(4));
-      var lit = [].slice.call(rail.querySelectorAll('.rail__list li'));
-      lit.forEach(function (li, i) { li.classList.toggle('is-lit', i <= cur && (animated ? (parseFloat(chs[i].style.getPropertyValue('--p')) || 0) > .02 || i < cur : true)); li.classList.toggle('is-cur', i === cur); });
-      rail.classList.toggle('is-on', inStory); nowEl.classList.toggle('is-on', inStory);
-      if (reply) reply.style.visibility = inStory ? 'visible' : 'hidden';
-      if (cur >= 0 && cur !== lastIdx) { lastIdx = cur; $('railNum').textContent = '0' + (cur + 1); $('railName').textContent = NAMES[cur]; }
+      if (!animated) return;
+      var y = window.pageYOffset;
+      if (y + vh < top - vh || y > top + height + vh) return;                                             // hors de vue : rien à recalculer
+      var p = clamp((y - top) / Math.max(1, height - vh));
+      var set = function (k, v) { ch.style.setProperty('--' + k, v.toFixed(3)); };
+      set('open', seg(p, .04, .50)); set('title', seg(p, .30, .54)); set('text', seg(p, .50, .70)); set('text2', seg(p, .66, .86)); set('settle', clamp(p)); set('p', p);
     }
     function onScroll() { if (!ticking) { ticking = true; window.requestAnimationFrame(update); } }
-    rail.hidden = false;
     measure(); update();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', function () { measure(); update(); });
     window.addEventListener('load', function () { measure(); update(); });
-    /* la conclusion et le cadre se révèlent une fois, quand on y arrive */
+    /* la question et le cadre se révèlent une fois, à leur arrivée */
+    var targets = [$('finale'), $('formBox')].filter(Boolean);
     if ('IntersectionObserver' in window) {
       var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } }); }, { threshold: 0.25 });
-      [$('finale'), $('formBox')].forEach(function (e) { if (e) io.observe(e); });
-    } else { [$('finale'), $('formBox')].forEach(function (e) { if (e) e.classList.add('is-in'); }); }
+      targets.forEach(function (e) { io.observe(e); });
+    } else targets.forEach(function (e) { e.classList.add('is-in'); });
   })();
 
   /* ---------- formulaire ---------- */

@@ -29,14 +29,20 @@
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
-<script>/* mode animé : seulement avec JavaScript et sans « moins de mouvement » */
-(function(){try{var d=document.documentElement;d.className+=' js';if(!matchMedia('(prefers-reduced-motion: reduce)').matches)d.className+=' anim';}catch(e){}})();</script>
+<script>/* mode animé : seulement avec JavaScript et sans « moins de mouvement » ; ouverture (logo qui s'allume) une fois par visite, jamais sur une ancre */
+(function(){try{var d=document.documentElement;d.className+=' js';if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;d.className+=' anim';if(!sessionStorage.getItem('rv-intro')&&!location.hash)d.className+=' opening';}catch(e){}})();</script>
 <style>html,body{background:#050506;color:#f4f5f6}</style>
 <link rel="preload" as="image" href="/assets/soiree/chrono-800.webp" imagesrcset="/assets/soiree/chrono-800.webp 800w, /assets/soiree/chrono-1331.webp 1331w" imagesizes="(min-width:900px) and (min-aspect-ratio:5/4) 48vw, 100vw" fetchpriority="high">
-<link rel="stylesheet" href="/css/invitation.css?v=3">
+<link rel="stylesheet" href="/css/invitation.css?v=4">
 </head>
 <body>
 <a class="skip" href="#rsvp">Aller directement à la réponse</a>
+
+<!-- Ouverture : le monogramme s'allume sous un reflet fin, puis se dissout sur l'invitation (contournable, absente sans JavaScript) -->
+<div class="curtain" id="intro" aria-hidden="true">
+  <div class="curtain__mark"><img src="/assets/images/logo.png" width="527" height="639" alt=""><span class="curtain__shine"></span></div>
+  <button type="button" class="curtain__skip" id="introSkip" tabindex="-1">Passer</button>
+</div>
 
 <header class="hero" id="top">
   <img class="hero__logo" src="/assets/images/logo.png" width="527" height="639" alt="REYCE">
@@ -54,23 +60,12 @@
   </div>
 </header>
 
-<!-- Le fil : progression, repères, accès direct aux chapitres -->
-<nav class="rail" id="rail" aria-label="Les quatre temps de la soirée" hidden>
-  <div class="rail__line" aria-hidden="true"><i></i></div>
-  <ol class="rail__list">
-    <li style="--x:0"><a href="#ch1" aria-label="Chapitre 1 sur 4 : l'atelier"></a></li>
-    <li style="--x:.3333"><a href="#ch2" aria-label="Chapitre 2 sur 4 : les voitures"></a></li>
-    <li style="--x:.6667"><a href="#ch3" aria-label="Chapitre 3 sur 4 : l'histoire"></a></li>
-    <li style="--x:1"><a href="#ch4" aria-label="Chapitre 4 sur 4 : la table"></a></li>
-  </ol>
-</nav>
-<p class="rail__now" id="railNow" aria-hidden="true"><b id="railNum">01</b> / 04 · <span id="railName">L'atelier</span></p>
-<a class="rail__reply" id="railReply" href="#rsvp">Déjà répondu ? Modifier</a>
+<a class="reply-link" id="railReply" href="#rsvp">Déjà répondu ? Modifier</a>
 
 <main>
   <div class="story" id="story">
 
-    <!-- 01 — L'atelier : un masque s'ouvre, une lumière rasante révèle la profondeur -->
+    <!-- Les portes s'ouvrent : un masque s'ouvre, une lumière rasante révèle la profondeur -->
     <section class="ch ch1" id="ch1" aria-labelledby="t1">
       <div class="ch__pin">
         <div class="ch__media">
@@ -78,65 +73,17 @@
           <span class="ch__light" aria-hidden="true"></span>
         </div>
         <div class="ch__copy">
-          <p class="eyebrow">01 — L'atelier</p>
+          <p class="eyebrow">L'atelier</p>
           <h2 id="t1">Les portes s'ouvrent.</h2>
-          <p class="ch__text">Ouvert pour une soirée, comme vous ne l'avez jamais vu.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 02 — Les voitures : du détail à la pièce entière -->
-    <section class="ch ch2" id="ch2" aria-labelledby="t2">
-      <div class="ch__pin">
-        <div class="ch__media">
-          <img class="ph ph--a" src="/assets/invitation/carbone-1600.webp" srcset="/assets/invitation/carbone-900.webp 900w, /assets/invitation/carbone-1600.webp 1600w, /assets/invitation/carbone-2000.webp 2000w" sizes="100vw" width="2000" height="1122" alt="Gros plan sur un aileron en carbone" decoding="async" loading="lazy">
-          <img class="ph ph--b" src="/assets/invitation/cadran-1600.webp" srcset="/assets/invitation/cadran-900.webp 900w, /assets/invitation/cadran-1600.webp 1600w, /assets/invitation/cadran-2000.webp 2000w" sizes="100vw" width="2000" height="1122" alt="Gros plan sur les cadrans d'un tableau de bord" decoding="async" loading="lazy">
-          <img class="ph ph--c" src="/assets/invitation/targa-1600.webp" srcset="/assets/invitation/targa-900.webp 900w, /assets/invitation/targa-1600.webp 1600w, /assets/invitation/targa-2000.webp 2000w" sizes="100vw" width="2000" height="1333" alt="Une Porsche 911 Targa rouge dans l'atelier" decoding="async" loading="lazy">
-        </div>
-        <div class="ch__copy">
-          <p class="eyebrow">02 — Les voitures</p>
-          <h2 id="t2">L'exception, de près.</h2>
-          <p class="ch__text">Quelques pièces rares, à regarder de près.</p>
-          <ul class="ch__steps" aria-hidden="true"><li>La ligne</li><li>Le cadran</li><li>La pièce</li></ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- 03 — L'histoire : un rythme plus posé -->
-    <section class="ch ch3" id="ch3" aria-labelledby="t3">
-      <div class="ch__pin">
-        <div class="ch__media">
-          <img class="ph ph--a" src="/assets/invitation/geste-1600.webp" srcset="/assets/invitation/geste-900.webp 900w, /assets/invitation/geste-1600.webp 1600w, /assets/invitation/geste-2000.webp 2000w" sizes="100vw" width="2000" height="1122" alt="Une voiture noire couverte de gouttes d'eau et de mousse après le rinçage" decoding="async" loading="lazy">
-          <img class="ph ph--b" src="/assets/invitation/siege-1600.webp" srcset="/assets/invitation/siege-900.webp 900w, /assets/invitation/siege-1600.webp 1600w, /assets/invitation/siege-2000.webp 2000w" sizes="100vw" width="2000" height="1122" alt="Un siège baquet dans un habitacle noir" decoding="async" loading="lazy">
-        </div>
-        <div class="ch__copy">
-          <p class="eyebrow">03 — L'histoire</p>
-          <h2 id="t3">Derrière chaque détail, une histoire.</h2>
-          <p class="ch__line">Comment est né Reyce, et ce que nous faisons de vos voitures.</p>
-          <p class="ch__line">Un véhicule d'exception mérite un traitement à la hauteur de ce qu'il représente.</p>
-          <p class="ch__line">Chaque prise en charge est traitée comme unique.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 04 — La table : la chaleur arrive, le mouvement ralentit -->
-    <section class="ch ch4" id="ch4" aria-labelledby="t4">
-      <div class="ch__pin">
-        <div class="ch__media">
-          <img class="ph ph--a" src="/assets/invitation/chaude-1600.webp" srcset="/assets/invitation/chaude-900.webp 900w, /assets/invitation/chaude-1600.webp 1600w, /assets/invitation/chaude-2000.webp 2000w" sizes="100vw" width="2000" height="1122" alt="Un couloir de l'atelier baigné d'une lumière chaude" decoding="async" loading="lazy">
-        </div>
-        <div class="ch__copy">
-          <p class="eyebrow">04 — La table</p>
-          <h2 id="t4">Le plaisir de se retrouver.</h2>
-          <ul class="words"><li>Sushis</li><li>Cocktails sans alcool</li><li>Musique jazz</li></ul>
+          <p class="ch__text">Une soirée pour inaugurer le début de l'aventure.</p>
+          <p class="ch__text">Nous y raconterons l'histoire de REYCE, et le futur de nos projets.</p>
         </div>
       </div>
     </section>
   </div>
 
-  <!-- Après la découverte : une respiration, le fil termine son mouvement, puis la question -->
+  <!-- Puis l'événement : le fil termine son mouvement, la question, le cadre -->
   <section class="finale" id="finale">
-    <p class="finale__line">Certaines choses ne se montrent qu'une fois sur place.</p>
     <span class="finale__thread" aria-hidden="true"></span>
     <h2 class="finale__ask" id="rsvpTitle">Serez-vous des nôtres&nbsp;?</h2>
   </section>
@@ -245,6 +192,6 @@
   <p>Une question ? <a href="tel:+33763004385">07 63 00 43 85</a></p>
 </footer>
 
-<script src="/js/invitation.js?v=1" defer></script>
+<script src="/js/invitation.js?v=2" defer></script>
 </body>
 </html>
