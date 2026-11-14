@@ -1565,7 +1565,7 @@ app.post('/api/webhook',
 // Les pages transactionnelles gardent leur adresse : liens déjà envoyés par e-mail, retour de paiement, page de remerciement des annonces.
 const fs = require('fs');
 // Page privée de la soirée : jamais indexée, jamais mise en cache durablement (l'en-tête doit précéder l'envoi du fichier par la règle des adresses propres ci-dessous)
-app.use(['/soiree', '/soiree.html'], (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive'); res.setHeader('Cache-Control', 'no-cache'); next(); });
+app.use(['/soiree', '/soiree.html', '/invitation', '/invitation.html'], (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive'); res.setHeader('Cache-Control', 'no-cache'); next(); });
 const KEEP_HTML   = new Set(['index', '404', 'admin', 'merci-devis', 'confirmation', 'rdv-confirmation', 'care-report', 'cancel']);
 const CLEAN_PAGES = new Set(fs.readdirSync(__dirname).filter(f => /^[a-z0-9][a-z0-9-]*\.html$/i.test(f)).map(f => f.slice(0, -5).toLowerCase()).filter(n => !KEEP_HTML.has(n)));
 app.use((req, res, next) => {
@@ -1623,7 +1623,7 @@ app.use(express.static(path.join(__dirname), {
     if (/[\\/]assets[\\/]images[\\/]logo\.png$/.test(filePath)) {
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     }
-    if (/[\\/](?:soiree\.(?:css|js))$/.test(filePath)) {
+    if (/[\\/](?:(?:soiree|invitation)\.(?:css|js))$/.test(filePath)) {
       res.setHeader('Cache-Control', 'no-cache');   // la page d'invitation et ses fichiers évoluent ensemble : jamais de feuille de style périmée
     } else if (/\.(?:avif|webp|jpe?g|png|gif|svg|ico|woff2?|mp4|webm)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=604800');
