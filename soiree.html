@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Soirée privée REYCE — jeudi 3 décembre, 19h30</title>
+<meta name="description" content="Invitation privée à la soirée REYCE, le jeudi 3 décembre à 19h30, à l'atelier de La Mulatière.">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+
+<!-- Aperçu du lien (WhatsApp, iMessage, Facebook, X) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="REYCE">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Invitation privée · Jeudi 3 décembre, 19h30">
+<meta property="og:description" content="Atelier REYCE, La Mulatière. Une soirée privée autour de voitures d'exception. Tenue élégante. Réponse obligatoire.">
+<meta property="og:url" content="https://www.reyce.fr/soiree">
+<meta property="og:image" content="https://www.reyce.fr/assets/soiree/og-soiree.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Invitation privée REYCE : jeudi 3 décembre, 19h30, atelier REYCE. Gros plan sur un chronomètre cuivré.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Invitation privée · Jeudi 3 décembre, 19h30">
+<meta name="twitter:description" content="Atelier REYCE, La Mulatière. Une soirée privée autour de voitures d'exception. Tenue élégante. Réponse obligatoire.">
+<meta name="twitter:image" content="https://www.reyce.fr/assets/soiree/og-soiree.jpg">
+
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+<link rel="preload" as="image" href="/assets/soiree/chrono-800.webp" imagesrcset="/assets/soiree/chrono-800.webp 800w, /assets/soiree/chrono-1331.webp 1331w" imagesizes="(min-width:900px) and (min-aspect-ratio:5/4) 48vw, 100vw" fetchpriority="high">
+<link rel="stylesheet" href="/css/soiree.css">
+</head>
+<body>
+<a class="skip" href="#rsvp">Aller au formulaire de réponse</a>
+
+<!-- 1. Invitation -->
+<header class="hero" id="top">
+  <img class="hero__logo" src="/assets/images/logo.png" width="527" height="639" alt="REYCE">
+
+  <div class="hero__media">
+    <img src="/assets/soiree/chrono-800.webp"
+         srcset="/assets/soiree/chrono-800.webp 800w, /assets/soiree/chrono-1331.webp 1331w"
+         sizes="(min-width:900px) and (min-aspect-ratio:5/4) 48vw, 100vw"
+         width="1331" height="2000" alt="" decoding="async" fetchpriority="high">
+  </div>
+
+  <div class="hero__copy">
+    <p class="eyebrow">Invitation privée</p>
+    <h1>Jeudi <span class="nb">3 décembre</span></h1>
+    <p class="when"><span class="nb">19h30</span> · <span class="nb">Atelier Reyce,</span> <span class="nb">47 chemin du Pras,</span> <span class="nb">69350 La Mulatière</span></p>
+    <p class="count" id="count" aria-live="polite"></p>
+    <a class="btn btn--line" href="#rsvp">Répondre à l'invitation</a>
+  </div>
+</header>
+
+<main>
+  <!-- 2 et 3. Accroche et quatre blocs -->
+  <section class="intro" aria-labelledby="accroche">
+    <p class="lead" id="accroche">Une seule soirée. Les portes de l'atelier s'ouvrent à quelques passionnés, autour de voitures que l'on ne croise pas tous les jours.</p>
+    <ul class="blocks" role="list">
+      <li><h2>L'atelier</h2><p>Ouvert pour une soirée, comme vous ne l'avez jamais vu.</p></li>
+      <li><h2>Les voitures</h2><p>Quelques pièces rares, à regarder de près.</p></li>
+      <li><h2>L'histoire</h2><p>Comment est né Reyce, et ce que nous faisons de vos voitures.</p></li>
+      <li><h2>La table</h2><p>Sushis, cocktails sans alcool, musique jazz.</p></li>
+    </ul>
+    <ul class="meta" role="list" aria-label="À savoir">
+      <li>Places limitées</li><li>Tenue élégante</li><li>Réponse obligatoire</li>
+    </ul>
+  </section>
+
+  <!-- 4. Les voitures : une surprise, rien n'est dévoilé -->
+  <section class="surprise" aria-labelledby="surpriseTitle">
+    <div class="surprise__glow" aria-hidden="true"></div>
+    <p class="eyebrow">Les voitures de la soirée</p>
+    <h2 id="surpriseTitle">C'est une <span class="nb">surprise.</span></h2>
+    <p class="surprise__sub">Rendez-vous jeudi 3 décembre.</p>
+  </section>
+
+  <!-- 5. Réponse -->
+  <section class="rsvp" id="rsvp" aria-labelledby="rsvpTitle">
+    <div class="rsvp__box" id="formBox">
+      <p class="eyebrow">Votre réponse</p>
+      <h2 id="rsvpTitle">Serez-vous des nôtres&nbsp;?</h2>
+      <p class="rsvp__sub">Quelques secondes suffisent.</p>
+
+      <form id="rsvpForm" novalidate>
+        <div class="row">
+          <div class="field">
+            <label for="prenom">Prénom</label>
+            <input id="prenom" name="prenom" type="text" autocomplete="given-name" autocapitalize="words" maxlength="80" required aria-describedby="e-prenom">
+            <p class="err" id="e-prenom" hidden></p>
+          </div>
+          <div class="field">
+            <label for="nom">Nom</label>
+            <input id="nom" name="nom" type="text" autocomplete="family-name" autocapitalize="words" maxlength="80" required aria-describedby="e-nom">
+            <p class="err" id="e-nom" hidden></p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="254" required aria-describedby="e-email">
+          <p class="err" id="e-email" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="telephone">Téléphone</label>
+          <input id="telephone" name="telephone" type="tel" inputmode="tel" autocomplete="tel" maxlength="30" required aria-describedby="e-telephone">
+          <p class="err" id="e-telephone" hidden></p>
+        </div>
+
+        <fieldset class="field choice" aria-describedby="e-reponse">
+          <legend>Votre réponse</legend>
+          <div class="choice__grid">
+            <div class="opt"><input type="radio" id="r-present" name="reponse" value="present"><label for="r-present">Je serai présent(e)</label></div>
+            <div class="opt"><input type="radio" id="r-absent" name="reponse" value="absent"><label for="r-absent">Je ne pourrai pas</label></div>
+          </div>
+          <p class="err" id="e-reponse" hidden></p>
+        </fieldset>
+
+        <fieldset class="field choice" id="persBox" hidden>
+          <legend>Nombre de personnes</legend>
+          <div class="choice__grid">
+            <div class="opt"><input type="radio" id="p-1" name="personnes" value="1" checked><label for="p-1">Moi seul(e)</label></div>
+            <div class="opt"><input type="radio" id="p-2" name="personnes" value="2"><label for="p-2">Moi et un(e) invité(e)</label></div>
+          </div>
+        </fieldset>
+
+        <div class="field" id="allergBox" hidden>
+          <label for="allergies">Allergie ou préférence alimentaire <span class="opt-note">(facultatif)</span></label>
+          <textarea id="allergies" name="allergies" rows="2" maxlength="300"></textarea>
+        </div>
+
+        <div class="hp" aria-hidden="true"><label>Ne pas remplir <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+
+        <div class="send">
+          <button type="submit" class="btn btn--solid" id="send">Envoyer ma réponse</button>
+          <p class="msg" id="msg" role="alert"></p>
+        </div>
+      </form>
+
+      <p class="note">Ces informations servent uniquement à organiser la soirée.</p>
+    </div>
+
+    <!-- 6. Confirmation (sans rechargement) -->
+    <div class="done" id="done" hidden tabindex="-1">
+      <p class="eyebrow" id="doneTag">Confirmé</p>
+      <h2 id="doneTitle"></h2>
+      <p class="done__text" id="doneText"></p>
+      <div class="done__when" id="doneWhen">
+        <p class="done__date">Jeudi 3 décembre, 19h30</p>
+        <p class="done__place"><span class="nb">Atelier Reyce,</span> <span class="nb">47 chemin du Pras,</span> <span class="nb">69350 La Mulatière</span></p>
+        <div class="cal">
+          <a class="btn btn--line" id="gcal" href="#" target="_blank" rel="noopener">Google Agenda</a>
+          <a class="btn btn--line" id="ics" href="/assets/soiree/soiree-reyce.ics" download="soiree-reyce.ics">Apple / Outlook</a>
+        </div>
+      </div>
+      <button type="button" class="linkbtn" id="edit">Modifier ma réponse</button>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>REYCE · Atelier · La Mulatière</p>
+  <p>Une question ? <a href="tel:+33763004385">07 63 00 43 85</a></p>
+</footer>
+
+<script src="/js/soiree.js" defer></script>
+</body>
+</html>

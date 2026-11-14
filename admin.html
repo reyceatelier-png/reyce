@@ -874,6 +874,9 @@
         <button class="tab" data-tab="clients" onclick="switchTab('clients')">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14.3c2.2.7 3.5 2.6 3.5 5.2"/></svg>
           Clients</button>
+        <button class="tab" data-tab="soiree" onclick="switchTab('soiree')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.2 5 5.3.5-4 3.6 1.2 5.3L12 15l-4.7 2.9 1.2-5.3-4-3.6 5.3-.5z"/></svg>
+          Soirée <span class="tab__badge" id="soireeBadge" hidden>0</span></button>
 
         <p class="side__group">Business</p>
         <button class="tab" data-tab="services" onclick="switchTab('services')">
@@ -1063,6 +1066,35 @@
           <p class="section-title">Leads archivés</p>
           <div class="booking-list" id="archivedList"></div>
         </div>
+      </div>
+
+      <!-- ── Panel : Soirée ── -->
+      <div class="panel" id="panel-soiree">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-card__val" id="soTotal">—</div><div class="stat-card__label">Réponses</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="soPresent">—</div><div class="stat-card__label">Présents</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="soAbsent">—</div><div class="stat-card__label">Absents</div></div>
+          <div class="stat-card"><div class="stat-card__val" id="soPersons">—</div><div class="stat-card__label">Personnes attendues</div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+          <div>
+            <p class="section-title" style="margin:0 0 4px;">Réponses à la soirée du 3 décembre</p>
+            <p class="board-bar__note">Chaque réponse du formulaire de la page privée arrive ici toute seule. Une même adresse e-mail met sa réponse à jour au lieu de créer un doublon.</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select id="soFilter" onchange="renderSoiree()" style="width:180px;" aria-label="Filtrer les réponses">
+              <option value="all">Toutes les réponses</option>
+              <option value="present">Présents</option>
+              <option value="absent">Absents</option>
+            </select>
+            <button class="btn btn--ghost btn--sm" onclick="loadSoiree()">Actualiser</button>
+            <button class="btn btn--primary btn--sm" onclick="exportSoireeCsv()">Exporter (CSV)</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table class="grid">
+          <thead><tr><th>Invité</th><th>Réponse</th><th class="num">Pers.</th><th>Allergie / préférence</th><th>Contact</th><th>Reçue</th><th></th></tr></thead>
+          <tbody id="soBody"></tbody>
+        </table></div>
       </div>
 
       <!-- ── Panel : Campagnes ── -->
@@ -1477,6 +1509,7 @@
         populateServiceSelect();
         loadRevenue();
         loadPipeline(true);
+        loadSoiree();
       } catch (e) {
         if (e.message !== 'Non autorisé') showToast('Erreur de connexion', true);
       }
@@ -1501,7 +1534,7 @@
     // ── Tabs ─────────────────────────────────────────────────
     const TAB_TITLES = {
       dashboard: 'Tableau de bord', tools: 'Remise à zéro', leads: 'Leads', campaigns: 'Campagnes', bookings: 'Réservations', planning: 'Planning', clients: 'Clients',
-      services: 'Prestations', availability: 'Disponibilités', marketing: 'Marketing'
+      services: 'Prestations', availability: 'Disponibilités', marketing: 'Marketing', soiree: 'Soirée'
     };
     function switchTab(name) {
       document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
@@ -1513,6 +1546,7 @@
       if (name === 'leads') loadPipeline(true);
       if (name === 'tools') loadResetPreview();
       if (name === 'campaigns') loadCampaigns();
+      if (name === 'soiree') loadSoiree();
     }
     function openSide()  { document.getElementById('side').classList.add('is-open');    document.getElementById('sideVeil').classList.add('is-open'); }
     function closeSide() { document.getElementById('side').classList.remove('is-open'); document.getElementById('sideVeil').classList.remove('is-open'); }
@@ -2873,6 +2907,46 @@ let openClientEmail = null;
     let campaignsData = { campaigns: [], attribution: [] };
     let editingCampaign = null;
     const CAMP_STATUS = { draft: 'Brouillon', pending: 'À lancer', active: 'En cours', paused: 'En pause', ended: 'Terminée' };
+
+    // ── Soirée : réponses des invités ─────────────────────────
+    let soireeData = { responses: [], totals: {} };
+    async function loadSoiree() {
+      try { soireeData = await api('GET', '/api/admin/soiree'); renderSoiree(); }
+      catch (e) { if (e.message !== 'Non autorisé') showToast('Réponses à la soirée indisponibles', true); }
+    }
+    function renderSoiree() {
+      const t = soireeData.totals || {};
+      const put = (id, v) => { document.getElementById(id).textContent = v; };
+      put('soTotal', t.total || 0); put('soPresent', t.present || 0); put('soAbsent', t.absent || 0); put('soPersons', t.persons || 0);
+      const badge = document.getElementById('soireeBadge');
+      badge.textContent = t.present || 0; badge.hidden = !t.present;
+      const f = document.getElementById('soFilter').value;
+      const rows = (soireeData.responses || []).filter(r => f === 'all' || r.reponse === f);
+      document.getElementById('soBody').innerHTML = rows.length ? rows.map(r => `<tr>
+          <td><b>${esc(r.firstName)} ${esc(r.lastName)}</b>${r.code ? `<div class="board-bar__note">Lien personnel : ${esc(r.code)}</div>` : ''}</td>
+          <td><span class="chip ${r.reponse === 'present' ? 'chip--active' : ''}">${r.reponse === 'present' ? 'Présent' : 'Absent'}</span>${r.reponses > 1 ? `<div class="board-bar__note">modifiée ${esc(r.reponses - 1)} fois</div>` : ''}</td>
+          <td class="num">${r.reponse === 'present' ? esc(r.personnes || 1) : '—'}</td>
+          <td>${r.allergies ? esc(r.allergies) : '—'}</td>
+          <td><a href="tel:${esc(String(r.phone || '').replace(/[^\d+]/g, ''))}" style="color:inherit">${esc(r.phone)}</a><br><a href="mailto:${esc(r.email)}" style="color:inherit">${esc(r.email)}</a></td>
+          <td>${esc(fmtDateTime(r.updatedAt || r.createdAt))}</td>
+          <td><button class="mini-btn" onclick="deleteSoiree('${esc(r.id)}')">Supprimer</button></td></tr>`).join('')
+        : '<tr><td colspan="7" class="empty" style="text-transform:none;letter-spacing:0;">Aucune réponse pour le moment</td></tr>';
+    }
+    async function deleteSoiree(id) {
+      if (!confirm('Supprimer cette réponse ? La personne pourra répondre à nouveau depuis la page.')) return;
+      try { const r = await api('DELETE', `/api/admin/soiree/${encodeURIComponent(id)}`); if (r.error) { showToast(r.error, true); return; } showToast('Réponse supprimée'); loadSoiree(); }
+      catch (e) { if (e.message !== 'Non autorisé') showToast('Suppression impossible', true); }
+    }
+    async function exportSoireeCsv() {
+      try {
+        const res = await fetch('/api/admin/soiree.csv', { headers: { 'x-admin-token': token } });
+        if (!res.ok) { showToast('Export impossible', true); return; }
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a'); a.href = url; a.download = 'soiree-reyce-reponses.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      } catch (e) { showToast('Export impossible', true); }
+    }
 
     async function loadCampaigns() {
       try { campaignsData = await api('GET', '/api/admin/campaigns'); renderCampaigns(); }

@@ -1564,6 +1564,8 @@ app.post('/api/webhook',
 // (liens existants, favoris, moteurs de recherche, annonces) renvoie en 301 vers la nouvelle, requête conservée (utm, gclid, fbclid).
 // Les pages transactionnelles gardent leur adresse : liens déjà envoyés par e-mail, retour de paiement, page de remerciement des annonces.
 const fs = require('fs');
+// Page privée de la soirée : jamais indexée, jamais mise en cache durablement (l'en-tête doit précéder l'envoi du fichier par la règle des adresses propres ci-dessous)
+app.use(['/soiree', '/soiree.html'], (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive'); res.setHeader('Cache-Control', 'no-cache'); next(); });
 const KEEP_HTML   = new Set(['index', '404', 'admin', 'merci-devis', 'confirmation', 'rdv-confirmation', 'care-report', 'cancel']);
 const CLEAN_PAGES = new Set(fs.readdirSync(__dirname).filter(f => /^[a-z0-9][a-z0-9-]*\.html$/i.test(f)).map(f => f.slice(0, -5).toLowerCase()).filter(n => !KEEP_HTML.has(n)));
 app.use((req, res, next) => {
@@ -2450,9 +2452,12 @@ function leadView(row) {
   const p = row.payload || {};
   return { id: row.id, createdAt: row.createdAt.toISOString(), ...p, notes: p.notes || [], history: p.history || [] };
 }
-async function loadLeads() {
-  const rows = await prisma.eventLog.findMany({ where: { type: 'lead' }, orderBy: { createdAt: 'desc' }, take: 1000 });
-  return rows.map(leadView);
+// Les réponses à la soirée (kind « soiree ») sont des fiches du même type, mais elles restent à l'écart du pipeline commercial
+// et des statistiques de campagnes : loadLeads() les exclut, loadLeads({ soiree: true }) ne renvoie qu'elles (onglet « Soirée »).
+async function loadLeads(opts) {
+  const rows = await prisma.eventLog.findMany({ where: { type: 'lead' }, orderBy: { createdAt: 'desc' }, take: 1500 });
+  const all = rows.map(leadView);
+  return opts && opts.soiree ? all.filter(l => l.kind === 'soiree') : all.filter(l => l.kind !== 'soiree');
 }
 // Un lead est « converti » dès qu'une réservation non annulée existe avec le même e-mail, créée après lui.
 function markConverted(leads, bookings) {
@@ -3294,6 +3299,11 @@ if (process.env.REMINDERS_DISABLED !== '1') {
   setInterval(() => runReminders().catch(err => console.error('[Rappel] erreur du passage :', err.message)), 30 * 60 * 1000).unref();
   setTimeout(() => runReminders().catch(err => console.error('[Rappel] erreur du passage :', err.message)), 90 * 1000).unref();
 }
+
+// ============================================================
+// Soirée privée (page /soiree, réponses dans le CRM) — voir soiree.js
+// ============================================================
+require('./soiree')(app, { prisma, express, rateLimit, sendEmail, escapeHtml, cleanText, cleanPhone, isValidEmail, loadLeads });
 
 // ============================================================
 // 404 — page introuvable
