@@ -51,8 +51,8 @@
     }
     if (!root.classList.contains('opening')) { end(); return; }
     el.addEventListener('pointerdown', end); document.addEventListener('keydown', end);
-    el.addEventListener('animationend', function (e) { if (e.animationName === 'introOut') end(); });
-    setTimeout(end, 4200);                                                                           // filet de sécurité : l'invitation n'est jamais retenue
+    setTimeout(end, 4500);   /* la classe reste jusqu'à la fin de la révélation du texte ; le rideau, lui, n'arrête plus aucun clic dès qu'il est dissous */
+    //                                                                          // filet de sécurité : l'invitation n'est jamais retenue
   })();
 
   /* ---------- texte de la page selon l'événement ---------- */

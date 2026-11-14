@@ -1103,6 +1103,7 @@
                 <option value="notsent">Invitation pas encore envoyée</option>
               </select>
               <button class="btn btn--primary btn--sm" onclick="openEvGuest()">+ Invité</button>
+              <button class="btn btn--ghost btn--sm" onclick="openEvCrm()">+ Depuis le CRM</button>
               <button class="btn btn--ghost btn--sm" onclick="openEvBulk()">Importer une liste</button>
               <button class="btn btn--ghost btn--sm" onclick="exportEvCsv()">Exporter (CSV)</button>
             </div>
@@ -1450,6 +1451,23 @@
         <p id="ebResult" class="board-bar__note"></p>
       </div>
       <div class="modal__foot"><button class="btn btn--primary" onclick="saveEvBulk()">Importer</button><button class="btn btn--ghost" onclick="closeEvBulk()">Fermer</button></div>
+    </div>
+  </div>
+
+  <!-- Événements : inviter des contacts déjà dans le CRM -->
+  <div class="modal-veil" id="ecVeil" onclick="if(event.target===this) closeEvCrm()">
+    <div class="modal" style="max-width:720px;">
+      <div class="modal__head"><p class="section-title" style="margin:0;">Inviter depuis le CRM</p><button class="btn btn--ghost btn--sm" onclick="closeEvCrm()">Fermer</button></div>
+      <div class="modal__body">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <input id="ecSearch" type="search" placeholder="Rechercher un nom, un e-mail…" oninput="renderEvCrm()" style="flex:1 1 220px;" aria-label="Rechercher un contact">
+          <select id="ecSource" onchange="renderEvCrm()" style="width:200px;" aria-label="Filtrer par origine"><option value="">Toutes les origines</option><option value="Client">Clients</option><option value="Demande">Demandes et messages</option></select>
+        </div>
+        <p class="board-bar__note" id="ecCount"></p>
+        <div id="ecList" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;"></div>
+        <p class="board-bar__note">Les contacts déjà invités n'apparaissent pas. Leurs coordonnées viennent du CRM ; chacun reçoit un lien personnel, rien n'est envoyé.</p>
+      </div>
+      <div class="modal__foot"><button class="btn btn--primary" id="ecGo" onclick="saveEvCrm()">Inviter la sélection</button><button class="btn btn--ghost" onclick="toggleEvCrmAll()">Tout cocher / décocher</button></div>
     </div>
   </div>
 
@@ -3167,6 +3185,37 @@ let openClientEmail = null;
       if (!evGuestId || !confirm('Supprimer cet invité de l\'événement ? Son lien personnel ne fonctionnera plus.')) return;
       try { const r = await api('DELETE', `/api/admin/events/${encodeURIComponent(evCur)}/guests/${encodeURIComponent(evGuestId)}`); if (r.error) { showToast(r.error, true); return; } closeEvGuest(); showToast('Invité supprimé'); openEvent(evCur, true); }
       catch (e) { if (e.message !== 'Non autorisé') showToast('Suppression impossible', true); }
+    }
+    // Inviter des contacts déjà connus du CRM (clients, demandes de devis, messages)
+    let evCrmList = [], evCrmSel = new Set();
+    async function openEvCrm() {
+      document.getElementById('ecVeil').classList.add('is-open'); document.getElementById('ecList').innerHTML = '<div class="empty">Chargement…</div>'; document.getElementById('ecSearch').value = ''; evCrmSel = new Set();
+      try { const r = await api('GET', `/api/admin/events/${encodeURIComponent(evCur)}/crm-contacts`); evCrmList = r.contacts || []; renderEvCrm(); }
+      catch (e) { if (e.message !== 'Non autorisé') showToast('Contacts indisponibles', true); }
+    }
+    function closeEvCrm() { document.getElementById('ecVeil').classList.remove('is-open'); }
+    function evCrmFiltered() {
+      const q = (document.getElementById('ecSearch').value || '').trim().toLowerCase(), src = document.getElementById('ecSource').value;
+      return evCrmList.filter(c => (!src || (src === 'Client' ? c.source === 'Client' : c.source !== 'Client')) && (!q || `${c.firstName} ${c.lastName} ${c.email} ${c.phone}`.toLowerCase().includes(q)));
+    }
+    function renderEvCrm() {
+      const rows = evCrmFiltered();
+      document.getElementById('ecList').innerHTML = rows.length ? rows.slice(0, 400).map(c => `<label style="display:flex;gap:12px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:14px;letter-spacing:0;text-transform:none;color:var(--white);">
+          <input type="checkbox" ${evCrmSel.has(c.email) ? 'checked' : ''} onchange="toggleEvCrm(${jq(c.email)}, this.checked)" style="width:18px;height:18px;flex:none;">
+          <span style="flex:1;min-width:0;"><b>${esc(c.firstName)} ${esc(c.lastName)}</b><br><span class="board-bar__note">${esc(c.email)}${c.phone ? ' · ' + esc(c.phone) : ''}</span></span>
+          <span class="chip ${c.source === 'Client' ? 'chip--active' : ''}">${esc(c.source)}</span></label>`).join('') : '<div class="empty">Aucun contact à inviter</div>';
+      document.getElementById('ecCount').textContent = `${rows.length} contact(s)${rows.length > 400 ? ' (400 affichés : affinez la recherche)' : ''} · ${evCrmSel.size} sélectionné(s)`;
+      document.getElementById('ecGo').textContent = evCrmSel.size ? `Inviter la sélection (${evCrmSel.size})` : 'Inviter la sélection';
+    }
+    function toggleEvCrm(email, on) { if (on) evCrmSel.add(email); else evCrmSel.delete(email); renderEvCrm(); }
+    function toggleEvCrmAll() { const rows = evCrmFiltered().slice(0, 400); const all = rows.every(c => evCrmSel.has(c.email)); rows.forEach(c => { if (all) evCrmSel.delete(c.email); else evCrmSel.add(c.email); }); renderEvCrm(); }
+    async function saveEvCrm() {
+      if (!evCrmSel.size) { showToast('Cochez au moins un contact', true); return; }
+      try {
+        const r = await api('POST', `/api/admin/events/${encodeURIComponent(evCur)}/guests/from-crm`, { emails: [...evCrmSel] });
+        if (r.error) { showToast(r.error, true); return; }
+        closeEvCrm(); showToast(`${r.created} invité(s) ajouté(s)${r.existing ? ', ' + r.existing + ' déjà dans la liste' : ''}`); openEvent(evCur, true);
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Invitation impossible', true); }
     }
     function openEvBulk() { document.getElementById('ebLines').value = ''; document.getElementById('ebResult').textContent = ''; document.getElementById('ebVeil').classList.add('is-open'); }
     function closeEvBulk() { document.getElementById('ebVeil').classList.remove('is-open'); }

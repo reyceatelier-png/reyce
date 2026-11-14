@@ -32,7 +32,8 @@
 <link rel="preload" as="image" href="/assets/soiree/chrono-800.webp" imagesrcset="/assets/soiree/chrono-800.webp 800w, /assets/soiree/chrono-1331.webp 1331w" imagesizes="(min-width:900px) and (min-aspect-ratio:5/4) 48vw, 100vw" fetchpriority="high">
 <script>/* ouverture courte avec reflet : jamais avec « moins de mouvement », une seule fois par visite, ignorée si on arrive sur une ancre */
 (function(){try{var d=document.documentElement;d.className+=' js';if(matchMedia('(prefers-reduced-motion: reduce)').matches||sessionStorage.getItem('rv-intro')||location.hash)return;d.className+=' opening';}catch(e){}})();</script>
-<link rel="stylesheet" href="/css/soiree.css">
+<style>html,body{background:#050506;color:#f4f5f6}</style>   <!-- pas de flash blanc avant le chargement de la feuille de style -->
+<link rel="stylesheet" href="/css/soiree.css?v=4">
 </head>
 <body>
 <a class="skip" href="#rsvp">Aller au formulaire de réponse</a>
@@ -200,6 +201,6 @@
   <p>Une question ? <a href="tel:+33763004385">07 63 00 43 85</a></p>
 </footer>
 
-<script src="/js/soiree.js" defer></script>
+<script src="/js/soiree.js?v=4" defer></script>
 </body>
 </html>

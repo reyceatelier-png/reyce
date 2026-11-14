@@ -1623,7 +1623,9 @@ app.use(express.static(path.join(__dirname), {
     if (/[\\/]assets[\\/]images[\\/]logo\.png$/.test(filePath)) {
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     }
-    if (/\.(?:avif|webp|jpe?g|png|gif|svg|ico|woff2?|mp4|webm)$/i.test(filePath)) {
+    if (/[\\/](?:soiree\.(?:css|js))$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache');   // la page d'invitation et ses fichiers évoluent ensemble : jamais de feuille de style périmée
+    } else if (/\.(?:avif|webp|jpe?g|png|gif|svg|ico|woff2?|mp4|webm)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=604800');
     } else if (/\.(?:css|js)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');

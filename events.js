@@ -371,6 +371,41 @@ module.exports = function registerEvents(app, d) {
     await prisma.eventLog.delete({ where: { id: row.id } }); res.json({ ok: true });
   });
 
+  // ---------- contacts déjà connus du CRM (clients avec réservation, fiches clients, demandes de devis et messages) ----------
+  const LEAD_SOURCE = { devis: 'Demande de devis', pro: 'Demande professionnelle', message: 'Message', manuel: 'Saisie manuelle' };
+  async function crmContacts() {
+    const map = new Map();
+    const add = (email, o) => {
+      email = String(email || '').trim().toLowerCase(); if (!email || !isValidEmail(email)) return;
+      const cur = map.get(email);
+      if (!cur) map.set(email, { email, firstName: o.firstName || '', lastName: o.lastName || '', phone: o.phone || '', source: o.source });
+      else { cur.firstName = cur.firstName || o.firstName || ''; cur.lastName = cur.lastName || o.lastName || ''; cur.phone = cur.phone || o.phone || ''; if (o.source === 'Client') cur.source = 'Client'; }
+    };
+    try { (await prisma.appointment.findMany({ where: { status: { not: 'pending_payment' } }, select: { guestEmail: true, guestFirstName: true, guestLastName: true, guestPhone: true }, distinct: ['guestEmail'], take: 3000 }))
+      .forEach(a => add(a.guestEmail, { firstName: a.guestFirstName, lastName: a.guestLastName, phone: a.guestPhone, source: 'Client' })); } catch (e) { console.error('[Événements] contacts clients :', e.message); }
+    try { (await prisma.client.findMany({ take: 3000 })).forEach(c => add(c.email, { firstName: c.firstName, lastName: c.lastName, phone: c.phone, source: 'Client' })); } catch (e) { console.error('[Événements] fiches clients :', e.message); }
+    try { (await prisma.eventLog.findMany({ where: { type: 'lead' }, orderBy: { createdAt: 'desc' }, take: 3000 })).forEach(r => { const l = r.payload || {}; add(l.email, { firstName: l.firstName, lastName: l.lastName, phone: l.phone, source: LEAD_SOURCE[l.kind] || 'Demande' }); }); } catch (e) { console.error('[Événements] demandes :', e.message); }
+    return map;
+  }
+  app.get('/api/admin/events/:slug/crm-contacts', async (req, res) => {
+    const ev = await getEvent(String(req.params.slug)); if (!ev) return res.status(404).json({ error: 'Événement introuvable' });
+    const invited = new Set((await guestRows(ev.slug)).map(r => r.payload.email).filter(Boolean));
+    const contacts = [...(await crmContacts()).values()].filter(c => c.firstName && !invited.has(c.email))
+      .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'));
+    res.json({ contacts: contacts.slice(0, 3000), alreadyInvited: invited.size });
+  });
+  app.post('/api/admin/events/:slug/guests/from-crm', express.json({ limit: '64kb' }), async (req, res) => {
+    const ev = await getEvent(String(req.params.slug)); if (!ev) return res.status(404).json({ error: 'Événement introuvable' });
+    const wanted = [...new Set((Array.isArray(req.body && req.body.emails) ? req.body.emails : []).map(e => String(e).trim().toLowerCase()))].slice(0, 500);
+    const all = await crmContacts(); let created = 0, existing = 0, skipped = 0;
+    for (const email of wanted) {                                          // les coordonnées viennent du CRM, jamais du navigateur
+      const c = all.get(email); if (!c || !c.firstName) { skipped++; continue; }
+      const r = await createInvite(ev, { firstName: c.firstName, lastName: c.lastName, email: c.email, phone: c.phone, channel: c.phone ? 'WhatsApp' : 'E-mail' });
+      if (r.error) skipped++; else if (r.existing) existing++; else created++;
+    }
+    res.json({ ok: true, created, existing, skipped });
+  });
+
   const csvCell = v => { let s = String(v == null ? '' : v).replace(/\r?\n/g, ' '); if (/^[=+\-@\t]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
   app.get('/api/admin/events/:slug/export.csv', async (req, res) => {
     const ev = await getEvent(String(req.params.slug)); if (!ev) return res.status(404).json({ error: 'Événement introuvable' });
