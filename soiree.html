@@ -30,10 +30,18 @@
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
 <link rel="preload" as="image" href="/assets/soiree/chrono-800.webp" imagesrcset="/assets/soiree/chrono-800.webp 800w, /assets/soiree/chrono-1331.webp 1331w" imagesizes="(min-width:900px) and (min-aspect-ratio:5/4) 48vw, 100vw" fetchpriority="high">
+<script>/* ouverture courte avec reflet : jamais avec « moins de mouvement », une seule fois par visite, ignorée si on arrive sur une ancre */
+(function(){try{var d=document.documentElement;d.className+=' js';if(matchMedia('(prefers-reduced-motion: reduce)').matches||sessionStorage.getItem('rv-intro')||location.hash)return;d.className+=' opening';}catch(e){}})();</script>
 <link rel="stylesheet" href="/css/soiree.css">
 </head>
 <body>
 <a class="skip" href="#rsvp">Aller au formulaire de réponse</a>
+
+<!-- Ouverture : un reflet fin parcourt le monogramme, puis l'invitation se révèle (contournable, absente sans JavaScript) -->
+<div class="curtain" id="intro" aria-hidden="true">
+  <div class="curtain__mark"><img src="/assets/images/logo.png" width="527" height="639" alt=""><span class="curtain__shine"></span></div>
+  <button type="button" class="curtain__skip" id="introSkip" tabindex="-1">Passer</button>
+</div>
 
 <!-- 1. Invitation -->
 <header class="hero" id="top">
@@ -47,9 +55,9 @@
   </div>
 
   <div class="hero__copy">
-    <p class="eyebrow">Invitation privée</p>
-    <h1>Jeudi <span class="nb">3 décembre</span></h1>
-    <p class="when"><span class="nb">19h30</span> · <span class="nb">Atelier Reyce,</span> <span class="nb">47 chemin du Pras,</span> <span class="nb">69350 La Mulatière</span></p>
+    <p class="eyebrow" id="eyebrow">Invitation privée</p>
+    <h1 id="heroDate">Jeudi <span class="nb">3 décembre</span></h1>
+    <p class="when" id="heroWhen"><span class="nb">19h30</span> · <span class="nb">Atelier Reyce,</span> <span class="nb">47 chemin du Pras,</span> <span class="nb">69350 La Mulatière</span></p>
     <p class="count" id="count" aria-live="polite"></p>
     <a class="btn btn--line" href="#rsvp">Répondre à l'invitation</a>
   </div>
@@ -70,6 +78,24 @@
     </ul>
   </section>
 
+  <!-- Le carton : les informations pratiques, tout de suite lisibles -->
+  <section class="card" aria-labelledby="cardTitle">
+    <div class="card__inner">
+      <p class="eyebrow">Informations pratiques</p>
+      <h2 id="cardTitle" class="card__date">Jeudi 3 décembre 2026</h2>
+      <dl class="card__list">
+        <div><dt>Heure</dt><dd id="cardTime">19h30 – 22h30</dd></div>
+        <div><dt>Lieu</dt><dd id="cardPlace">Atelier REYCE<br>47 chemin du Pras<br>69350 La Mulatière</dd></div>
+        <div id="cardDressRow"><dt>Tenue</dt><dd id="cardDress">Élégante</dd></div>
+      </dl>
+      <div class="card__actions">
+        <a class="btn btn--line" id="routeLink" href="https://www.google.com/maps/search/?api=1&amp;query=Atelier%20REYCE%2C%2047%20chemin%20du%20Pras%2C%2069350%20La%20Mulati%C3%A8re" target="_blank" rel="noopener">Itinéraire</a>
+        <a class="btn btn--line" id="cardGcal" href="#" target="_blank" rel="noopener">Google Agenda</a>
+        <a class="btn btn--line" id="cardIcs" href="/api/events/soiree-reyce-2026-12-03/calendar.ics">Apple / Outlook</a>
+      </div>
+    </div>
+  </section>
+
   <!-- 4. Ce qui attend l'invité : rien n'est dévoilé, une photo très sombre et deux lignes -->
   <section class="teaser" aria-labelledby="teaserTitle">
     <img class="teaser__img" src="/assets/soiree/chrono-1331.webp" srcset="/assets/soiree/chrono-800.webp 800w, /assets/soiree/chrono-1331.webp 1331w" sizes="100vw" width="1331" height="2000" alt="" loading="lazy" decoding="async">
@@ -87,7 +113,9 @@
       <h2 id="rsvpTitle">Serez-vous des nôtres&nbsp;?</h2>
       <p class="rsvp__sub">Quelques secondes suffisent.</p>
 
+      <p class="known" id="known" hidden></p>
       <form id="rsvpForm" novalidate>
+        <div id="idFields">
         <div class="row">
           <div class="field">
             <label for="prenom">Prénom</label>
@@ -113,6 +141,7 @@
           <p class="err" id="e-telephone" hidden></p>
         </div>
 
+        </div>
         <fieldset class="field choice" aria-describedby="e-reponse">
           <legend>Votre réponse</legend>
           <div class="choice__grid">
@@ -151,12 +180,14 @@
       <p class="eyebrow" id="doneTag">Confirmé</p>
       <h2 id="doneTitle"></h2>
       <p class="done__text" id="doneText"></p>
+      <span class="done__rule" aria-hidden="true"></span>
       <div class="done__when" id="doneWhen">
         <p class="done__date">Jeudi 3 décembre, 19h30</p>
         <p class="done__place"><span class="nb">Atelier Reyce,</span> <span class="nb">47 chemin du Pras,</span> <span class="nb">69350 La Mulatière</span></p>
         <div class="cal">
+          <a class="btn btn--line" id="route" href="#" target="_blank" rel="noopener">Itinéraire</a>
           <a class="btn btn--line" id="gcal" href="#" target="_blank" rel="noopener">Google Agenda</a>
-          <a class="btn btn--line" id="ics" href="/assets/soiree/soiree-reyce.ics" download="soiree-reyce.ics">Apple / Outlook</a>
+          <a class="btn btn--line" id="ics" href="/api/events/soiree-reyce-2026-12-03/calendar.ics">Apple / Outlook</a>
         </div>
       </div>
       <button type="button" class="linkbtn" id="edit">Modifier ma réponse</button>

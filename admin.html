@@ -874,9 +874,9 @@
         <button class="tab" data-tab="clients" onclick="switchTab('clients')">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14.3c2.2.7 3.5 2.6 3.5 5.2"/></svg>
           Clients</button>
-        <button class="tab" data-tab="soiree" onclick="switchTab('soiree')">
+        <button class="tab" data-tab="events" onclick="switchTab('events')">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.2 5 5.3.5-4 3.6 1.2 5.3L12 15l-4.7 2.9 1.2-5.3-4-3.6 5.3-.5z"/></svg>
-          Soirée <span class="tab__badge" id="soireeBadge" hidden>0</span></button>
+          Événements <span class="tab__badge" id="eventsBadge" hidden>0</span></button>
 
         <p class="side__group">Business</p>
         <button class="tab" data-tab="services" onclick="switchTab('services')">
@@ -1068,33 +1068,93 @@
         </div>
       </div>
 
-      <!-- ── Panel : Soirée ── -->
-      <div class="panel" id="panel-soiree">
-        <div class="stats-row">
-          <div class="stat-card"><div class="stat-card__val" id="soTotal">—</div><div class="stat-card__label">Réponses</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="soPresent">—</div><div class="stat-card__label">Présents</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="soAbsent">—</div><div class="stat-card__label">Absents</div></div>
-          <div class="stat-card"><div class="stat-card__val" id="soPersons">—</div><div class="stat-card__label">Personnes attendues</div></div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-          <div>
-            <p class="section-title" style="margin:0 0 4px;">Réponses à la soirée du 3 décembre</p>
-            <p class="board-bar__note">Chaque réponse du formulaire de la page privée arrive ici toute seule. Une même adresse e-mail met sa réponse à jour au lieu de créer un doublon.</p>
+      <!-- ── Panel : Événements ── -->
+      <div class="panel" id="panel-events">
+        <div id="evList">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+            <div>
+              <p class="section-title" style="margin:0 0 4px;">Événements</p>
+              <p class="board-bar__note">Soirées et rendez-vous privés : invités, liens personnels, réponses et accueil le jour J. Une réponse à un événement n'est jamais une demande commerciale.</p>
+            </div>
+            <button class="btn btn--primary btn--sm" onclick="openEvNew()">+ Nouvel événement</button>
           </div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <select id="soFilter" onchange="renderSoiree()" style="width:180px;" aria-label="Filtrer les réponses">
-              <option value="all">Toutes les réponses</option>
-              <option value="present">Présents</option>
-              <option value="absent">Absents</option>
-            </select>
-            <button class="btn btn--ghost btn--sm" onclick="loadSoiree()">Actualiser</button>
-            <button class="btn btn--primary btn--sm" onclick="exportSoireeCsv()">Exporter (CSV)</button>
+          <div class="camps" id="evCards"></div>
+        </div>
+
+        <div id="evDetail" hidden>
+          <button class="btn btn--ghost btn--sm" onclick="closeEvent()" style="margin-bottom:14px;">← Tous les événements</button>
+          <p class="section-title" style="margin:0 0 2px;" id="evTitle">—</p>
+          <p class="board-bar__note" id="evSub" style="margin-bottom:16px;"></p>
+          <div class="stats-row" id="evStats"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px;" id="evTabs">
+            <button class="btn btn--primary btn--sm" data-v="invites" onclick="evView('invites')">Invités</button>
+            <button class="btn btn--ghost btn--sm" data-v="door" onclick="evView('door')">Accueil · jour J</button>
+            <button class="btn btn--ghost btn--sm" data-v="sheet" onclick="evView('sheet')">Fiche de l'événement</button>
+          </div>
+
+          <div id="evInvites">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+              <input id="evSearch" type="search" placeholder="Rechercher un invité…" oninput="renderEvInvites()" style="width:230px;" aria-label="Rechercher un invité">
+              <select id="evFilter" onchange="renderEvInvites()" style="width:210px;" aria-label="Filtrer les invités">
+                <option value="all">Tous les invités</option>
+                <option value="pending">En attente (à relancer)</option>
+                <option value="confirmed">Présence confirmée</option>
+                <option value="declined">Invitation déclinée</option>
+                <option value="notsent">Invitation pas encore envoyée</option>
+              </select>
+              <button class="btn btn--primary btn--sm" onclick="openEvGuest()">+ Invité</button>
+              <button class="btn btn--ghost btn--sm" onclick="openEvBulk()">Importer une liste</button>
+              <button class="btn btn--ghost btn--sm" onclick="exportEvCsv()">Exporter (CSV)</button>
+            </div>
+            <div class="table-wrap"><table class="grid">
+              <thead><tr><th>Invité</th><th>Réponse</th><th class="num">Pers.</th><th>Canal</th><th>Contact</th><th>Invitation</th><th></th></tr></thead>
+              <tbody id="evBody"></tbody>
+            </table></div>
+          </div>
+
+          <div id="evDoor" hidden>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+              <input id="doorSearch" type="search" placeholder="Nom de l'invité…" oninput="renderEvDoor()" style="flex:1 1 220px;min-width:0;font-size:16px;padding:14px;" aria-label="Chercher un invité à l'accueil">
+              <select id="doorFilter" onchange="renderEvDoor()" style="width:200px;" aria-label="Filtrer l'accueil">
+                <option value="toreceive">À accueillir</option><option value="arrived">Déjà arrivés</option><option value="all">Tous</option>
+              </select>
+              <button class="btn btn--primary btn--sm" onclick="openEvWalkin()">+ Ajouter sur place</button>
+            </div>
+            <div id="doorList"></div>
+          </div>
+
+          <div id="evSheet" hidden>
+            <div class="modal" style="max-width:720px;border-radius:14px;">
+              <div class="modal__body" style="max-height:none;">
+                <div><label for="esName">Nom de l'événement</label><input id="esName" autocomplete="off"></div>
+                <div class="row2f">
+                  <div><label for="esDate">Date</label><input id="esDate" type="date"></div>
+                  <div><label for="esKind">Type</label><input id="esKind" autocomplete="off" placeholder="Soirée privée"></div>
+                </div>
+                <div class="row2f">
+                  <div><label for="esStart">Début (heure de Paris)</label><input id="esStart" type="time"></div>
+                  <div><label for="esEnd">Fin (heure de Paris)</label><input id="esEnd" type="time"></div>
+                </div>
+                <div class="row2f">
+                  <div><label for="esPlace">Lieu</label><input id="esPlace" autocomplete="off"></div>
+                  <div><label for="esAddress">Adresse</label><input id="esAddress" autocomplete="off"></div>
+                </div>
+                <div class="row2f">
+                  <div><label for="esDress">Tenue</label><input id="esDress" autocomplete="off" placeholder="Tenue élégante"></div>
+                  <div><label for="esDeadline">Répondre avant le (facultatif)</label><input id="esDeadline" type="date"></div>
+                </div>
+                <div><label for="esMsg">Message d'invitation (WhatsApp)</label><textarea id="esMsg" rows="3"></textarea>
+                  <p class="board-bar__note" style="margin-top:4px;">{prenom} et {lien} sont remplacés pour chaque invité. Rien n'est envoyé automatiquement : le bouton WhatsApp de la liste ouvre la conversation avec ce texte.</p></div>
+                <div><label for="esNotes">Notes internes</label><textarea id="esNotes" rows="2"></textarea></div>
+                <p class="board-bar__note" id="esPage"></p>
+              </div>
+              <div class="modal__foot">
+                <button class="btn btn--primary" onclick="saveEvSheet()">Enregistrer</button>
+                <button class="btn btn--ghost" id="esArchive" onclick="archiveEv()">Archiver l'événement</button>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="table-wrap"><table class="grid">
-          <thead><tr><th>Invité</th><th>Réponse</th><th class="num">Pers.</th><th>Allergie / préférence</th><th>Contact</th><th>Reçue</th><th></th></tr></thead>
-          <tbody id="soBody"></tbody>
-        </table></div>
       </div>
 
       <!-- ── Panel : Campagnes ── -->
@@ -1321,6 +1381,90 @@
     </div>
   </div>
 
+  <!-- Événements : nouvel événement -->
+  <div class="modal-veil" id="evNewVeil" onclick="if(event.target===this) closeEvNew()">
+    <div class="modal">
+      <div class="modal__head"><p class="section-title" style="margin:0;">Nouvel événement</p><button class="btn btn--ghost btn--sm" onclick="closeEvNew()">Fermer</button></div>
+      <div class="modal__body">
+        <div><label for="enName">Nom *</label><input id="enName" autocomplete="off" placeholder="Ex. Portes ouvertes REYCE"></div>
+        <div class="row2f">
+          <div><label for="enDate">Date *</label><input id="enDate" type="date"></div>
+          <div><label for="enKind">Type</label><input id="enKind" autocomplete="off" placeholder="Soirée privée"></div>
+        </div>
+        <div class="row2f">
+          <div><label for="enStart">Début *</label><input id="enStart" type="time" value="19:30"></div>
+          <div><label for="enEnd">Fin *</label><input id="enEnd" type="time" value="22:30"></div>
+        </div>
+        <div class="row2f">
+          <div><label for="enPlace">Lieu</label><input id="enPlace" autocomplete="off" value="Atelier REYCE"></div>
+          <div><label for="enAddress">Adresse</label><input id="enAddress" autocomplete="off" value="47 chemin du Pras, 69350 La Mulatière"></div>
+        </div>
+        <div><label for="enDress">Tenue</label><input id="enDress" autocomplete="off" placeholder="Facultatif"></div>
+        <p class="board-bar__note">Les horaires sont en heure de Paris. La page d'invitation d'un nouvel événement se prépare à part : la fiche, les invités, les liens et l'accueil fonctionnent dès maintenant.</p>
+      </div>
+      <div class="modal__foot"><button class="btn btn--primary" onclick="saveEvNew()">Créer l'événement</button><button class="btn btn--ghost" onclick="closeEvNew()">Annuler</button></div>
+    </div>
+  </div>
+
+  <!-- Événements : invité -->
+  <div class="modal-veil" id="egVeil" onclick="if(event.target===this) closeEvGuest()">
+    <div class="modal">
+      <div class="modal__head"><p class="section-title" style="margin:0;" id="egTitle">Invité</p><button class="btn btn--ghost btn--sm" onclick="closeEvGuest()">Fermer</button></div>
+      <div class="modal__body">
+        <div class="row2f">
+          <div><label for="egFirst">Prénom *</label><input id="egFirst" autocomplete="off"></div>
+          <div><label for="egLast">Nom</label><input id="egLast" autocomplete="off"></div>
+        </div>
+        <div class="row2f">
+          <div><label for="egEmail">E-mail</label><input id="egEmail" type="email" autocomplete="off"></div>
+          <div><label for="egPhone">Téléphone</label><input id="egPhone" type="tel" autocomplete="off"></div>
+        </div>
+        <div class="row2f">
+          <div><label for="egChannel">Canal d'invitation</label><select id="egChannel"></select></div>
+          <div><label for="egStatus">Réponse</label>
+            <select id="egStatus"><option value="pending">En attente</option><option value="confirmed">Présence confirmée</option><option value="declined">Invitation déclinée</option></select></div>
+        </div>
+        <div class="row2f">
+          <div><label for="egComp">Accompagnant(e)</label><select id="egComp"><option value="0">Seul(e)</option><option value="1">Avec un(e) invité(e)</option></select></div>
+          <div><label for="egAllerg">Allergie / préférence</label><input id="egAllerg" autocomplete="off"></div>
+        </div>
+        <div><label for="egNotes">Notes</label><textarea id="egNotes" rows="2"></textarea></div>
+        <div id="egExtra"></div>
+      </div>
+      <div class="modal__foot">
+        <button class="btn btn--primary" onclick="saveEvGuest()">Enregistrer</button>
+        <button class="btn btn--ghost" onclick="closeEvGuest()">Annuler</button>
+        <button class="btn btn--ghost" id="egDelete" onclick="deleteEvGuest()" style="margin-left:auto;">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Événements : import d'une liste -->
+  <div class="modal-veil" id="ebVeil" onclick="if(event.target===this) closeEvBulk()">
+    <div class="modal">
+      <div class="modal__head"><p class="section-title" style="margin:0;">Importer une liste d'invités</p><button class="btn btn--ghost btn--sm" onclick="closeEvBulk()">Fermer</button></div>
+      <div class="modal__body">
+        <div><label for="ebLines">Une personne par ligne</label>
+          <textarea id="ebLines" rows="9" placeholder="Prénom;Nom;E-mail;Téléphone;Canal&#10;Camille;Durand;camille@exemple.fr;06 11 22 33 44;WhatsApp"></textarea></div>
+        <p class="board-bar__note">Colonnes séparées par « ; », une virgule ou une tabulation (copier-coller depuis un tableur). Seul le prénom est obligatoire. Une adresse déjà présente n'est pas dupliquée. Canal : WhatsApp, E-mail, SMS ou En main propre. Chaque invité reçoit un lien personnel ; rien n'est envoyé.</p>
+        <p id="ebResult" class="board-bar__note"></p>
+      </div>
+      <div class="modal__foot"><button class="btn btn--primary" onclick="saveEvBulk()">Importer</button><button class="btn btn--ghost" onclick="closeEvBulk()">Fermer</button></div>
+    </div>
+  </div>
+
+  <!-- Événements : ajout sur place -->
+  <div class="modal-veil" id="ewVeil" onclick="if(event.target===this) closeEvWalkin()">
+    <div class="modal">
+      <div class="modal__head"><p class="section-title" style="margin:0;">Ajouter sur place</p><button class="btn btn--ghost btn--sm" onclick="closeEvWalkin()">Fermer</button></div>
+      <div class="modal__body">
+        <div class="row2f"><div><label for="ewFirst">Prénom *</label><input id="ewFirst" autocomplete="off"></div><div><label for="ewLast">Nom</label><input id="ewLast" autocomplete="off"></div></div>
+        <div><label for="ewComp">Personnes</label><select id="ewComp"><option value="0">1 personne</option><option value="1">2 personnes</option></select></div>
+      </div>
+      <div class="modal__foot"><button class="btn btn--primary" onclick="saveEvWalkin()">Ajouter et marquer arrivé(e)</button><button class="btn btn--ghost" onclick="closeEvWalkin()">Annuler</button></div>
+    </div>
+  </div>
+
   <!-- Campagne -->
   <div class="modal-veil" id="campVeil" onclick="if(event.target===this) closeCampaign()">
     <div class="modal">
@@ -1509,7 +1653,7 @@
         populateServiceSelect();
         loadRevenue();
         loadPipeline(true);
-        loadSoiree();
+        loadEvents();
       } catch (e) {
         if (e.message !== 'Non autorisé') showToast('Erreur de connexion', true);
       }
@@ -1534,7 +1678,7 @@
     // ── Tabs ─────────────────────────────────────────────────
     const TAB_TITLES = {
       dashboard: 'Tableau de bord', tools: 'Remise à zéro', leads: 'Leads', campaigns: 'Campagnes', bookings: 'Réservations', planning: 'Planning', clients: 'Clients',
-      services: 'Prestations', availability: 'Disponibilités', marketing: 'Marketing', soiree: 'Soirée'
+      services: 'Prestations', availability: 'Disponibilités', marketing: 'Marketing', events: 'Événements'
     };
     function switchTab(name) {
       document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('is-active', t.dataset.tab === name));
@@ -1546,7 +1690,7 @@
       if (name === 'leads') loadPipeline(true);
       if (name === 'tools') loadResetPreview();
       if (name === 'campaigns') loadCampaigns();
-      if (name === 'soiree') loadSoiree();
+      if (name === 'events') loadEvents();
     }
     function openSide()  { document.getElementById('side').classList.add('is-open');    document.getElementById('sideVeil').classList.add('is-open'); }
     function closeSide() { document.getElementById('side').classList.remove('is-open'); document.getElementById('sideVeil').classList.remove('is-open'); }
@@ -2140,6 +2284,7 @@ let openClientEmail = null;
     async function loadClientDetail(email) {
       try {
         const data = clientDetailCache[email] || await api('GET', `/api/admin/clients/${encodeURIComponent(email)}`);
+        if (!data.events) { try { data.events = (await api('GET', `/api/admin/events/by-email/${encodeURIComponent(email)}`)).events || []; } catch (e) { data.events = []; } }
         clientDetailCache[email] = data;
         renderClientDetail(email, data);
       } catch { showToast('Erreur de chargement', true); }
@@ -2201,6 +2346,8 @@ let openClientEmail = null;
           <div>
             <p class="client-detail__block-title">Historique des rendez-vous</p>
             ${historyHTML}
+            ${(data.events || []).length ? `<p class="client-detail__block-title" style="margin-top:24px;">Événements</p>${data.events.map(ev => `
+              <div class="history-row"><span>${esc(ev.event)}</span><span class="history-row__meta">${esc(ev.date)} · ${esc(EV_STATUS[ev.status] || ev.status)}${ev.companions ? ' · +1' : ''}${ev.attendance === 'present' ? ' · venu(e)' : ''}</span></div>`).join('')}` : ''}
           </div>
         </div>
       `;
@@ -2645,7 +2792,7 @@ let openClientEmail = null;
       { key: 'contacted', title: 'Déjà contactés',  color: 'var(--violet)', empty: 'Aucun lead contacté' }
     ];
     const LEAD_LABEL = { new: 'Nouveau', to_call: 'À rappeler', contacted: 'Contacté' };
-    const KIND_LABEL = { devis: 'Devis', pro: 'Devis professionnel', message: 'Message', manuel: 'Saisie manuelle', soiree: 'Soirée' };
+    const KIND_LABEL = { devis: 'Devis', pro: 'Devis professionnel', message: 'Message', manuel: 'Saisie manuelle' };
 
     function timeAgo(iso) {
       const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
@@ -2908,44 +3055,208 @@ let openClientEmail = null;
     let editingCampaign = null;
     const CAMP_STATUS = { draft: 'Brouillon', pending: 'À lancer', active: 'En cours', paused: 'En pause', ended: 'Terminée' };
 
-    // ── Soirée : réponses des invités ─────────────────────────
-    let soireeData = { responses: [], totals: {} };
-    async function loadSoiree() {
-      try { soireeData = await api('GET', '/api/admin/soiree'); renderSoiree(); }
-      catch (e) { if (e.message !== 'Non autorisé') showToast('Réponses à la soirée indisponibles', true); }
+    // ── Événements : invitations, réponses, accueil du jour J ──────────
+    const EV_STATUS = { pending: 'En attente', confirmed: 'Présence confirmée', declined: 'Invitation déclinée' };
+    let evList = [], evCur = null, evData = null, evChannels = [], evGuestId = null;
+    const evFmtDay = iso => { try { return new Date(iso).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: 'numeric', month: 'short' }); } catch (e) { return ''; } };
+
+    async function loadEvents() {
+      try {
+        const r = await api('GET', '/api/admin/events'); evList = r.events || []; evChannels = r.channels || evChannels;
+        renderEvCards();
+        const next = evList.filter(e => Date.parse(e.endUtc) > Date.now() && e.status !== 'archived').sort((a, b) => Date.parse(a.startUtc) - Date.parse(b.startUtc))[0];
+        const badge = document.getElementById('eventsBadge'); const n = next ? next.totals.persons : 0;
+        badge.textContent = n; badge.hidden = !n;
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Événements indisponibles', true); }
     }
-    function renderSoiree() {
-      const t = soireeData.totals || {};
-      const put = (id, v) => { document.getElementById(id).textContent = v; };
-      put('soTotal', t.total || 0); put('soPresent', t.present || 0); put('soAbsent', t.absent || 0); put('soPersons', t.persons || 0);
-      const badge = document.getElementById('soireeBadge');
-      badge.textContent = t.present || 0; badge.hidden = !t.present;
-      const f = document.getElementById('soFilter').value;
-      const rows = (soireeData.responses || []).filter(r => f === 'all' || r.reponse === f);
-      document.getElementById('soBody').innerHTML = rows.length ? rows.map(r => `<tr>
-          <td><b>${esc(r.firstName)} ${esc(r.lastName)}</b>${r.code ? `<div class="board-bar__note">Lien personnel : ${esc(r.code)}</div>` : ''}</td>
-          <td><span class="chip ${r.reponse === 'present' ? 'chip--active' : ''}">${r.reponse === 'present' ? 'Présent' : 'Absent'}</span>${r.reponses > 1 ? `<div class="board-bar__note">modifiée ${esc(r.reponses - 1)} fois</div>` : ''}</td>
-          <td class="num">${r.reponse === 'present' ? esc(r.personnes || 1) : '—'}</td>
-          <td>${r.allergies ? esc(r.allergies) : '—'}</td>
-          <td><a href="tel:${esc(String(r.phone || '').replace(/[^\d+]/g, ''))}" style="color:inherit">${esc(r.phone)}</a><br><a href="mailto:${esc(r.email)}" style="color:inherit">${esc(r.email)}</a></td>
-          <td>${esc(fmtDateTime(r.updatedAt || r.createdAt))}</td>
-          <td><button class="mini-btn" onclick="deleteSoiree('${esc(r.id)}')">Supprimer</button></td></tr>`).join('')
-        : '<tr><td colspan="7" class="empty" style="text-transform:none;letter-spacing:0;">Aucune réponse pour le moment</td></tr>';
+    function renderEvCards() {
+      const el = document.getElementById('evCards');
+      el.innerHTML = evList.length ? evList.map(e => {
+        const t = e.totals || {};
+        return `<article class="camp">
+          <div class="camp__head"><div><div class="camp__name">${esc(e.name)}</div><div class="camp__plat">${esc(e.kind || '')} · ${esc(e.longDate)}</div></div>
+            <span class="chip ${e.status === 'archived' ? '' : 'chip--active'}">${e.status === 'archived' ? 'Archivé' : (Date.parse(e.endUtc) < Date.now() ? 'Terminé' : 'À venir')}</span></div>
+          <div class="camp__meta">${esc(e.start)} – ${esc(e.end)} · ${esc(e.place)}<br>${esc(e.address)}</div>
+          <div class="camp__stats"><div><b>${t.invited || 0}</b><span>Invités</span></div><div><b>${t.confirmed || 0}</b><span>Confirmés</span></div><div><b>${t.persons || 0}</b><span>Personnes attendues</span></div></div>
+          <div class="camp__foot"><button class="mini-btn is-primary" onclick="openEvent(${jq(e.slug)})">Ouvrir</button></div></article>`;
+      }).join('') : '<div class="empty">Aucun événement</div>';
     }
-    async function deleteSoiree(id) {
-      if (!confirm('Supprimer cette réponse ? La personne pourra répondre à nouveau depuis la page.')) return;
-      try { const r = await api('DELETE', `/api/admin/soiree/${encodeURIComponent(id)}`); if (r.error) { showToast(r.error, true); return; } showToast('Réponse supprimée'); loadSoiree(); }
+    async function openEvent(slug, keepView) {
+      try {
+        const r = await api('GET', `/api/admin/events/${encodeURIComponent(slug)}`);
+        if (r.error) { showToast(r.error, true); return; }
+        evCur = slug; evData = r; evChannels = r.channels || evChannels;
+        document.getElementById('evList').hidden = true; document.getElementById('evDetail').hidden = false;
+        renderEvStats(); renderEvInvites(); renderEvDoor(); renderEvSheet();
+        if (!keepView) evView('invites');
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Événement indisponible', true); }
+    }
+    function closeEvent() { evCur = null; document.getElementById('evDetail').hidden = true; document.getElementById('evList').hidden = false; loadEvents(); }
+    function evView(v) {
+      ['invites', 'door', 'sheet'].forEach(k => { document.getElementById({ invites: 'evInvites', door: 'evDoor', sheet: 'evSheet' }[k]).hidden = k !== v; });
+      document.querySelectorAll('#evTabs button').forEach(b => { const on = b.dataset.v === v; b.classList.toggle('btn--primary', on); b.classList.toggle('btn--ghost', !on); });
+    }
+    function renderEvStats() {
+      const e = evData.event, t = e.totals;
+      document.getElementById('evTitle').textContent = e.name;
+      document.getElementById('evSub').textContent = `${e.longDate} · ${e.start} – ${e.end} · ${e.place}, ${e.address}${e.deadline ? ' · réponse avant le ' + e.deadline.split('-').reverse().join('/') : ''}`;
+      const card = (v, l) => `<div class="stat-card"><div class="stat-card__val">${v}</div><div class="stat-card__label">${l}</div></div>`;
+      document.getElementById('evStats').innerHTML = card(t.invited, 'Invités') + card(t.pending, 'En attente') + card(t.confirmed, 'Présence confirmée') + card(t.declined, 'Déclinées') + card(t.persons, 'Personnes attendues') + card(`${t.arrivedPersons}<small style="font-size:14px;color:var(--grey3);"> / ${t.persons}</small>`, 'Arrivées le jour J');
+    }
+    const evChip = g => `<span class="chip ${g.status === 'confirmed' ? 'chip--active' : (g.status === 'pending' ? 'chip--pending' : '')}">${esc(EV_STATUS[g.status] || g.status)}</span>`;
+    function evInviteText(g) { const ev = evData.event; return String(ev.inviteMessage || '').replace(/\{prenom\}/g, g.firstName || '').replace(/\{lien\}/g, g.link); }
+    function renderEvInvites() {
+      const q = (document.getElementById('evSearch').value || '').trim().toLowerCase(), f = document.getElementById('evFilter').value;
+      const rows = evData.guests.filter(g => {
+        if (q && !`${g.firstName} ${g.lastName} ${g.email} ${g.phone}`.toLowerCase().includes(q)) return false;
+        if (f === 'all') return true; if (f === 'notsent') return !g.invitedAt && g.status === 'pending';
+        return g.status === f;
+      });
+      document.getElementById('evBody').innerHTML = rows.length ? rows.map(g => `<tr>
+          <td><b>${esc(g.firstName)} ${esc(g.lastName)}</b>${g.isClient ? ' <span class="chip">Client</span>' : ''}${g.via ? '<div class="board-bar__note">Lien transféré</div>' : ''}${g.allergies ? `<div class="board-bar__note">${esc(g.allergies)}</div>` : ''}</td>
+          <td>${evChip(g)}${g.answers > 1 ? `<div class="board-bar__note">modifiée ${esc(g.answers - 1)} fois</div>` : ''}${g.attendance === 'present' ? '<div class="board-bar__note">Arrivé(e)</div>' : ''}</td>
+          <td class="num">${g.status === 'confirmed' ? esc(g.persons) : '—'}</td>
+          <td>${esc(g.channel || '—')}</td>
+          <td>${g.phone ? `<a href="tel:${esc(String(g.phone).replace(/[^\d+]/g, ''))}" style="color:inherit">${esc(g.phone)}</a><br>` : ''}${g.email ? `<a href="mailto:${esc(g.email)}" style="color:inherit">${esc(g.email)}</a>` : (g.phone ? '' : '—')}</td>
+          <td>${g.invitedAt ? 'Envoyée le ' + esc(evFmtDay(g.invitedAt)) : (g.status === 'pending' ? '<span class="chip chip--pending">À envoyer</span>' : '—')}</td>
+          <td style="white-space:nowrap;">
+            <button class="mini-btn" onclick="copyEvLink(${jq(g.id)})">Copier le lien</button>
+            ${!g.invitedAt && g.status === 'pending' ? `<button class="mini-btn" onclick="markEvSent(${jq(g.id)})">Marquer envoyée</button>` : ''}
+            ${g.phone ? `<button class="mini-btn" onclick="waEvGuest(${jq(g.id)})">WhatsApp</button>` : ''}
+            <button class="mini-btn" onclick="openEvGuest(${jq(g.id)})">Détail</button></td></tr>`).join('')
+        : `<tr><td colspan="7" class="empty" style="text-transform:none;letter-spacing:0;">${evData.guests.length ? 'Aucun invité ne correspond' : 'Aucun invité pour le moment : ajoutez-en ou importez une liste'}</td></tr>`;
+    }
+    const evGuest = id => evData.guests.find(g => g.id === id);
+    async function copyEvLink(id) {
+      const g = evGuest(id); if (!g) return;
+      try { await navigator.clipboard.writeText(g.link); showToast('Lien copié'); } catch (e) { window.prompt('Copiez le lien :', g.link); }
+    }
+    async function waEvGuest(id) {
+      const g = evGuest(id); if (!g) return;
+      window.open(`https://wa.me/${phoneIntl(g.phone)}?text=${encodeURIComponent(evInviteText(g))}`, '_blank', 'noopener');
+      if (!g.invitedAt) { await api('PATCH', `/api/admin/events/${encodeURIComponent(evCur)}/guests/${encodeURIComponent(id)}`, { invited: true }); openEvent(evCur, true); }
+    }
+    async function markEvSent(id) {
+      try { const r = await api('PATCH', `/api/admin/events/${encodeURIComponent(evCur)}/guests/${encodeURIComponent(id)}`, { invited: true }); if (r.error) { showToast(r.error, true); return; } openEvent(evCur, true); }
+      catch (e) { if (e.message !== 'Non autorisé') showToast('Non enregistré', true); }
+    }
+    function openEvGuest(id) {
+      evGuestId = id || null; const g = id ? evGuest(id) : null;
+      document.getElementById('egTitle').textContent = g ? `${g.firstName} ${g.lastName}` : 'Nouvel invité';
+      document.getElementById('egChannel').innerHTML = evChannels.filter(c => c !== 'Lien partagé' && c !== 'Lien transféré' || (g && g.channel === c)).map(c => `<option>${esc(c)}</option>`).join('');
+      const set = (i, v) => { document.getElementById(i).value = v == null ? '' : v; };
+      set('egFirst', g && g.firstName); set('egLast', g && g.lastName); set('egEmail', g && g.email); set('egPhone', g && g.phone);
+      set('egChannel', g ? g.channel : 'WhatsApp'); set('egStatus', g ? g.status : 'pending'); set('egComp', g ? g.companions : 0); set('egAllerg', g && g.allergies); set('egNotes', g && g.notes);
+      document.getElementById('egDelete').style.display = g ? '' : 'none';
+      document.getElementById('egExtra').innerHTML = g ? `<p class="client-detail__block-title">Lien personnel</p><p class="board-bar__note" style="word-break:break-all;user-select:all;">${esc(g.link)}</p>
+        <p class="client-detail__block-title" style="margin-top:12px;">Historique</p>${(g.history || []).slice().reverse().map(h => `<div class="history-row"><span>${esc(h.what)}</span><span class="history-row__meta">${esc(fmtDateTime(h.at))}</span></div>`).join('') || '<p class="board-bar__note">—</p>'}` : '';
+      document.getElementById('egVeil').classList.add('is-open');
+    }
+    function closeEvGuest() { document.getElementById('egVeil').classList.remove('is-open'); }
+    async function saveEvGuest() {
+      const v = i => document.getElementById(i).value.trim();
+      if (!v('egFirst')) { showToast('Le prénom est obligatoire', true); return; }
+      const body = { firstName: v('egFirst'), lastName: v('egLast'), email: v('egEmail'), phone: v('egPhone'), channel: v('egChannel'), status: v('egStatus'), companions: Number(v('egComp')), allergies: v('egAllerg'), notes: v('egNotes') };
+      try {
+        const r = evGuestId ? await api('PATCH', `/api/admin/events/${encodeURIComponent(evCur)}/guests/${encodeURIComponent(evGuestId)}`, body) : await api('POST', `/api/admin/events/${encodeURIComponent(evCur)}/guests`, body);
+        if (r.error) { showToast(r.error, true); return; }
+        closeEvGuest(); showToast(r.existing ? 'Cette personne était déjà dans la liste' : 'Invité enregistré'); openEvent(evCur, true);
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Invité non enregistré', true); }
+    }
+    async function deleteEvGuest() {
+      if (!evGuestId || !confirm('Supprimer cet invité de l\'événement ? Son lien personnel ne fonctionnera plus.')) return;
+      try { const r = await api('DELETE', `/api/admin/events/${encodeURIComponent(evCur)}/guests/${encodeURIComponent(evGuestId)}`); if (r.error) { showToast(r.error, true); return; } closeEvGuest(); showToast('Invité supprimé'); openEvent(evCur, true); }
       catch (e) { if (e.message !== 'Non autorisé') showToast('Suppression impossible', true); }
     }
-    async function exportSoireeCsv() {
+    function openEvBulk() { document.getElementById('ebLines').value = ''; document.getElementById('ebResult').textContent = ''; document.getElementById('ebVeil').classList.add('is-open'); }
+    function closeEvBulk() { document.getElementById('ebVeil').classList.remove('is-open'); }
+    async function saveEvBulk() {
+      const lines = document.getElementById('ebLines').value; if (!lines.trim()) return;
       try {
-        const res = await fetch('/api/admin/soiree.csv', { headers: { 'x-admin-token': token } });
+        const r = await api('POST', `/api/admin/events/${encodeURIComponent(evCur)}/guests/bulk`, { lines });
+        if (r.error) { showToast(r.error, true); return; }
+        document.getElementById('ebResult').textContent = `${r.created} invité(s) ajouté(s), ${r.existing} déjà présent(s)${r.errors.length ? ' · À corriger : ' + r.errors.join(' | ') : ''}`;
+        if (!r.errors.length) document.getElementById('ebLines').value = ''; openEvent(evCur, true);
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Import impossible', true); }
+    }
+    async function exportEvCsv() {
+      try {
+        const res = await fetch(`/api/admin/events/${encodeURIComponent(evCur)}/export.csv`, { headers: { 'x-admin-token': token } });
         if (!res.ok) { showToast('Export impossible', true); return; }
-        const url = URL.createObjectURL(await res.blob());
-        const a = document.createElement('a'); a.href = url; a.download = 'soiree-reyce-reponses.csv';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        const url = URL.createObjectURL(await res.blob()); const a = document.createElement('a'); a.href = url; a.download = `${evCur}-invites.csv`;
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
       } catch (e) { showToast('Export impossible', true); }
+    }
+
+    // Accueil du jour J : la présence constatée est distincte de la réponse à l'invitation
+    function renderEvDoor() {
+      const q = (document.getElementById('doorSearch').value || '').trim().toLowerCase(), f = document.getElementById('doorFilter').value;
+      const rows = evData.guests.filter(g => {
+        if (g.status === 'declined' && f !== 'all') return false;
+        if (q && !`${g.firstName} ${g.lastName}`.toLowerCase().includes(q)) return false;
+        if (f === 'toreceive') return g.status !== 'declined' && g.attendance !== 'present';
+        if (f === 'arrived') return g.attendance === 'present';
+        return true;
+      }).sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'));
+      const t = evData.event.totals;
+      document.getElementById('doorList').innerHTML = `<p class="board-bar__note" style="margin-bottom:10px;"><b>${t.arrivedPersons}</b> personne(s) arrivée(s) sur <b>${t.persons}</b> attendue(s)</p>` + (rows.length ? rows.map(g => `
+        <div class="camp" style="margin-bottom:10px;flex-direction:row;align-items:center;gap:12px;">
+          <div style="flex:1;min-width:0;"><div class="camp__name" style="font-size:17px;">${esc(g.firstName)} ${esc(g.lastName)}</div>
+            <div class="camp__plat">${g.status === 'confirmed' ? esc(g.persons) + ' personne(s)' : (g.status === 'pending' ? 'Pas de réponse' : 'A décliné')}${g.allergies ? ' · ' + esc(g.allergies) : ''}${g.notes ? ' · ' + esc(g.notes) : ''}</div></div>
+          ${g.attendance === 'present' ? `<span class="chip chip--active">Arrivé(e)</span><button class="mini-btn" onclick="evArrive(${jq(g.id)},false)">Annuler</button>`
+            : `<button class="btn btn--primary" style="min-height:48px;" onclick="evArrive(${jq(g.id)},true)">Arrivé(e)</button>`}
+        </div>`).join('') : '<div class="empty">Personne à afficher</div>');
+    }
+    async function evArrive(id, on) {
+      const g = evGuest(id); if (!g) return;
+      try {
+        const r = await api('PATCH', `/api/admin/events/${encodeURIComponent(evCur)}/guests/${encodeURIComponent(id)}`, { attendance: on ? 'present' : 'unknown', arrivedPersons: g.persons || 1 });
+        if (r.error) { showToast(r.error, true); return; }
+        Object.assign(g, r.guest); evData.event.totals = r.totals; renderEvStats(); renderEvDoor(); renderEvInvites();
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Non enregistré', true); }
+    }
+    function openEvWalkin() { ['ewFirst', 'ewLast'].forEach(i => { document.getElementById(i).value = ''; }); document.getElementById('ewComp').value = '0'; document.getElementById('ewVeil').classList.add('is-open'); document.getElementById('ewFirst').focus(); }
+    function closeEvWalkin() { document.getElementById('ewVeil').classList.remove('is-open'); }
+    async function saveEvWalkin() {
+      const first = document.getElementById('ewFirst').value.trim(); if (!first) { showToast('Le prénom est obligatoire', true); return; }
+      try {
+        const r = await api('POST', `/api/admin/events/${encodeURIComponent(evCur)}/guests`, { firstName: first, lastName: document.getElementById('ewLast').value.trim(), channel: 'Sur place', status: 'confirmed', attendance: 'present', companions: Number(document.getElementById('ewComp').value) });
+        if (r.error) { showToast(r.error, true); return; }
+        if (r.guest && r.guest.attendance === 'present') { /* arrivée déjà notée à la création */ }
+        closeEvWalkin(); showToast('Ajouté et marqué arrivé(e)'); openEvent(evCur, true); evView('door');
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Ajout impossible', true); }
+    }
+
+    // Fiche de l'événement
+    function renderEvSheet() {
+      const e = evData.event; const set = (i, v) => { document.getElementById(i).value = v == null ? '' : v; };
+      set('esName', e.name); set('esKind', e.kind); set('esDate', e.date); set('esStart', e.start); set('esEnd', e.end); set('esPlace', e.place); set('esAddress', e.address); set('esDress', e.dressCode); set('esDeadline', e.deadline); set('esMsg', e.inviteMessage); set('esNotes', e.notes);
+      document.getElementById('esPage').textContent = e.pageReady === false ? 'Page d\'invitation : à préparer pour cet événement (la fiche, la liste des invités et l\'accueil fonctionnent déjà).' : `Page d'invitation : ${location.origin}${e.path} (les liens personnels sont dans la liste des invités).`;
+      document.getElementById('esArchive').textContent = e.status === 'archived' ? 'Réactiver l\'événement' : 'Archiver l\'événement';
+    }
+    async function saveEvSheet() {
+      const v = i => document.getElementById(i).value.trim();
+      try {
+        const r = await api('PATCH', `/api/admin/events/${encodeURIComponent(evCur)}`, { name: v('esName'), kind: v('esKind'), date: v('esDate'), start: v('esStart'), end: v('esEnd'), place: v('esPlace'), address: v('esAddress'), dressCode: v('esDress'), deadline: v('esDeadline'), inviteMessage: v('esMsg'), notes: v('esNotes') });
+        if (r.error) { showToast(r.error, true); return; }
+        showToast('Fiche enregistrée'); openEvent(evCur, true); evView('sheet');
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Fiche non enregistrée', true); }
+    }
+    async function archiveEv() {
+      const to = evData.event.status === 'archived' ? 'active' : 'archived';
+      if (to === 'archived' && !confirm('Archiver cet événement ? Sa page d\'invitation n\'acceptera plus de réponses.')) return;
+      try { const r = await api('PATCH', `/api/admin/events/${encodeURIComponent(evCur)}`, { status: to }); if (r.error) { showToast(r.error, true); return; } showToast(to === 'archived' ? 'Événement archivé' : 'Événement réactivé'); openEvent(evCur, true); evView('sheet'); }
+      catch (e) { if (e.message !== 'Non autorisé') showToast('Action impossible', true); }
+    }
+    function openEvNew() { ['enName', 'enDate', 'enKind', 'enDress'].forEach(i => { document.getElementById(i).value = ''; }); document.getElementById('evNewVeil').classList.add('is-open'); document.getElementById('enName').focus(); }
+    function closeEvNew() { document.getElementById('evNewVeil').classList.remove('is-open'); }
+    async function saveEvNew() {
+      const v = i => document.getElementById(i).value.trim();
+      try {
+        const r = await api('POST', '/api/admin/events', { name: v('enName'), date: v('enDate'), start: v('enStart'), end: v('enEnd'), kind: v('enKind'), place: v('enPlace'), address: v('enAddress'), dressCode: v('enDress') });
+        if (r.error) { showToast(r.error, true); return; }
+        closeEvNew(); showToast('Événement créé'); await loadEvents(); openEvent(r.event.slug);
+      } catch (e) { if (e.message !== 'Non autorisé') showToast('Événement non créé', true); }
     }
 
     async function loadCampaigns() {

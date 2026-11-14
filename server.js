@@ -2452,12 +2452,9 @@ function leadView(row) {
   const p = row.payload || {};
   return { id: row.id, createdAt: row.createdAt.toISOString(), ...p, notes: p.notes || [], history: p.history || [] };
 }
-// Les réponses à la soirée (kind « soiree ») sont des fiches du même type, mais elles restent à l'écart du pipeline commercial
-// et des statistiques de campagnes : loadLeads() les exclut, loadLeads({ soiree: true }) ne renvoie qu'elles (onglet « Soirée »).
-async function loadLeads(opts) {
+async function loadLeads() {
   const rows = await prisma.eventLog.findMany({ where: { type: 'lead' }, orderBy: { createdAt: 'desc' }, take: 1500 });
-  const all = rows.map(leadView);
-  return opts && opts.soiree ? all.filter(l => l.kind === 'soiree') : all.filter(l => l.kind !== 'soiree');
+  return rows.map(leadView);
 }
 // Un lead est « converti » dès qu'une réservation non annulée existe avec le même e-mail, créée après lui.
 function markConverted(leads, bookings) {
@@ -3301,9 +3298,9 @@ if (process.env.REMINDERS_DISABLED !== '1') {
 }
 
 // ============================================================
-// Soirée privée (page /soiree, réponses dans le CRM) — voir soiree.js
+// Événements (invitations, réponses, jour J ; page /soiree et onglet « Événements » du CRM) — voir events.js
 // ============================================================
-require('./soiree')(app, { prisma, express, rateLimit, sendEmail, escapeHtml, cleanText, cleanPhone, isValidEmail, loadLeads });
+require('./events')(app, { prisma, express, rateLimit, sendEmail, escapeHtml, cleanText, cleanPhone, isValidEmail });
 
 // ============================================================
 // 404 — page introuvable
