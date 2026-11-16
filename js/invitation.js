@@ -77,9 +77,17 @@
   }
   applyEvent();
 
+  /* indication « Faites défiler » : visible seulement tant que la page est tout en haut */
+  (function () {
+    var on = false;
+    function f() { var s = window.pageYOffset > 40; if (s !== on) { on = s; root.classList.toggle('is-scrolled', s); } }
+    f(); window.addEventListener('scroll', f, { passive: true });
+  })();
+
   /* ---------- ouverture : le logo s'allume, contournable ---------- */
   var introOver = false, afterIntro = [];
   function introEnded() { introOver = true; afterIntro.splice(0).forEach(function (f) { f(); }); }
+  var cancelGlide = function () {};                                                                    // renseigné par le défilement automatique
   function whenIntroEnded(f) { if (introOver) f(); else afterIntro.push(f); }
   (function intro() {
     var el = $('intro'); if (!el) { introEnded(); return; }
@@ -182,6 +190,7 @@
       show(window.pageYOffset < g.frame - g.vh * .5, true);
     }
     function cancelAuto() { if (timer) { window.clearTimeout(timer); timer = 0; } }                          // un geste avant le départ : pas de défilement automatique
+    cancelGlide = cancelAuto;
     function onUser(e) {
       if (btn.contains(e.target)) return;
       if (e.type === 'keydown' && (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta')) return;
@@ -193,7 +202,7 @@
     document.addEventListener('visibilitychange', function () { if (document.hidden) { cancelAuto(); halt(); } });
     btn.addEventListener('click', function () { if (state === 'run') halt(); else if (state === 'pause') run(); });
     var cta = $('discover');
-    if (cta) cta.addEventListener('click', function (e) { if (state === 'run' || state === 'end') return; e.preventDefault(); cancelAuto(); run(); });
+    if (cta) cta.addEventListener('click', function (e) { if (state === 'run' || state === 'end' || cta.getAttribute('data-direct')) return; e.preventDefault(); cancelAuto(); run(); });
     geo();
     var off = false; try { off = !!sessionStorage.getItem(KEY); } catch (e) {}                           // interrupteur des tests automatisés ; jamais posé par la page
     if (!off) whenIntroEnded(function () {
@@ -256,9 +265,10 @@
     known.hidden = false; known.textContent = '';
     var b = document.createElement('b'); b.textContent = name(first); known.appendChild(document.createTextNode('Vous répondez en tant que ')); known.appendChild(b); known.appendChild(document.createTextNode('. '));
     var nb = document.createElement('button'); nb.type = 'button'; nb.textContent = 'Ce n’est pas vous ?'; nb.addEventListener('click', unknown); known.appendChild(nb);
-    var eye = $('eyebrow'); if (eye) eye.textContent = 'Invitation privée · ' + name(first);
+    root.classList.add('is-known');
+    var eye = $('eyebrow'); if (eye) { eye.textContent = 'Invitation privée '; var nm = document.createElement('span'); nm.className = 'eyebrow__name'; nm.textContent = name(first); eye.appendChild(nm); }   // le prénom a sa propre ligne et ne se coupe jamais
     if (st && st.status && st.status !== 'pending') {
-      var rr = $('railReply'); if (rr) { rr.classList.add('is-on'); }
+      var cta = $('discover'); if (cta) { cta.textContent = 'Modifier ma réponse'; cta.href = '#rsvp'; cta.setAttribute('data-direct', '1'); } cancelGlide();   // il vient pour sa réponse : accès direct, pas de défilement automatique
       var r = form.querySelector('input[name="reponse"][value="' + (st.status === 'confirmed' ? 'present' : 'absent') + '"]'); if (r) { r.checked = true; sync(); }
       if (st.status === 'confirmed') { if (st.companions) form.querySelector('#p-2').checked = true; if (st.hasAllergies) { storedAllergies = true; field('allergies').placeholder = 'Déjà noté. Laissez vide pour le conserver.'; } }
       var note = document.createElement('p'); note.className = 'known-note'; note.id = 'knownNote';
@@ -271,14 +281,16 @@
     ['prenom', 'nom', 'telephone'].forEach(function (n) { var b = box(n); if (b) b.hidden = false; });
     var eb = box('email'); if (eb) eb.querySelector('label').textContent = 'E-mail';
     var n = $('knownNote'); if (n) n.parentNode.removeChild(n);
-    var eye = $('eyebrow'); if (eye) eye.textContent = 'Invitation privée';
+    root.classList.remove('is-known'); var eye = $('eyebrow'); if (eye) eye.textContent = 'Invitation privée';
+    var cta = $('discover'); if (cta) { cta.textContent = 'Découvrir la soirée'; cta.href = '#ch1'; cta.removeAttribute('data-direct'); }
     field('prenom').focus({ preventScroll: true });
   }
 
   function showDone(p, r) {
     var present = p.reponse === 'present'; var first = name(r.firstName || p.prenom || knownFirst);
     $('doneTag').textContent = present ? 'Confirmé' : 'Bien reçu';
-    $('doneTitle').textContent = present ? 'À jeudi, ' + first + '.' : 'Merci.';
+    var dt = $('doneTitle'); dt.textContent = '';
+    if (present) { dt.appendChild(document.createTextNode('À jeudi, ')); var fs = document.createElement('span'); fs.className = 'nb'; fs.textContent = first; dt.appendChild(fs); dt.appendChild(document.createTextNode('.')); } else dt.textContent = 'Merci.';
     $('doneText').textContent = present
       ? (r.emailed ? 'Votre place est réservée. Une confirmation vient de vous être envoyée par e-mail.' : 'Votre place est réservée. Ajoutez la soirée à votre agenda ci-dessous.')
       : 'Nous avons bien noté que vous ne pourrez pas venir. Vous nous manquerez.';
@@ -337,7 +349,7 @@
   if (CODE.length === 10) {
     idFields.style.visibility = 'hidden';                                                               // évite d'afficher puis de retirer les champs d'identité
     fetch('/api/events/' + encodeURIComponent(SLUG) + '/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: CODE }), referrerPolicy: 'no-referrer' }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d && d.ok && d.firstName) { needsEmail = !!d.needsEmail; setKnown(d.firstName, d); }
-    }).catch(function () { /* le formulaire complet reste disponible */ }).then(function () { idFields.style.visibility = ''; });
+      if (d && d.ok && d.firstName) { needsEmail = !!d.needsEmail; setKnown(d.firstName, d); } else root.classList.remove('is-known');
+    }).catch(function () { root.classList.remove('is-known'); /* le formulaire complet reste disponible */ }).then(function () { idFields.style.visibility = ''; });
   }
 })();

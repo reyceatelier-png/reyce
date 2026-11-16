@@ -1571,23 +1571,31 @@ app.post('/api/webhook',
 // Les pages transactionnelles gardent leur adresse : liens déjà envoyés par e-mail, retour de paiement, page de remerciement des annonces.
 const fs = require('fs');
 // Page privée de la soirée : jamais indexée, jamais mise en cache durablement (l'en-tête doit précéder l'envoi du fichier par la règle des adresses propres ci-dessous)
-// Politique de sécurité propre à ces pages : rien ne peut être chargé ni envoyé ailleurs que sur le site (scripts, images, connexions,
-// formulaires, cadres), et seuls les blocs en ligne de la page elle-même sont admis (empreintes calculées au démarrage à partir du fichier).
+// Les deux pages privées sont servies avec leur feuille de style intégrée (une requête de moins avant le premier affichage, et jamais de feuille
+// périmée en cache). Politique de sécurité propre à ces pages : rien ne peut être chargé ni envoyé ailleurs que sur le site (scripts, images,
+// connexions, formulaires, cadres), et seuls les blocs en ligne de la page elle-même sont admis (empreintes calculées à partir du texte servi).
 // Même si un contenu était injecté un jour, il ne pourrait ni s'exécuter ni faire sortir la moindre donnée.
-function pageCsp(file) {
-  try {
-    const html = fs.readFileSync(path.join(__dirname, file), 'utf8');
-    const hashes = re => [...html.matchAll(re)].map(m => "'sha256-" + crypto.createHash('sha256').update(m[1], 'utf8').digest('base64') + "'");
-    return ["default-src 'none'", "script-src 'self' " + hashes(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi).join(' '), "script-src-attr 'none'",
-      "style-src 'self' " + hashes(/<style[^>]*>([\s\S]*?)<\/style>/gi).join(' '), "img-src 'self' data:", "font-src 'self'", "connect-src 'self'", "manifest-src 'self'",
-      "form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'", 'upgrade-insecure-requests'].join('; ');
-  } catch (e) { console.error('[Sécurité] politique de la page ' + file + ' non calculée :', safeMsg(e)); return ''; }
+function buildPage(file) {
+  const html = fs.readFileSync(path.join(__dirname, file), 'utf8');
+  return html.replace(/<link rel="stylesheet" href="(\/css\/(?:invitation|soiree)\.css)(?:\?[^"]*)?">/, (m, href) => '<style>' + fs.readFileSync(path.join(__dirname, href), 'utf8') + '</style>');
 }
-const PAGE_CSP = { '/soiree': pageCsp('soiree.html'), '/soiree.html': pageCsp('soiree.html'), '/invitation': pageCsp('invitation.html'), '/invitation.html': pageCsp('invitation.html') };
+function pageCsp(html) {
+  const hashes = re => [...html.matchAll(re)].map(m => "'sha256-" + crypto.createHash('sha256').update(m[1], 'utf8').digest('base64') + "'");
+  return ["default-src 'none'", "script-src 'self' " + hashes(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi).join(' '), "script-src-attr 'none'",
+    "style-src 'self' " + hashes(/<style[^>]*>([\s\S]*?)<\/style>/gi).join(' '), "img-src 'self' data:", "font-src 'self'", "connect-src 'self'", "manifest-src 'self'",
+    "form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'", 'upgrade-insecure-requests'].join('; ');
+}
+const PAGES = {};
+for (const [url, file] of [['/soiree', 'soiree.html'], ['/invitation', 'invitation.html']]) {
+  try { const html = buildPage(file); PAGES[url] = { html, csp: pageCsp(html) }; }
+  catch (e) { console.error('[Sécurité] page ' + file + ' non préparée :', safeMsg(e)); }
+}
 app.use(['/soiree', '/soiree.html', '/invitation', '/invitation.html'], (req, res, next) => {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive'); res.setHeader('Cache-Control', 'no-cache');
-  const csp = PAGE_CSP[req.baseUrl]; if (csp) res.setHeader('Content-Security-Policy', csp);
-  next();
+  const url = req.baseUrl.replace(/\.html$/, ''), page = PAGES[url];
+  if (page) res.setHeader('Content-Security-Policy', page.csp);
+  if (page && req.baseUrl === url && (req.method === 'GET' || req.method === 'HEAD')) return res.type('html').send(page.html);
+  next();                                                                                           // « .html » : redirigé vers l'adresse propre par la règle suivante
 });
 const KEEP_HTML   = new Set(['index', '404', 'admin', 'merci-devis', 'confirmation', 'rdv-confirmation', 'care-report', 'cancel']);
 const CLEAN_PAGES = new Set(fs.readdirSync(__dirname).filter(f => /^[a-z0-9][a-z0-9-]*\.html$/i.test(f)).map(f => f.slice(0, -5).toLowerCase()).filter(n => !KEEP_HTML.has(n)));

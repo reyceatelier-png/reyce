@@ -31,10 +31,10 @@
 <link rel="icon" type="image/png" href="/assets/icons/favicon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
 <script>/* mode animé : seulement avec JavaScript et sans « moins de mouvement » ; ouverture (logo qui s'allume) une fois par visite, jamais sur une ancre */
-(function(){try{var d=document.documentElement;d.className+=' js';if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;d.className+=' anim';if(!sessionStorage.getItem('rv-intro')&&!location.hash)d.className+=' opening';}catch(e){}})();</script>
+(function(){try{var d=document.documentElement;d.className+=' js';try{if(/[?&]i=[a-z0-9]{10}(&|$)/i.test(location.search)||sessionStorage.getItem('rv-code'))d.className+=' is-known'}catch(e){}if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;d.className+=' anim';if(!sessionStorage.getItem('rv-intro')&&!location.hash)d.className+=' opening';}catch(e){}})();</script>
 <style>html,body{background:#050506;color:#f4f5f6}</style>
 <link rel="preload" as="image" href="/assets/soiree/chrono-800.webp" imagesrcset="/assets/soiree/chrono-800.webp 800w, /assets/soiree/chrono-1331.webp 1331w" imagesizes="(min-width:900px) and (min-aspect-ratio:5/4) 48vw, 100vw" fetchpriority="high">
-<link rel="stylesheet" href="/css/invitation.css?v=5">
+<link rel="stylesheet" href="/css/invitation.css?v=9">
 </head>
 <body>
 <a class="skip" href="#rsvp">Aller directement à la réponse</a>
@@ -57,11 +57,10 @@
     <p class="when" id="heroWhen"><span class="nb">19h30</span> · <span class="nb">Atelier REYCE,</span> <span class="nb">47 chemin du Pras,</span> <span class="nb">69350 La Mulatière</span></p>
     <p class="count" id="count" aria-live="polite"></p>
     <a class="btn btn--line" id="discover" href="#ch1">Découvrir la soirée</a>
-    <span class="cue" aria-hidden="true"></span>
   </div>
 </header>
 
-<a class="reply-link" id="railReply" href="#rsvp">Déjà répondu ? Modifier</a>
+<p class="scrollcue" aria-hidden="true"><span class="scrollcue__txt">Faites défiler</span><span class="scrollcue__chev"></span></p>
 <button type="button" class="glide" id="glide" hidden aria-label="Mettre en pause le défilement automatique"><span class="glide__ico" aria-hidden="true"></span><span class="glide__txt">Pause</span></button>
 
 <main>
@@ -194,6 +193,6 @@
   <p>Une question ? <a href="tel:+33763004385">07 63 00 43 85</a></p>
 </footer>
 
-<script src="/js/invitation.js?v=4" defer></script>
+<script src="/js/invitation.js?v=7" defer></script>
 </body>
 </html>
