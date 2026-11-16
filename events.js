@@ -12,12 +12,14 @@
    ============================================================ */
 const crypto = require('crypto');
 
-const DEFAULT_SLUG = 'soiree-reyce-2026-12-03';
+const DEFAULT_SLUG = 'soiree-reyce-2026-12-03';                                 // identifiant interne : il garde l'ancienne date, ne pas le changer (liens, invités, historique)
+const FIRST_START = '2026-12-03T18:30:00.000Z', FIRST_END = '2026-12-03T21:30:00.000Z';   // première date de la soirée
+const FIRST_MESSAGE = 'Bonjour {prenom}, REYCE vous invite à une soirée privée à l\'atelier, le jeudi 3 décembre à 19h30. Votre invitation personnelle : {lien}';
 const DEFAULT_EVENT = {
   slug: DEFAULT_SLUG, name: 'Soirée REYCE', kind: 'Soirée privée', path: '/soiree',
-  startUtc: '2026-12-03T18:30:00.000Z', endUtc: '2026-12-03T21:30:00.000Z',          // jeudi 3 décembre 2026, 19 h 30 – 22 h 30, heure de Paris
+  startUtc: '2026-12-10T18:30:00.000Z', endUtc: '2026-12-10T21:30:00.000Z',          // jeudi 10 décembre 2026, 19 h 30 – 22 h 30, heure de Paris (décalée d'une semaine : l'identifiant ci-dessus ne change pas, les liens et invités existants restent valides)
   place: 'Atelier REYCE', address: '47 chemin du Pras, 69350 La Mulatière', dressCode: 'Tenue élégante', deadline: '',
-  inviteMessage: 'Bonjour {prenom}, REYCE vous invite à une soirée privée à l\'atelier, le jeudi 3 décembre à 19h30. Votre invitation personnelle : {lien}',
+  inviteMessage: 'Bonjour {prenom}, REYCE vous invite à une soirée privée à l\'atelier, le jeudi 10 décembre à 19h30. Votre invitation personnelle : {lien}',
   notes: '', status: 'active'
 };
 const CHANNELS = ['WhatsApp', 'E-mail', 'SMS', 'En main propre', 'Lien partagé', 'Lien transféré', 'Sur place'];
@@ -38,7 +40,7 @@ module.exports = function registerEvents(app, d) {
 
   const PARIS = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   const parisParts = iso => { const o = {}; PARIS.formatToParts(new Date(iso)).forEach(p => { o[p.type] = p.value; }); return { date: `${o.year}-${o.month}-${o.day}`, time: `${o.hour}:${o.minute}` }; };
-  function parisToUtc(dateStr, timeStr) {                                   // « 2026-12-03 » + « 19:30 » (heure de Paris) → instant UTC
+  function parisToUtc(dateStr, timeStr) {                                   // « 2026-12-10 » + « 19:30 » (heure de Paris) → instant UTC
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || ''), t = /^(\d{1,2}):(\d{2})$/.exec(timeStr || '');
     if (!m || !t) return null;
     const want = Date.UTC(+m[1], +m[2] - 1, +m[3], +t[1], +t[2]); let guess = want;
@@ -84,10 +86,20 @@ module.exports = function registerEvents(app, d) {
     return null;
   }
 
-  // la fiche de la soirée du 3 décembre existe dès le démarrage ; l'ajout est sans risque si elle existe déjà
+  // la fiche de la soirée existe dès le démarrage ; l'ajout est sans risque si elle existe déjà. Si la fiche porte encore la première date
+  // (3 décembre) sans avoir été modifiée, elle est décalée au 10 décembre ; une date changée dans le CRM n'est jamais touchée.
   (async () => {
-    try { if (!(await eventRow(DEFAULT_SLUG))) await prisma.eventLog.create({ data: { type: 'event', payload: DEFAULT_EVENT } }); }
-    catch (e) { console.error('[Événements] fiche par défaut :', safeMsg(e)); }
+    try {
+      const row = await eventRow(DEFAULT_SLUG);
+      if (!row) { await prisma.eventLog.create({ data: { type: 'event', payload: DEFAULT_EVENT } }); return; }
+      const p = row.payload || {};
+      if (p.startUtc === FIRST_START && p.endUtc === FIRST_END) {
+        const next = { ...p, startUtc: DEFAULT_EVENT.startUtc, endUtc: DEFAULT_EVENT.endUtc };
+        if (p.inviteMessage === FIRST_MESSAGE || p.inviteMessage === FIRST_MESSAGE.replace(/'/g, '’')) next.inviteMessage = DEFAULT_EVENT.inviteMessage;   // le CRM range les apostrophes en typographiques
+        await prisma.eventLog.update({ where: { id: row.id }, data: { payload: next } });
+        console.log('[Événements] soirée décalée au jeudi 10 décembre 2026');
+      }
+    } catch (e) { console.error('[Événements] fiche par défaut :', safeMsg(e)); }
   })();
 
   const present = g => g.status === 'confirmed';

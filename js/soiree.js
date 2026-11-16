@@ -17,9 +17,9 @@
   try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
   var smooth = reduce ? 'auto' : 'smooth';
 
-  /* l'événement : valeurs par défaut (soirée du 3 décembre), remplacées par la fiche du CRM dès qu'elle est lue */
+  /* l'événement : valeurs par défaut (soirée du 10 décembre), remplacées par la fiche du CRM dès qu'elle est lue */
   var EV = {
-    slug: SLUG, name: 'Soirée REYCE', startUtc: '2026-12-03T18:30:00.000Z', endUtc: '2026-12-03T21:30:00.000Z',
+    slug: SLUG, name: 'Soirée REYCE', startUtc: '2026-12-10T18:30:00.000Z', endUtc: '2026-12-10T21:30:00.000Z',
     place: 'Atelier REYCE', address: '47 chemin du Pras, 69350 La Mulatière', dressCode: 'Tenue élégante', deadline: '', closed: false,
     mapsUrl: '', gcalUrl: ''
   };
