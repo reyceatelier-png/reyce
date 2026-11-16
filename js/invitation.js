@@ -128,7 +128,7 @@
     } else targets.forEach(function (e) { e.classList.add('is-in'); });
   })();
 
-  /* ---------- défilement automatique : le parcours se déroule seul, une fois, et s'arrête au moindre geste ----------
+  /* ---------- défilement automatique : le parcours se déroule seul à l'arrivée en haut de page, et s'arrête au moindre geste ----------
      Jamais sans JavaScript, avec « moins de mouvement » ou sur une ancre. Le bouton « Pause » est toujours à l'écran pendant le mouvement ;
      toucher, rouler, une touche du clavier ou la barre de défilement l'interrompent aussitôt. Il s'arrête devant le formulaire sans y toucher. */
   (function glide() {
@@ -151,8 +151,7 @@
       [function () { return g.fin - Math.max(0, (g.vh - g.finH) / 2); }, 1900, 1200],                    // la question, au centre
       [function () { return g.frame - clamp(g.vh * .08, 16, 64); }, 2400, 0]                             // le cadre : informations et formulaire
     ];
-    var save = function () { try { sessionStorage.setItem(KEY, '1'); } catch (e) {} };
-    function show(on, paused) {
+        function show(on, paused) {
       btn.hidden = !on; if (!on) return;
       btn.classList.toggle('is-paused', !!paused);
       btn.setAttribute('aria-label', paused ? 'Reprendre le défilement automatique' : 'Mettre en pause le défilement automatique');
@@ -174,7 +173,7 @@
       while (k < LEGS.length - 1 && LEGS[k][0]() <= cur + 6) k++;
       if (LEGS[k][0]() <= cur + 6) { state = 'end'; show(false); return; }
       i = k; t0 = 0; scale = clamp((LEGS[k][0]() - cur) / Math.max(40, LEGS[k][0]() - (k ? LEGS[k - 1][0]() : 0)), .3, 1.2);
-      state = 'run'; save(); root.style.scrollBehavior = 'auto'; lastSet = cur; show(true, false);
+      state = 'run'; root.style.scrollBehavior = 'auto'; lastSet = cur; show(true, false);
       if (!raf) raf = window.requestAnimationFrame(tick);
     }
     function halt() {                                                                                    // interrompu : on rend la main, « Reprendre » reste proposé
@@ -182,7 +181,7 @@
       state = 'pause'; root.style.scrollBehavior = ''; if (raf) { window.cancelAnimationFrame(raf); raf = 0; }
       show(window.pageYOffset < g.frame - g.vh * .5, true);
     }
-    function cancelAuto() { if (timer) { window.clearTimeout(timer); timer = 0; save(); } }              // un geste avant le départ : pas de défilement automatique
+    function cancelAuto() { if (timer) { window.clearTimeout(timer); timer = 0; } }                          // un geste avant le départ : pas de défilement automatique
     function onUser(e) {
       if (btn.contains(e.target)) return;
       if (e.type === 'keydown' && (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta')) return;
@@ -196,9 +195,9 @@
     var cta = $('discover');
     if (cta) cta.addEventListener('click', function (e) { if (state === 'run' || state === 'end') return; e.preventDefault(); cancelAuto(); run(); });
     geo();
-    var seen = false; try { seen = !!sessionStorage.getItem(KEY); } catch (e) {}
-    if (!seen) whenIntroEnded(function () {
-      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 3000);                // le temps de lire l'accroche
+    var off = false; try { off = !!sessionStorage.getItem(KEY); } catch (e) {}                           // interrupteur des tests automatisés ; jamais posé par la page
+    if (!off) whenIntroEnded(function () {
+      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 2000);                // le temps de lire l'accroche ; au milieu de la page (rechargement), rien ne repart
     });
   })();
 
