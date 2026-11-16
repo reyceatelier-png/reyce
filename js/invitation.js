@@ -102,7 +102,7 @@
     function onKey() { end(true); } function onTap() { end(true); }
     if (!root.classList.contains('opening')) { if (el.parentNode) el.parentNode.removeChild(el); introEnded(); return; }
     el.addEventListener('pointerdown', onTap); document.addEventListener('keydown', onKey);
-    setTimeout(function () { end(false); }, 2300);                                                     // filet de sécurité : l'invitation n'est jamais retenue
+    setTimeout(function () { end(false); }, 2000);                                                     // filet de sécurité : l'invitation n'est jamais retenue
   })();
 
   /* ---------- les portes s'ouvrent : une scène pilotée par le défilement, réversible ---------- */
@@ -142,24 +142,47 @@
   (function glide() {
     var btn = $('glide'), ch = document.querySelector('.ch1'), fin = $('finale'), frame = $('formBox');
     if (!btn || !ch || !fin || !frame || !root.classList.contains('anim') || window.location.hash) return;
-    var KEY = 'rv-glide', state = 'idle', timer = 0, raf = 0, i = 0, t0 = 0, from = 0, scale = 1, lastSet = 0, g = {}, touching = false, tx = 0, ty = 0, coarse = false;
+    var KEY = 'rv-glide', state = 'idle', timer = 0, raf = 0, t0 = 0, tStart = 0, soft = false, lastSet = 0, g = {}, touching = false, tx = 0, ty = 0, coarse = false;
     try { coarse = window.matchMedia('(pointer: coarse)').matches; } catch (e) {}                     // écran tactile : un doigt posé ne doit rien arrêter
-    var ease = function (t) { return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
     var clamp = function (v, a, b) { return v < a ? a : v > b ? b : v; };
     function geo() {
       var vh = window.innerHeight, y = window.pageYOffset;
       g = { vh: vh, ch: ch.getBoundingClientRect().top + y, chH: ch.offsetHeight, fin: fin.getBoundingClientRect().top + y, finH: fin.offsetHeight, frame: frame.getBoundingClientRect().top + y };
     }
     var P = function (p) { return g.ch + p * Math.max(1, g.chH - g.vh); };                               // position dans la scène (même avancement que la scène)
-    var LEGS = [                                                                                         // [destination, durée ms, pause ms ensuite] : ≈ 12 s en tout
-      [function () { return P(0); }, 1200, 100],
-      [function () { return P(.52); }, 2000, 150],
-      [function () { return P(.72); }, 1000, 1100],                                                      // première phrase, le temps de la lire
-      [function () { return P(.88); }, 900, 1600],                                                       // seconde phrase
-      [function () { return P(1); }, 700, 100],
-      [function () { return g.fin - Math.max(0, (g.vh - g.finH) / 2); }, 1000, 500],                     // la question, au centre
-      [function () { return g.frame - clamp(g.vh * .08, 16, 64); }, 1300, 0]                             // le cadre : informations et formulaire
+    /* un seul mouvement continu, comme un pouce qui fait défiler : il accélère, ralentit pendant la lecture, ne s'arrête jamais en route.
+       Les points de passage [instant en s, position] sont reliés par une courbe monotone (jamais de recul, jamais de palier) ≈ 8 s en tout. */
+    var KNOTS = [
+      [0, function () { return 0; }],
+      [1.1, function () { return P(0); }],                                                               // de l'accueil à la scène
+      [2.7, function () { return P(.5); }],                                                              // les portes s'ouvrent
+      [3.7, function () { return P(.72); }],                                                             // première phrase
+      [5.9, function () { return P(1); }],                                                               // seconde phrase : le mouvement est le plus lent, on lit
+      [6.9, function () { return g.fin - Math.max(0, (g.vh - g.finH) / 2); }],                           // la question, au centre
+      [8.2, function () { return g.frame - clamp(g.vh * .08, 16, 64); }]                                 // le cadre : informations et formulaire
     ];
+    var T_END = KNOTS[KNOTS.length - 1][0];
+    function curve() {                                                                                   // positions et pentes (interpolation monotone de Fritsch–Butland)
+      var n = KNOTS.length, t = [], y = [], h = [], d = [], m = [], k;
+      for (k = 0; k < n; k++) { t[k] = KNOTS[k][0]; y[k] = KNOTS[k][1](); if (k && y[k] < y[k - 1] + 1) y[k] = y[k - 1] + 1; }
+      for (k = 0; k < n - 1; k++) { h[k] = t[k + 1] - t[k]; d[k] = (y[k + 1] - y[k]) / h[k]; }
+      m[0] = 0; m[n - 1] = 0;                                                                            // départ et arrivée en douceur
+      for (k = 1; k < n - 1; k++) m[k] = 3 * (h[k - 1] + h[k]) / ((2 * h[k] + h[k - 1]) / d[k - 1] + (h[k] + 2 * h[k - 1]) / d[k]);
+      return { t: t, y: y, h: h, m: m };
+    }
+    function at(c, time) {                                                                               // position à l'instant donné
+      var n = c.t.length, k = 0;
+      if (time <= 0) return c.y[0]; if (time >= T_END) return c.y[n - 1];
+      while (time > c.t[k + 1]) k++;
+      var u = (time - c.t[k]) / c.h[k], u2 = u * u, u3 = u2 * u;
+      return (2 * u3 - 3 * u2 + 1) * c.y[k] + (u3 - 2 * u2 + u) * c.h[k] * c.m[k] + (-2 * u3 + 3 * u2) * c.y[k + 1] + (u3 - u2) * c.h[k] * c.m[k + 1];
+    }
+    function when(c, y) {                                                                                // instant où la courbe passe par la position y (reprise au même endroit)
+      var a = 0, b = T_END, mid, q;
+      if (y <= c.y[0]) return 0; if (y >= c.y[c.y.length - 1]) return T_END;
+      for (q = 0; q < 24; q++) { mid = (a + b) / 2; if (at(c, mid) < y) a = mid; else b = mid; }
+      return b;
+    }
     function show(on, paused) {
       btn.hidden = !on; if (!on) return;
       btn.classList.toggle('is-paused', !!paused);
@@ -171,18 +194,16 @@
       raf = 0; if (state !== 'run') return;
       if (touching) { raf = window.requestAnimationFrame(tick); return; }                              // doigt posé : le mouvement se fige, il repart au relâchement
       if (Math.abs(window.pageYOffset - lastSet) > (coarse ? 60 : 2.5)) { halt(); return; }              // quelqu'un d'autre fait défiler la page (sur tactile, seul un gros écart compte)
-      var L = LEGS[i]; if (!t0) { t0 = now; from = window.pageYOffset; }
-      var el = now - t0, dur = L[1] * scale;
-      if (el <= dur) setY(from + (L[0]() - from) * ease(el / dur));
-      else if (el <= dur + L[2]) setY(L[0]());
-      else { i++; t0 = 0; scale = 1; if (i >= LEGS.length) { state = 'end'; root.style.scrollBehavior = ''; show(false); return; } }
+      if (!t0) t0 = now;
+      var e = (now - t0) / 1000, tt = tStart + (soft ? (e < .35 ? e * e / .7 : e - .175) : e), c = curve();   // reprise : la vitesse remonte en douceur
+      if (tt >= T_END) { setY(c.y[c.y.length - 1]); state = 'end'; root.style.scrollBehavior = ''; show(false); return; }
+      setY(at(c, tt));
       raf = window.requestAnimationFrame(tick);
     }
     function run() {
-      geo(); var cur = window.pageYOffset, k = 0;
-      while (k < LEGS.length - 1 && LEGS[k][0]() <= cur + 6) k++;
-      if (LEGS[k][0]() <= cur + 6) { state = 'end'; show(false); return; }
-      i = k; t0 = 0; scale = clamp((LEGS[k][0]() - cur) / Math.max(40, LEGS[k][0]() - (k ? LEGS[k - 1][0]() : 0)), .3, 1.2);
+      geo(); var c = curve(), cur = window.pageYOffset;
+      if (cur >= c.y[c.y.length - 1] - 6) { state = 'end'; show(false); return; }
+      tStart = when(c, cur); soft = tStart > .25; t0 = 0;
       state = 'run'; root.style.scrollBehavior = 'auto'; lastSet = cur; show(true, false);
       if (!raf) raf = window.requestAnimationFrame(tick);
     }
@@ -218,7 +239,7 @@
     geo();
     var off = false; try { off = !!sessionStorage.getItem(KEY); } catch (e) {}                           // interrupteur des tests automatisés ; jamais posé par la page
     if (!off) whenIntroEnded(function () {
-      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 1500);                // le temps de lire l'accroche ; au milieu de la page (rechargement), rien ne repart
+      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 1200);                // le temps de lire l'accroche ; au milieu de la page (rechargement), rien ne repart
     });
   })();
 

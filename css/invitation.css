@@ -237,7 +237,7 @@ html.anim .ch__light{display:block;position:absolute;inset:0;z-index:2;pointer-e
 html.anim .ch__copy{position:absolute;z-index:3;margin:0;width:auto;left:var(--rail);right:var(--pad);bottom:clamp(44px,11vh,120px);max-width:36rem}
 html.anim .ch__copy .eyebrow,html.anim .ch__copy h2{opacity:var(--title,1);transform:translateY(calc((1 - var(--title,1)) * 16px))}
 html.anim .ch__text{opacity:var(--text,1);transform:translateY(calc((1 - var(--text,1)) * 14px))}
-html.anim .ch__text:nth-of-type(2){opacity:var(--text2,1);transform:translateY(calc((1 - var(--text2,1)) * 14px))}
+html.anim .ch__text:last-of-type{opacity:var(--text2,1);transform:translateY(calc((1 - var(--text2,1)) * 14px))}
 @media (max-width:899.98px){
   html.anim .ch{height:calc(1.8 * 100vh)}
   @supports (height:1svh){html.anim .ch{height:calc(1.8 * 100svh)}}
