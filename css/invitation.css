@@ -158,16 +158,16 @@ a{color:inherit}
    Le temps d'une soirée : le logo s'allume, les portes s'ouvrent, puis l'événement
    ===================================================================== */
 html{scroll-behavior:smooth;--base:0s}
-html.opening{--base:2.3s}
+html.opening{--base:1.6s}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* ---------- ouverture : le monogramme s'allume sous un reflet fin, puis se dissout sur l'invitation ---------- */
 .curtain{display:none}
-html.opening .curtain{display:grid;place-items:center;position:fixed;inset:0;z-index:200;background:#050506;animation:introOut .8s ease 2.25s forwards}
-.curtain__mark{animation:markOut .45s ease 2.1s forwards;position:relative;width:clamp(84px,22vw,124px);aspect-ratio:527/639}
-.curtain__mark img{display:block;width:100%;height:100%;opacity:.26;animation:markLit .8s ease 1.75s forwards}
+html.opening .curtain{display:grid;place-items:center;position:fixed;inset:0;z-index:200;background:#050506;animation:introOut .55s ease 1.6s forwards}
+.curtain__mark{animation:markOut .3s ease 1.55s forwards;position:relative;width:clamp(84px,22vw,124px);aspect-ratio:527/639}
+.curtain__mark img{display:block;width:100%;height:100%;opacity:.26;animation:markLit .5s ease .85s forwards}
 .curtain__shine{position:absolute;inset:0;-webkit-mask:url(/assets/images/logo.png) center/contain no-repeat;mask:url(/assets/images/logo.png) center/contain no-repeat;
-  background:linear-gradient(105deg,rgba(255,255,255,0) 36%,var(--cu-hi) 50%,rgba(255,255,255,0) 64%) 135% 0/320% 100% no-repeat;animation:shine 1.5s cubic-bezier(.45,.08,.2,1) .35s forwards}
+  background:linear-gradient(105deg,rgba(255,255,255,0) 36%,var(--cu-hi) 50%,rgba(255,255,255,0) 64%) 135% 0/320% 100% no-repeat;animation:shine 1s cubic-bezier(.45,.08,.2,1) .15s forwards}
 .curtain__skip{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));min-height:44px;padding:0 14px;background:none;border:0;color:var(--mu);font:500 .72rem var(--f);letter-spacing:.28em;text-transform:uppercase;cursor:pointer}
 @keyframes shine{to{background-position:-45% 0}}
 @keyframes markLit{to{opacity:1}}
@@ -177,12 +177,12 @@ html.opening .curtain{display:grid;place-items:center;position:fixed;inset:0;z-i
 /* ---------- atterrissage : la photographie se révèle, un reflet passe, le texte monte ---------- */
 .hero__media{isolation:isolate}
 .hero__sheen{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(105deg,rgba(255,255,255,0) 42%,rgba(230,211,163,.30) 50%,rgba(255,255,255,0) 58%);transform:translateX(-130%);opacity:0}
-html.anim .hero__media img{animation:heroPhoto 1.8s cubic-bezier(.2,.6,.2,1) var(--base) both}
-html.anim .hero__sheen{opacity:1;animation:sheen 1.7s cubic-bezier(.45,.1,.2,1) calc(var(--base) + .35s) forwards}
-html.anim .hero__copy>*,html.anim .hero__logo{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
-html.anim .hero__logo{animation-delay:calc(var(--base) + .1s)}
-html.anim .hero__copy>:nth-child(1){animation-delay:calc(var(--base) + .3s)}html.anim .hero__copy>:nth-child(2){animation-delay:calc(var(--base) + .45s)}html.anim .hero__copy>:nth-child(3){animation-delay:calc(var(--base) + .6s)}
-html.anim .hero__copy>:nth-child(4){animation-delay:calc(var(--base) + .75s)}html.anim .hero__copy>:nth-child(5){animation-delay:calc(var(--base) + .9s)}
+html.anim .hero__media img{animation:heroPhoto 1.4s cubic-bezier(.2,.6,.2,1) var(--base) both}
+html.anim .hero__sheen{opacity:1;animation:sheen 1.4s cubic-bezier(.45,.1,.2,1) calc(var(--base) + .3s) forwards}
+html.anim .hero__copy>*,html.anim .hero__logo{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
+html.anim .hero__logo{animation-delay:calc(var(--base) + .05s)}
+html.anim .hero__copy>:nth-child(1){animation-delay:calc(var(--base) + .2s)}html.anim .hero__copy>:nth-child(2){animation-delay:calc(var(--base) + .32s)}html.anim .hero__copy>:nth-child(3){animation-delay:calc(var(--base) + .44s)}
+html.anim .hero__copy>:nth-child(4){animation-delay:calc(var(--base) + .56s)}html.anim .hero__copy>:nth-child(5){animation-delay:calc(var(--base) + .68s)}
 @keyframes heroPhoto{from{transform:scale(1.09);filter:brightness(.28) saturate(.8)}to{transform:scale(1);filter:none}}
 @keyframes sheen{to{transform:translateX(130%)}}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -206,8 +206,8 @@ html.anim .hero__copy>:nth-child(4){animation-delay:calc(var(--base) + .75s)}htm
 .scrollcue__chev{display:block;width:11px;height:11px;margin-top:-2px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg)}
 html.js .scrollcue{display:flex}
 html.is-scrolled .scrollcue{opacity:0;transform:translateY(8px)}
-html.anim .scrollcue{animation:cueIn .8s ease calc(var(--base) + .9s) backwards}
-html.anim .scrollcue__chev{animation:chev 1.9s ease-in-out calc(var(--base) + 2.2s) infinite}
+html.anim .scrollcue{animation:cueIn .7s ease calc(var(--base) + .8s) backwards}
+html.anim .scrollcue__chev{animation:chev 1.9s ease-in-out calc(var(--base) + 1.6s) infinite}
 @keyframes cueIn{from{opacity:0;transform:translateY(10px)}}
 @keyframes chev{0%,100%{transform:translateY(0) rotate(45deg)}50%{transform:translateY(7px) rotate(45deg)}}
 @media (max-height:619px){.scrollcue{display:none!important}}

@@ -102,7 +102,7 @@
     function onKey() { end(true); } function onTap() { end(true); }
     if (!root.classList.contains('opening')) { if (el.parentNode) el.parentNode.removeChild(el); introEnded(); return; }
     el.addEventListener('pointerdown', onTap); document.addEventListener('keydown', onKey);
-    setTimeout(function () { end(false); }, 4700);                                                     // filet de sécurité : l'invitation n'est jamais retenue
+    setTimeout(function () { end(false); }, 3300);                                                     // filet de sécurité : l'invitation n'est jamais retenue
   })();
 
   /* ---------- les portes s'ouvrent : une scène pilotée par le défilement, réversible ---------- */
@@ -142,7 +142,8 @@
   (function glide() {
     var btn = $('glide'), ch = document.querySelector('.ch1'), fin = $('finale'), frame = $('formBox');
     if (!btn || !ch || !fin || !frame || !root.classList.contains('anim') || window.location.hash) return;
-    var KEY = 'rv-glide', state = 'idle', timer = 0, raf = 0, i = 0, t0 = 0, from = 0, scale = 1, lastSet = 0, g = {};
+    var KEY = 'rv-glide', state = 'idle', timer = 0, raf = 0, i = 0, t0 = 0, from = 0, scale = 1, lastSet = 0, g = {}, touching = false, tx = 0, ty = 0, coarse = false;
+    try { coarse = window.matchMedia('(pointer: coarse)').matches; } catch (e) {}                     // écran tactile : un doigt posé ne doit rien arrêter
     var ease = function (t) { return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
     var clamp = function (v, a, b) { return v < a ? a : v > b ? b : v; };
     function geo() {
@@ -168,7 +169,8 @@
     function setY(y) { window.scrollTo({ top: y, left: 0, behavior: 'instant' }); lastSet = window.pageYOffset; }
     function tick(now) {
       raf = 0; if (state !== 'run') return;
-      if (Math.abs(window.pageYOffset - lastSet) > 2.5) { halt(); return; }                              // quelqu'un d'autre fait défiler la page
+      if (touching) { raf = window.requestAnimationFrame(tick); return; }                              // doigt posé : le mouvement se fige, il repart au relâchement
+      if (Math.abs(window.pageYOffset - lastSet) > (coarse ? 60 : 2.5)) { halt(); return; }              // quelqu'un d'autre fait défiler la page (sur tactile, seul un gros écart compte)
       var L = LEGS[i]; if (!t0) { t0 = now; from = window.pageYOffset; }
       var el = now - t0, dur = L[1] * scale;
       if (el <= dur) setY(from + (L[0]() - from) * ease(el / dur));
@@ -191,12 +193,22 @@
     }
     function cancelAuto() { if (timer) { window.clearTimeout(timer); timer = 0; } }                          // un geste avant le départ : pas de défilement automatique
     cancelGlide = cancelAuto;
-    function onUser(e) {
+    function onUser(e) {                                                                                 // molette, clavier, souris : on rend la main tout de suite
       if (btn.contains(e.target)) return;
+      if (e.type === 'pointerdown' && e.pointerType === 'touch') return;                                // au doigt : voir ci-dessous
       if (e.type === 'keydown' && (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta')) return;
       cancelAuto(); halt();
     }
-    ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (t) { window.addEventListener(t, onUser, { passive: true, capture: true }); });
+    ['wheel', 'pointerdown', 'keydown'].forEach(function (t) { window.addEventListener(t, onUser, { passive: true, capture: true }); });
+    /* au doigt : un tap ou un doigt posé fige seulement le mouvement un instant ; seul un vrai glissement (plus de 8 px) l'arrête */
+    window.addEventListener('touchstart', function (e) { if (btn.contains(e.target) || !e.touches.length) return; touching = true; tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true, capture: true });
+    window.addEventListener('touchmove', function (e) {
+      if (!touching || !e.touches.length) return;
+      if (Math.abs(e.touches[0].clientY - ty) > 8 || Math.abs(e.touches[0].clientX - tx) > 8 || e.touches.length > 1) { touching = false; cancelAuto(); halt(); }
+    }, { passive: true, capture: true });
+    function released() { if (!touching) return; touching = false; if (state === 'run') run(); }       // relâché sans glisser : on repart de là où on est
+    window.addEventListener('touchend', released, { passive: true, capture: true });
+    window.addEventListener('touchcancel', released, { passive: true, capture: true });
     window.addEventListener('resize', geo);
     window.addEventListener('scroll', function () { if (state === 'pause' && !btn.hidden && window.pageYOffset >= g.frame - g.vh * .5) show(false); }, { passive: true });
     document.addEventListener('visibilitychange', function () { if (document.hidden) { cancelAuto(); halt(); } });
