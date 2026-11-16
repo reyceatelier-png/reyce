@@ -206,7 +206,7 @@
     geo();
     var off = false; try { off = !!sessionStorage.getItem(KEY); } catch (e) {}                           // interrupteur des tests automatisés ; jamais posé par la page
     if (!off) whenIntroEnded(function () {
-      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 2000);                // le temps de lire l'accroche ; au milieu de la page (rechargement), rien ne repart
+      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 2600);                // le temps de lire l'accroche ; au milieu de la page (rechargement), rien ne repart
     });
   })();
 

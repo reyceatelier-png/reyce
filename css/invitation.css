@@ -206,7 +206,7 @@ html.anim .hero__copy>:nth-child(4){animation-delay:calc(var(--base) + .75s)}htm
 .scrollcue__chev{display:block;width:11px;height:11px;margin-top:-2px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg)}
 html.js .scrollcue{display:flex}
 html.is-scrolled .scrollcue{opacity:0;transform:translateY(8px)}
-html.anim .scrollcue{animation:cueIn .8s ease calc(var(--base) + 1.1s) backwards}
+html.anim .scrollcue{animation:cueIn .8s ease calc(var(--base) + .9s) backwards}
 html.anim .scrollcue__chev{animation:chev 1.9s ease-in-out calc(var(--base) + 2.2s) infinite}
 @keyframes cueIn{from{opacity:0;transform:translateY(10px)}}
 @keyframes chev{0%,100%{transform:translateY(0) rotate(45deg)}50%{transform:translateY(7px) rotate(45deg)}}
