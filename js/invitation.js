@@ -8,6 +8,9 @@
   var q = new URLSearchParams(window.location.search);
   var SLUG = /^[a-z0-9-]{3,80}$/.test(q.get('e') || '') ? q.get('e') : DEFAULT_SLUG;
   var CODE = (q.get('i') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);          // code du lien personnel (opaque)
+  /* le lien personnel est lu une fois, puis retiré de la barre d'adresse (historique, capture d'écran, copier-coller) ; il reste en mémoire de l'onglet pour un rechargement */
+  try { if (CODE) sessionStorage.setItem('rv-code', CODE); else CODE = (sessionStorage.getItem('rv-code') || '').replace(/[^a-z0-9]/g, '').slice(0, 12); } catch (e) {}
+  try { if (q.has('i')) { q.delete('i'); var rest = q.toString(); history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash); } } catch (e) {}
   var $ = function (id) { return document.getElementById(id); };
   var root = document.documentElement;
   var reduce = false;
@@ -75,18 +78,21 @@
   applyEvent();
 
   /* ---------- ouverture : le logo s'allume, contournable ---------- */
+  var introOver = false, afterIntro = [];
+  function introEnded() { introOver = true; afterIntro.splice(0).forEach(function (f) { f(); }); }
+  function whenIntroEnded(f) { if (introOver) f(); else afterIntro.push(f); }
   (function intro() {
-    var el = $('intro'); if (!el) return;
+    var el = $('intro'); if (!el) { introEnded(); return; }
     var done = false;
     function end(skipped) {
-      if (done) return; done = true;
+      if (done) return; done = true; introEnded();
       if (skipped) root.classList.remove('opening');                                                   // l'invitation apparaît tout de suite
       try { sessionStorage.setItem('rv-intro', '1'); } catch (e) {}
       document.removeEventListener('keydown', onKey); el.removeEventListener('pointerdown', onTap);
       setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, skipped ? 50 : 0);
     }
     function onKey() { end(true); } function onTap() { end(true); }
-    if (!root.classList.contains('opening')) { if (el.parentNode) el.parentNode.removeChild(el); return; }
+    if (!root.classList.contains('opening')) { if (el.parentNode) el.parentNode.removeChild(el); introEnded(); return; }
     el.addEventListener('pointerdown', onTap); document.addEventListener('keydown', onKey);
     setTimeout(function () { end(false); }, 4700);                                                     // filet de sécurité : l'invitation n'est jamais retenue
   })();
@@ -122,11 +128,85 @@
     } else targets.forEach(function (e) { e.classList.add('is-in'); });
   })();
 
+  /* ---------- défilement automatique : le parcours se déroule seul, une fois, et s'arrête au moindre geste ----------
+     Jamais sans JavaScript, avec « moins de mouvement » ou sur une ancre. Le bouton « Pause » est toujours à l'écran pendant le mouvement ;
+     toucher, rouler, une touche du clavier ou la barre de défilement l'interrompent aussitôt. Il s'arrête devant le formulaire sans y toucher. */
+  (function glide() {
+    var btn = $('glide'), ch = document.querySelector('.ch1'), fin = $('finale'), frame = $('formBox');
+    if (!btn || !ch || !fin || !frame || !root.classList.contains('anim') || window.location.hash) return;
+    var KEY = 'rv-glide', state = 'idle', timer = 0, raf = 0, i = 0, t0 = 0, from = 0, scale = 1, lastSet = 0, g = {};
+    var ease = function (t) { return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
+    var clamp = function (v, a, b) { return v < a ? a : v > b ? b : v; };
+    function geo() {
+      var vh = window.innerHeight, y = window.pageYOffset;
+      g = { vh: vh, ch: ch.getBoundingClientRect().top + y, chH: ch.offsetHeight, fin: fin.getBoundingClientRect().top + y, finH: fin.offsetHeight, frame: frame.getBoundingClientRect().top + y };
+    }
+    var P = function (p) { return g.ch + p * Math.max(1, g.chH - g.vh); };                               // position dans la scène (même avancement que la scène)
+    var LEGS = [                                                                                         // [destination, durée ms, pause ms ensuite]
+      [function () { return P(0); }, 2200, 200],
+      [function () { return P(.52); }, 4400, 400],
+      [function () { return P(.72); }, 2000, 2400],                                                      // première phrase, le temps de la lire
+      [function () { return P(.88); }, 1600, 3000],                                                      // seconde phrase
+      [function () { return P(1); }, 1200, 300],
+      [function () { return g.fin - Math.max(0, (g.vh - g.finH) / 2); }, 1900, 1200],                    // la question, au centre
+      [function () { return g.frame - clamp(g.vh * .08, 16, 64); }, 2400, 0]                             // le cadre : informations et formulaire
+    ];
+    var save = function () { try { sessionStorage.setItem(KEY, '1'); } catch (e) {} };
+    function show(on, paused) {
+      btn.hidden = !on; if (!on) return;
+      btn.classList.toggle('is-paused', !!paused);
+      btn.setAttribute('aria-label', paused ? 'Reprendre le défilement automatique' : 'Mettre en pause le défilement automatique');
+      btn.querySelector('.glide__txt').textContent = paused ? 'Reprendre' : 'Pause';
+    }
+    function setY(y) { window.scrollTo({ top: y, left: 0, behavior: 'instant' }); lastSet = window.pageYOffset; }
+    function tick(now) {
+      raf = 0; if (state !== 'run') return;
+      if (Math.abs(window.pageYOffset - lastSet) > 2.5) { halt(); return; }                              // quelqu'un d'autre fait défiler la page
+      var L = LEGS[i]; if (!t0) { t0 = now; from = window.pageYOffset; }
+      var el = now - t0, dur = L[1] * scale;
+      if (el <= dur) setY(from + (L[0]() - from) * ease(el / dur));
+      else if (el <= dur + L[2]) setY(L[0]());
+      else { i++; t0 = 0; scale = 1; if (i >= LEGS.length) { state = 'end'; root.style.scrollBehavior = ''; show(false); return; } }
+      raf = window.requestAnimationFrame(tick);
+    }
+    function run() {
+      geo(); var cur = window.pageYOffset, k = 0;
+      while (k < LEGS.length - 1 && LEGS[k][0]() <= cur + 6) k++;
+      if (LEGS[k][0]() <= cur + 6) { state = 'end'; show(false); return; }
+      i = k; t0 = 0; scale = clamp((LEGS[k][0]() - cur) / Math.max(40, LEGS[k][0]() - (k ? LEGS[k - 1][0]() : 0)), .3, 1.2);
+      state = 'run'; save(); root.style.scrollBehavior = 'auto'; lastSet = cur; show(true, false);
+      if (!raf) raf = window.requestAnimationFrame(tick);
+    }
+    function halt() {                                                                                    // interrompu : on rend la main, « Reprendre » reste proposé
+      if (state !== 'run') return;
+      state = 'pause'; root.style.scrollBehavior = ''; if (raf) { window.cancelAnimationFrame(raf); raf = 0; }
+      show(window.pageYOffset < g.frame - g.vh * .5, true);
+    }
+    function cancelAuto() { if (timer) { window.clearTimeout(timer); timer = 0; save(); } }              // un geste avant le départ : pas de défilement automatique
+    function onUser(e) {
+      if (btn.contains(e.target)) return;
+      if (e.type === 'keydown' && (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta')) return;
+      cancelAuto(); halt();
+    }
+    ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (t) { window.addEventListener(t, onUser, { passive: true, capture: true }); });
+    window.addEventListener('resize', geo);
+    window.addEventListener('scroll', function () { if (state === 'pause' && !btn.hidden && window.pageYOffset >= g.frame - g.vh * .5) show(false); }, { passive: true });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { cancelAuto(); halt(); } });
+    btn.addEventListener('click', function () { if (state === 'run') halt(); else if (state === 'pause') run(); });
+    var cta = $('discover');
+    if (cta) cta.addEventListener('click', function (e) { if (state === 'run' || state === 'end') return; e.preventDefault(); cancelAuto(); run(); });
+    geo();
+    var seen = false; try { seen = !!sessionStorage.getItem(KEY); } catch (e) {}
+    if (!seen) whenIntroEnded(function () {
+      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 3000);                // le temps de lire l'accroche
+    });
+  })();
+
   /* ---------- formulaire ---------- */
   var form = $('rsvpForm'); if (!form) return;
   var btn = $('send'), msg = $('msg'), formBox = $('formBox'), done = $('done');
   var persBox = $('persBox'), allergBox = $('allergBox'), idFields = $('idFields'), known = $('known');
-  var sending = false, knownMode = false, knownFirst = '', needsEmail = false;
+  var sending = false, knownMode = false, knownFirst = '', needsEmail = false, storedAllergies = false;
 
   function radio(n) { var r = form.querySelectorAll('input[name="' + n + '"]'); for (var i = 0; i < r.length; i++) if (r[i].checked) return r[i].value; return ''; }
   function field(n) { var e = form.elements[n]; return e && e.length && !e.tagName ? e[0] : e; }
@@ -181,13 +261,14 @@
     if (st && st.status && st.status !== 'pending') {
       var rr = $('railReply'); if (rr) { rr.classList.add('is-on'); }
       var r = form.querySelector('input[name="reponse"][value="' + (st.status === 'confirmed' ? 'present' : 'absent') + '"]'); if (r) { r.checked = true; sync(); }
-      if (st.status === 'confirmed') { if (st.companions) form.querySelector('#p-2').checked = true; if (st.allergies) field('allergies').value = st.allergies; }
+      if (st.status === 'confirmed') { if (st.companions) form.querySelector('#p-2').checked = true; if (st.hasAllergies) { storedAllergies = true; field('allergies').placeholder = 'Déjà noté. Laissez vide pour le conserver.'; } }
       var note = document.createElement('p'); note.className = 'known-note'; note.id = 'knownNote';
       note.textContent = 'Vous avez déjà répondu : ' + (st.status === 'confirmed' ? 'présence confirmée' : 'invitation déclinée') + '. Vous pouvez modifier votre réponse.'; known.parentNode.insertBefore(note, form);
     }
   }
   function unknown() {                                                                                   // lien transféré : répondre pour soi-même
-    knownMode = false; CODE = ''; idFields.hidden = false; known.hidden = true;
+    knownMode = false; CODE = ''; storedAllergies = false; field('allergies').placeholder = ''; try { sessionStorage.removeItem('rv-code'); } catch (e) {}
+    idFields.hidden = false; known.hidden = true;
     ['prenom', 'nom', 'telephone'].forEach(function (n) { var b = box(n); if (b) b.hidden = false; });
     var eb = box('email'); if (eb) eb.querySelector('label').textContent = 'E-mail';
     var n = $('knownNote'); if (n) n.parentNode.removeChild(n);
@@ -228,6 +309,7 @@
     };
     if (!knownMode) { p.prenom = field('prenom').value.trim(); p.nom = field('nom').value.trim(); p.telephone = field('telephone').value.trim(); }
     p.email = field('email').value.trim();
+    if (knownMode && storedAllergies && present && !p.allergies) p.keepAllergies = true;               // l'information déjà notée n'est jamais renvoyée à l'écran : « vide » veut dire « inchangée »
     sending = true; btn.disabled = true;
     var label = btn.textContent; btn.textContent = 'Envoi en cours…';
     fetch('/api/events/' + encodeURIComponent(SLUG) + '/rsvp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
@@ -255,7 +337,7 @@
   }).catch(function () { /* la page garde ses valeurs par défaut */ });
   if (CODE.length === 10) {
     idFields.style.visibility = 'hidden';                                                               // évite d'afficher puis de retirer les champs d'identité
-    fetch('/api/events/' + encodeURIComponent(SLUG) + '/invite/' + CODE).then(function (r) { return r.json(); }).then(function (d) {
+    fetch('/api/events/' + encodeURIComponent(SLUG) + '/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: CODE }), referrerPolicy: 'no-referrer' }).then(function (r) { return r.json(); }).then(function (d) {
       if (d && d.ok && d.firstName) { needsEmail = !!d.needsEmail; setKnown(d.firstName, d); }
     }).catch(function () { /* le formulaire complet reste disponible */ }).then(function () { idFields.style.visibility = ''; });
   }

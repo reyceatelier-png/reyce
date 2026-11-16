@@ -25,6 +25,8 @@ const CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
 
 module.exports = function registerEvents(app, d) {
   const { prisma, express, rateLimit, sendEmail, escapeHtml, cleanText, cleanPhone, isValidEmail } = d;
+  // journaux : jamais de données personnelles (les erreurs de la base recopient les données envoyées)
+  const safeMsg = d.safeMsg || (e => String((e && (e.code || e.name)) || 'erreur'));
   const BASE = () => (process.env.BASE_URL || 'https://www.reyce.fr').replace(/\/+$/, '');
 
   // ---------- utilitaires ----------
@@ -85,7 +87,7 @@ module.exports = function registerEvents(app, d) {
   // la fiche de la soirée du 3 décembre existe dès le démarrage ; l'ajout est sans risque si elle existe déjà
   (async () => {
     try { if (!(await eventRow(DEFAULT_SLUG))) await prisma.eventLog.create({ data: { type: 'event', payload: DEFAULT_EVENT } }); }
-    catch (e) { console.error('[Événements] fiche par défaut :', e.message); }
+    catch (e) { console.error('[Événements] fiche par défaut :', safeMsg(e)); }
   })();
 
   const present = g => g.status === 'confirmed';
@@ -135,11 +137,15 @@ module.exports = function registerEvents(app, d) {
     ${g.allergies ? `<tr><td class="lbl">Allergie / préférence</td><td>${escapeHtml(g.allergies)}</td></tr>` : ''}</table>
   <a class="btn2" href="${BASE()}/admin.html">Ouvrir le CRM (Événements)</a>`) };
   };
+  const recentMail = new Map();                                                    // adresse -> instant du dernier e-mail de confirmation
+  const mailedRecently = em => { const t = recentMail.get(em); if (t && Date.now() - t < 30 * 60 * 1000) return true; if (recentMail.size > 2000) for (const [k, v] of recentMail) if (Date.now() - v > 30 * 60 * 1000) recentMail.delete(k); return false; };
   const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('délai dépassé')), ms))]);
   const mailReady = () => !!(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_REFRESH_TOKEN);
 
   // ---------- limitation des envois ----------
   const rsvpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.RSVP_LIMIT) || 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Trop de réponses envoyées depuis cette connexion. Réessayez dans un moment, ou appelez-nous au 07 63 00 43 85.' } });
+  // reconnaissance d'un lien personnel : plus serré que les autres lectures (un invité en fait une ou deux), contre l'essai de codes au hasard
+  const inviteLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: Number(process.env.INVITE_LIMIT) || 30, standardHeaders: true, legacyHeaders: false, message: { ok: false, error: 'Trop de demandes. Réessayez dans un moment.' } });
   const readLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false, message: { error: 'Trop de demandes. Réessayez dans un moment.' } });
 
   // ============================================================
@@ -153,19 +159,23 @@ module.exports = function registerEvents(app, d) {
 
   app.get('/api/events/:slug/calendar.ics', readLimiter, async (req, res) => {
     const ev = await getEvent(String(req.params.slug));
-    if (!ev) return res.status(404).type('text/plain').send('Introuvable');
+    if (!ev || ev.status === 'archived') return res.status(404).type('text/plain').send('Introuvable');
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="reyce-evenement.ics"');
     res.send(icsText(ev));
   });
 
-  // Reconnaissance d'un lien personnel : seul le prénom est renvoyé (jamais le nom, l'e-mail ni le téléphone)
-  app.get('/api/events/:slug/invite/:code', readLimiter, async (req, res) => {
-    const slug = String(req.params.slug), code = String(req.params.code);
-    if (!goodCode(code)) return res.json({ ok: false });
+  // Reconnaissance d'un lien personnel : seuls le prénom et l'état de la réponse sont renvoyés (jamais le nom, l'e-mail, le téléphone,
+  // ni l'allergie : un lien transféré ne doit rien apprendre de plus). Le code voyage dans le corps de la requête, pas dans l'adresse.
+  const inviteInfo = async (slug, code) => {
+    if (!goodCode(code)) return { ok: false };
     const row = await guestByCode(slug, code);
-    if (!row) return res.json({ ok: false });
+    if (!row) return { ok: false };
     const g = gOf(row);
-    res.json({ ok: true, firstName: g.firstName, status: g.status, companions: g.companions || 0, allergies: g.allergies || '', needsEmail: !g.email });
+    return { ok: true, firstName: g.firstName, status: g.status, companions: g.companions || 0, hasAllergies: !!g.allergies, needsEmail: !g.email };
+  };
+  app.post('/api/events/:slug/invite', inviteLimiter, express.json({ limit: '1kb' }), async (req, res) => {
+    const code = String((req.body && req.body.code) || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+    res.json(await inviteInfo(String(req.params.slug), code));
   });
 
   app.post(['/api/events/:slug/rsvp', '/api/soiree/rsvp'], rsvpLimiter, express.json({ limit: '8kb' }), async (req, res) => {
@@ -182,6 +192,7 @@ module.exports = function registerEvents(app, d) {
     const inEmail = typeof b.email === 'string' ? b.email.trim().toLowerCase().slice(0, 254) : '';
     const inFirst = cleanText(b.prenom, 80), inLast = cleanText(b.nom, 80), inPhone = cleanPhone(b.telephone);
     const companions = reponse === 'present' && Number(b.personnes) === 2 ? 1 : 0;
+    const keepAllergies = b.keepAllergies === true && !b.allergies;            // invité reconnu qui n'a pas touché au champ : l'information déjà notée est conservée
     const allergies = reponse === 'present' ? cleanText(b.allergies, 300, true) : '';
 
     let invited = null;
@@ -205,7 +216,7 @@ module.exports = function registerEvents(app, d) {
         if (row) {
           const p = { ...row.payload }; const before = p.status;
           if (!p.email && email) p.email = email; if (!p.phone && phone) p.phone = phone; if (!p.lastName && lastName) p.lastName = lastName;
-          p.status = status; p.companions = companions; p.allergies = allergies; p.respondedAt = p.respondedAt || now; p.updatedAt = now; p.answers = (p.answers || 0) + 1;
+          p.status = status; p.companions = companions; p.allergies = keepAllergies && status === 'confirmed' ? (p.allergies || '') : allergies; p.respondedAt = p.respondedAt || now; p.updatedAt = now; p.answers = (p.answers || 0) + 1;
           p.history = [...(p.history || []), { at: now, what: 'Réponse : ' + (status === 'confirmed' ? 'présence confirmée' : 'invitation déclinée') + (before && before !== status ? ' (avant : ' + (before === 'pending' ? 'en attente' : before === 'confirmed' ? 'présence confirmée' : 'déclinée') + ')' : '') }];
           const upd = await saveGuest(row, p); return { guest: gOf(upd), updated: true };
         }
@@ -216,7 +227,7 @@ module.exports = function registerEvents(app, d) {
         const created = await prisma.eventLog.create({ data: { type: 'eguest', payload: p } }); return { guest: gOf(created), updated: false };
       });
     } catch (err) {
-      console.error('[Événements] enregistrement impossible :', err.message);
+      console.error('[Événements] enregistrement impossible :', safeMsg(err));
       return res.status(503).json({ ok: false, error: 'Votre réponse n’a pas pu être enregistrée. Réessayez dans un instant, ou appelez-nous au 07 63 00 43 85.' });
     }
 
@@ -225,15 +236,17 @@ module.exports = function registerEvents(app, d) {
     if (mailReady()) {
       const owner = process.env.OWNER_EMAIL || 'reyceatelier@gmail.com'; const jobs = [];
       const mo = ownerEmail(ev, g, saved.updated);
-      jobs.push(withTimeout(sendEmail(owner, mo.subject, mo.html, null, { replyTo: g.email || owner }), 8000).catch(e => console.error('[Événements] e-mail atelier :', e.message)));
-      if (present(g) && g.email) {
+      jobs.push(withTimeout(sendEmail(owner, mo.subject, mo.html, null, { replyTo: g.email || owner }), 8000).catch(e => console.error('[Événements] e-mail atelier :', safeMsg(e))));
+      if (present(g) && g.email && mailedRecently(g.email)) emailed = true;           // la confirmation vient déjà de partir : pas de second envoi
+      else if (present(g) && g.email) {
+        recentMail.set(g.email, Date.now());
         const mg = guestEmail(ev, g);
         const att = [{ filename: 'reyce-evenement.ics', contentType: 'text/calendar; charset=UTF-8; method=PUBLISH', buffer: Buffer.from(icsText(ev), 'utf8') }];
-        jobs.push(withTimeout(sendEmail(g.email, mg.subject, mg.html, att, { replyTo: owner }).then(() => { emailed = true; }), 8000).catch(e => console.error('[Événements] e-mail invité :', e.message)));
+        jobs.push(withTimeout(sendEmail(g.email, mg.subject, mg.html, att, { replyTo: owner }).then(() => { emailed = true; }), 8000).catch(e => console.error('[Événements] e-mail invité :', safeMsg(e))));
       }
       await Promise.all(jobs);
     }
-    res.json({ ok: true, reponse, personnes: companions ? 2 : 1, firstName: g.firstName, emailed, updated: saved.updated });
+    res.json({ ok: true, reponse, personnes: companions ? 2 : 1, firstName: target ? g.firstName : inFirst, emailed });
   });
 
   // ============================================================
@@ -382,9 +395,9 @@ module.exports = function registerEvents(app, d) {
       else { cur.firstName = cur.firstName || o.firstName || ''; cur.lastName = cur.lastName || o.lastName || ''; cur.phone = cur.phone || o.phone || ''; if (o.source === 'Client') cur.source = 'Client'; }
     };
     try { (await prisma.appointment.findMany({ where: { status: { not: 'pending_payment' } }, select: { guestEmail: true, guestFirstName: true, guestLastName: true, guestPhone: true }, distinct: ['guestEmail'], take: 3000 }))
-      .forEach(a => add(a.guestEmail, { firstName: a.guestFirstName, lastName: a.guestLastName, phone: a.guestPhone, source: 'Client' })); } catch (e) { console.error('[Événements] contacts clients :', e.message); }
-    try { (await prisma.client.findMany({ take: 3000 })).forEach(c => add(c.email, { firstName: c.firstName, lastName: c.lastName, phone: c.phone, source: 'Client' })); } catch (e) { console.error('[Événements] fiches clients :', e.message); }
-    try { (await prisma.eventLog.findMany({ where: { type: 'lead' }, orderBy: { createdAt: 'desc' }, take: 3000 })).forEach(r => { const l = r.payload || {}; add(l.email, { firstName: l.firstName, lastName: l.lastName, phone: l.phone, source: LEAD_SOURCE[l.kind] || 'Demande' }); }); } catch (e) { console.error('[Événements] demandes :', e.message); }
+      .forEach(a => add(a.guestEmail, { firstName: a.guestFirstName, lastName: a.guestLastName, phone: a.guestPhone, source: 'Client' })); } catch (e) { console.error('[Événements] contacts clients :', safeMsg(e)); }
+    try { (await prisma.client.findMany({ take: 3000 })).forEach(c => add(c.email, { firstName: c.firstName, lastName: c.lastName, phone: c.phone, source: 'Client' })); } catch (e) { console.error('[Événements] fiches clients :', safeMsg(e)); }
+    try { (await prisma.eventLog.findMany({ where: { type: 'lead' }, orderBy: { createdAt: 'desc' }, take: 3000 })).forEach(r => { const l = r.payload || {}; add(l.email, { firstName: l.firstName, lastName: l.lastName, phone: l.phone, source: LEAD_SOURCE[l.kind] || 'Demande' }); }); } catch (e) { console.error('[Événements] demandes :', safeMsg(e)); }
     return map;
   }
   app.get('/api/admin/events/:slug/crm-contacts', async (req, res) => {

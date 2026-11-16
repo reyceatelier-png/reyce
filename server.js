@@ -13,6 +13,11 @@ const { Prisma } = require('@prisma/client');
 const helmet          = require('helmet');
 const rateLimit        = require('express-rate-limit');
 
+// Messages d'erreur pour les journaux : jamais d'adresse e-mail, de numéro ni de contenu de requête (les erreurs de la base
+// recopient les données envoyées) — seulement le code et la première ligne, tronquée.
+const safeMsg = e => String((e && ((e.code ? e.code + ' ' : '') + (e.message || ''))) || e || '').trim().split('\n')[0]
+  .replace(/[^\s@<>"']+@[^\s@<>"']+/g, '***@***').replace(/\+?\d[\d .-]{7,}\d/g, '***').slice(0, 200);
+
 const app      = express();
 const PORT     = process.env.PORT || 3000;
 
@@ -20,6 +25,7 @@ const PORT     = process.env.PORT || 3000;
 // express-rate-limit (et tout code qui lit req.ip) verrait l'IP du proxy
 // au lieu de celle du visiteur, et le rate limiting ne servirait à rien.
 app.set('trust proxy', 1);
+
 
 // ── Adresse canonique : https://www.reyce.fr ───────────────────
 // Le domaine sans « www » et toute requête en HTTP simple sont renvoyés (301) vers l'adresse HTTPS avec www, chemin et
@@ -708,7 +714,7 @@ async function cleanupAbandonedHolds() {
     });
     if (count > 0) console.log(`[Holds] ${count} créneau(x) en attente expiré(s) libéré(s)`);
   } catch (err) {
-    console.error('[Holds] Erreur nettoyage :', err.message);
+    console.error('[Holds] Erreur nettoyage :', safeMsg(err));
   }
 }
 setInterval(cleanupAbandonedHolds, 5 * 60000);
@@ -1302,7 +1308,7 @@ async function sendLeadAck(email, firstName, vehicleInfo, source, subject) {
     await sendEmail(email, m.subject, m.html);
     console.log('[Accusé] ✓ envoyé au client');
   } catch (err) {
-    console.error('[Accusé] ✗', err.message);
+    console.error('[Accusé] ✗', safeMsg(err));
   }
 }
 
@@ -1327,14 +1333,14 @@ async function sendConfirmationEmails(data, svc) {
     await sendEmail(data.client.email, clientMail.subject, clientMail.html, ics);
     console.log(`[Email] ✓ Client → ${maskEmail(data.client.email)}`);
   } catch (err) {
-    console.error(`[Email] ✗ Client → ${maskEmail(data.client.email)} | ${err.message}`);
+    console.error(`[Email] ✗ Client → ${maskEmail(data.client.email)} | ${safeMsg(err)}`);
   }
 
   try {
     await sendEmail(ownerEmail, ownerMail.subject, ownerMail.html);
     console.log(`[Email] ✓ Owner → ${ownerEmail}`);
   } catch (err) {
-    console.error(`[Email] ✗ Owner → ${ownerEmail} | ${err.message}`);
+    console.error(`[Email] ✗ Owner → ${ownerEmail} | ${safeMsg(err)}`);
   }
 }
 
@@ -1431,7 +1437,7 @@ async function createCalendarEvent(data, svc) {
     console.log('[Calendar] ✓ Événement créé', created.id);
     return created.id;
   } catch (err) {
-    console.error('[Calendar] ✗', err.message);
+    console.error('[Calendar] ✗', safeMsg(err));
     return null;
   }
 }
@@ -1454,7 +1460,7 @@ async function deleteCalendarEvent(eventId) {
     });
     return r.ok || r.status === 404 || r.status === 410;
   } catch (err) {
-    console.error('[Calendar] ✗ Suppression impossible :', err.message);
+    console.error('[Calendar] ✗ Suppression impossible :', safeMsg(err));
     return false;
   }
 }
@@ -1473,7 +1479,7 @@ async function syncCalendarForBooking(sessionId, data, svc) {
         : { googleSyncStatus: 'error', googleSyncError: 'Échec de création de l\'événement Calendar' }
     });
   } catch (err) {
-    console.error('[Calendar] ✗ Enregistrement du statut de synchro impossible :', err.message);
+    console.error('[Calendar] ✗ Enregistrement du statut de synchro impossible :', safeMsg(err));
   }
 }
 
@@ -1494,7 +1500,7 @@ app.post('/api/webhook',
         process.env.STRIPE_WEBHOOK_SECRET
       );
     } catch (err) {
-      console.error('[Webhook] Signature invalide :', err.message);
+      console.error('[Webhook] Signature invalide :', safeMsg(err));
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
@@ -1522,24 +1528,24 @@ app.post('/api/webhook',
 
           // Envoi des emails de confirmation (non bloquant)
           sendConfirmationEmails(data, svc).catch(err =>
-            console.error('[Email] Erreur post-webhook :', err.message)
+            console.error('[Email] Erreur post-webhook :', safeMsg(err))
           );
 
           // Création de l'événement Google Calendar (non bloquant)
           syncCalendarForBooking(session.id, data, svc).catch(err =>
-            console.error('[Calendar] Erreur post-webhook :', err.message)
+            console.error('[Calendar] Erreur post-webhook :', safeMsg(err))
           );
 
           // SMS de confirmation (non bloquant)
           if (data.client?.phone) {
             const smsBody = `REYCE — Votre réservation est confirmée.\n${svc.name} · ${formatDate(data.date)} à ${data.time}\nAtelier : 47 chemin du Pras, La Mulatière`;
             sendSMS(data.client.phone, smsBody).catch(err =>
-              console.error('[SMS] Erreur post-webhook :', err.message)
+              console.error('[SMS] Erreur post-webhook :', safeMsg(err))
             );
           }
 
         } catch (e) {
-          console.error('[Webhook] Erreur sauvegarde :', e);
+          console.error('[Webhook] Erreur sauvegarde :', safeMsg(e));
         }
       }
     }
@@ -1565,7 +1571,24 @@ app.post('/api/webhook',
 // Les pages transactionnelles gardent leur adresse : liens déjà envoyés par e-mail, retour de paiement, page de remerciement des annonces.
 const fs = require('fs');
 // Page privée de la soirée : jamais indexée, jamais mise en cache durablement (l'en-tête doit précéder l'envoi du fichier par la règle des adresses propres ci-dessous)
-app.use(['/soiree', '/soiree.html', '/invitation', '/invitation.html'], (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive'); res.setHeader('Cache-Control', 'no-cache'); next(); });
+// Politique de sécurité propre à ces pages : rien ne peut être chargé ni envoyé ailleurs que sur le site (scripts, images, connexions,
+// formulaires, cadres), et seuls les blocs en ligne de la page elle-même sont admis (empreintes calculées au démarrage à partir du fichier).
+// Même si un contenu était injecté un jour, il ne pourrait ni s'exécuter ni faire sortir la moindre donnée.
+function pageCsp(file) {
+  try {
+    const html = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    const hashes = re => [...html.matchAll(re)].map(m => "'sha256-" + crypto.createHash('sha256').update(m[1], 'utf8').digest('base64') + "'");
+    return ["default-src 'none'", "script-src 'self' " + hashes(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi).join(' '), "script-src-attr 'none'",
+      "style-src 'self' " + hashes(/<style[^>]*>([\s\S]*?)<\/style>/gi).join(' '), "img-src 'self' data:", "font-src 'self'", "connect-src 'self'", "manifest-src 'self'",
+      "form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'", "object-src 'none'", 'upgrade-insecure-requests'].join('; ');
+  } catch (e) { console.error('[Sécurité] politique de la page ' + file + ' non calculée :', safeMsg(e)); return ''; }
+}
+const PAGE_CSP = { '/soiree': pageCsp('soiree.html'), '/soiree.html': pageCsp('soiree.html'), '/invitation': pageCsp('invitation.html'), '/invitation.html': pageCsp('invitation.html') };
+app.use(['/soiree', '/soiree.html', '/invitation', '/invitation.html'], (req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive'); res.setHeader('Cache-Control', 'no-cache');
+  const csp = PAGE_CSP[req.baseUrl]; if (csp) res.setHeader('Content-Security-Policy', csp);
+  next();
+});
 const KEEP_HTML   = new Set(['index', '404', 'admin', 'merci-devis', 'confirmation', 'rdv-confirmation', 'care-report', 'cancel']);
 const CLEAN_PAGES = new Set(fs.readdirSync(__dirname).filter(f => /^[a-z0-9][a-z0-9-]*\.html$/i.test(f)).map(f => f.slice(0, -5).toLowerCase()).filter(n => !KEEP_HTML.has(n)));
 app.use((req, res, next) => {
@@ -1684,7 +1707,7 @@ async function recordLead({ kind, firstName, lastName, email, phone, vehicleInfo
       }
     });
   } catch (err) {
-    console.error('[Lead] enregistrement impossible :', err.message);
+    console.error('[Lead] enregistrement impossible :', safeMsg(err));
   }
 }
 
@@ -1758,7 +1781,7 @@ app.post('/api/contact', async (req, res) => {
     res.json({ ok: true });
     if (isDevis) sendLeadAck(email, firstName, vehicleInfo, source, subject);
   } catch (err) {
-    console.error('[Contact] ✗ Erreur d\'envoi :', err.message);
+    console.error('[Contact] ✗ Erreur d\'envoi :', safeMsg(err));
     res.status(500).json({ error: 'Envoi impossible pour le moment. Réessayez dans un instant ou appelez-nous au 07 63 00 43 85.' });
   }
 });
@@ -1838,7 +1861,7 @@ app.post('/api/devis-photos', formLimiter, upload.array('photos', 3), async (req
     res.json({ ok: true });
     sendLeadAck(email, firstName, vehicleInfo, source, subject);
   } catch (err) {
-    console.error('[Devis photos] ✗ Erreur :', err.message);
+    console.error('[Devis photos] ✗ Erreur :', safeMsg(err));
     res.status(500).json({ error: 'Envoi impossible pour le moment. Réessayez dans un instant ou appelez-nous au 07 63 00 43 85.' });
   }
 });
@@ -1872,7 +1895,7 @@ app.post('/api/vehicle-unknown', publicLimiter, express.json({ limit: '4kb' }), 
       data: { type: 'vehicle_unknown', payload: { query, category } }
     });
   } catch (err) {
-    console.error('[Vehicule] Journalisation impossible :', err.message);
+    console.error('[Vehicule] Journalisation impossible :', safeMsg(err));
   }
   res.json({ ok: true });
 });
@@ -1897,12 +1920,12 @@ app.get('/api/public/pricing/:id', async (req, res) => {
 // demande est transmise par e-mail à l'atelier pour qu'aucun client ne soit perdu.
 async function bookingFailure(res, err, ctx) {
   if (isSlotConflict(err)) {
-    console.error('[Booking] Conflit de créneau :', err.message);
+    console.error('[Booking] Conflit de créneau :', safeMsg(err));
     return res.status(409).json({ error: 'Ce créneau vient d\'être réservé. Veuillez choisir un autre horaire.' });
   }
-  console.error('[Booking] ERREUR TECHNIQUE (pas un conflit) :', err);
+  console.error('[Booking] ERREUR TECHNIQUE (pas un conflit) :', safeMsg(err));
   let transmitted = false;
-  try { transmitted = await notifyOwnerBookingFailure(ctx, err); } catch (e) { console.error('[Booking] Alerte atelier impossible :', e.message); }
+  try { transmitted = await notifyOwnerBookingFailure(ctx, err); } catch (e) { console.error('[Booking] Alerte atelier impossible :', safeMsg(e)); }
   return res.status(503).json({
     error: transmitted
       ? 'Un problème technique empêche l\'enregistrement automatique de votre réservation, mais votre demande a bien été transmise à l\'atelier, qui vous confirme le créneau directement.'
@@ -2010,7 +2033,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     await attachStripeSession(hold.id, session.id);
     res.json({ url: session.url });
   } catch (err) {
-    console.error('[Stripe] Erreur :', err.message);
+    console.error('[Stripe] Erreur :', safeMsg(err));
     await releaseHold(hold.id);
     res.status(500).json({ error: 'Erreur lors de la création du paiement. Réessayez.' });
   }
@@ -2064,11 +2087,11 @@ app.post('/api/create-booking', async (req, res) => {
   const data = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: 'on_site', totalCents };
 
   upsertClientFromGuest(client).catch(() => {});
-  sendConfirmationEmails(data, svc).catch(err => console.error('[Email] Erreur post-réservation :', err.message));
-  syncCalendarForBooking(booking.stripeSessionId, data, svc).catch(err => console.error('[Calendar] Erreur post-réservation :', err.message));
+  sendConfirmationEmails(data, svc).catch(err => console.error('[Email] Erreur post-réservation :', safeMsg(err)));
+  syncCalendarForBooking(booking.stripeSessionId, data, svc).catch(err => console.error('[Calendar] Erreur post-réservation :', safeMsg(err)));
   if (client.phone) {
     const smsBody = `REYCE — Votre réservation est confirmée.\n${svc.name} · ${formatDate(date)} à ${time}\nAtelier : 47 chemin du Pras, La Mulatière`;
-    sendSMS(client.phone, smsBody).catch(err => console.error('[SMS] Erreur post-réservation :', err.message));
+    sendSMS(client.phone, smsBody).catch(err => console.error('[SMS] Erreur post-réservation :', safeMsg(err)));
   }
 
   res.json({ ok: true, sessionId: booking.stripeSessionId });
@@ -2229,23 +2252,23 @@ app.post('/api/admin/bookings', async (req, res) => {
     booking = await createDirectBooking({ service, svc, date, time, vehicleType, vehicleModel, tintOption, client, totalCents });
   } catch (err) {
     if (isSlotConflict(err)) {
-      console.error('[Admin] Conflit de réservation manuelle :', err.message);
+      console.error('[Admin] Conflit de réservation manuelle :', safeMsg(err));
       return res.status(409).json({ error: 'Ce créneau est déjà pris.' });
     }
-    console.error('[Admin] ERREUR TECHNIQUE à la création manuelle :', err);
+    console.error('[Admin] ERREUR TECHNIQUE à la création manuelle :', safeMsg(err));
     return res.status(500).json({ error: 'Erreur technique : la réservation n\'a pas été enregistrée (' + String(err.message).split('\n').pop().slice(0, 160) + ').' });
   }
 
   const data = { service, vehicleType, vehicleModel, tintOption, date, time, client, paymentType: 'on_site', totalCents };
 
   upsertClientFromGuest(client).catch(() => {});
-  syncCalendarForBooking(booking.stripeSessionId, data, svc).catch(err => console.error('[Calendar] Erreur post-réservation :', err.message));
+  syncCalendarForBooking(booking.stripeSessionId, data, svc).catch(err => console.error('[Calendar] Erreur post-réservation :', safeMsg(err)));
 
   if (notifyClient !== false) {
-    sendConfirmationEmails(data, svc).catch(err => console.error('[Email] Erreur post-réservation :', err.message));
+    sendConfirmationEmails(data, svc).catch(err => console.error('[Email] Erreur post-réservation :', safeMsg(err)));
     if (client.phone) {
       const smsBody = `REYCE — Votre réservation est confirmée.\n${svc.name} · ${formatDate(date)} à ${time}\nAtelier : 47 chemin du Pras, La Mulatière`;
-      sendSMS(client.phone, smsBody).catch(err => console.error('[SMS] Erreur post-réservation :', err.message));
+      sendSMS(client.phone, smsBody).catch(err => console.error('[SMS] Erreur post-réservation :', safeMsg(err)));
     }
   }
 
@@ -2693,7 +2716,7 @@ app.post('/api/admin/reset-data', async (req, res) => {
     console.log('[Admin] Remise à zéro des données :', JSON.stringify(out));
     res.json({ ok: true, ...out });
   } catch (err) {
-    console.error('[Admin] Remise à zéro impossible :', err.message);
+    console.error('[Admin] Remise à zéro impossible :', safeMsg(err));
     res.status(500).json({ error: 'La suppression a échoué : ' + String(err.message).split('\n').pop().slice(0, 160) });
   }
 });
@@ -2763,7 +2786,7 @@ app.post('/api/admin/marketing/send', async (req, res) => {
       sent++;
     } catch (err) {
       failed++;
-      console.error(`[Marketing] ✗ ${maskEmail(email)} :`, err.message);
+      console.error(`[Marketing] ✗ ${maskEmail(email)} :`, safeMsg(err));
     }
     await new Promise(r => setTimeout(r, 300));
   }
@@ -2801,7 +2824,7 @@ async function upsertClientFromGuest(client) {
       create: { email: client.email, firstName: client.firstName, lastName: client.lastName, phone: client.phone }
     });
   } catch (err) {
-    console.error('[Client] Erreur upsert :', err.message);
+    console.error('[Client] Erreur upsert :', safeMsg(err));
   }
 }
 
@@ -2970,7 +2993,7 @@ app.post('/api/admin/care-report/:sessionId/send', async (req, res) => {
     await prisma.careReport.update({ where: { id: appt.careReport.id }, data: { sentAt: new Date() } });
     res.json({ ok: true });
   } catch (err) {
-    console.error('[CareReport] ✗ Envoi :', err.message);
+    console.error('[CareReport] ✗ Envoi :', safeMsg(err));
     res.status(500).json({ error: err.message });
   }
 });
@@ -3080,7 +3103,7 @@ app.post('/api/admin/send-reminder', async (req, res) => {
     console.log(`[Admin] ✓ Email "rappel" → ${maskEmail(booking.client.email)}`);
     res.json({ ok: true });
   } catch (err) {
-    console.error('[Admin] ✗ send-reminder :', err.message);
+    console.error('[Admin] ✗ send-reminder :', safeMsg(err));
     res.status(500).json({ error: err.message });
   }
 });
@@ -3120,7 +3143,7 @@ app.post('/api/admin/send-ready', async (req, res) => {
     console.log(`[Admin] ✓ Email "prêt" → ${maskEmail(booking.client.email)}`);
     res.json({ ok: true });
   } catch (err) {
-    console.error('[Admin] ✗ send-ready :', err.message);
+    console.error('[Admin] ✗ send-ready :', safeMsg(err));
     res.status(500).json({ error: err.message });
   }
 });
@@ -3157,7 +3180,7 @@ app.post('/api/admin/send-review', async (req, res) => {
     console.log(`[Admin] ✓ Email "avis" → ${maskEmail(booking.client.email)}`);
     res.json({ ok: true });
   } catch (err) {
-    console.error('[Admin] ✗ send-review :', err.message);
+    console.error('[Admin] ✗ send-review :', safeMsg(err));
     res.status(500).json({ error: err.message });
   }
 });
@@ -3256,7 +3279,7 @@ async function runReminders(opts) {
       } catch (err) {
         result.erreurs++;
         await prisma.eventLog.delete({ where: { id: log.id } }).catch(() => {});   // sera retenté au prochain passage
-        console.error('[Rappel] ✗', err.message);
+        console.error('[Rappel] ✗', safeMsg(err));
       }
     }
   } finally { remindersRunning = false; }
@@ -3295,14 +3318,14 @@ app.post('/api/admin/run-reminders', async (req, res) => {
   res.json(await runReminders({ force: !!b.force, now: b.now ? new Date(b.now) : undefined }));
 });
 if (process.env.REMINDERS_DISABLED !== '1') {
-  setInterval(() => runReminders().catch(err => console.error('[Rappel] erreur du passage :', err.message)), 30 * 60 * 1000).unref();
-  setTimeout(() => runReminders().catch(err => console.error('[Rappel] erreur du passage :', err.message)), 90 * 1000).unref();
+  setInterval(() => runReminders().catch(err => console.error('[Rappel] erreur du passage :', safeMsg(err))), 30 * 60 * 1000).unref();
+  setTimeout(() => runReminders().catch(err => console.error('[Rappel] erreur du passage :', safeMsg(err))), 90 * 1000).unref();
 }
 
 // ============================================================
 // Événements (invitations, réponses, jour J ; page /soiree et onglet « Événements » du CRM) — voir events.js
 // ============================================================
-require('./events')(app, { prisma, express, rateLimit, sendEmail, escapeHtml, cleanText, cleanPhone, isValidEmail });
+require('./events')(app, { prisma, express, rateLimit, sendEmail, escapeHtml, cleanText, cleanPhone, isValidEmail, safeMsg });
 
 // ============================================================
 // 404 — page introuvable
@@ -3332,7 +3355,9 @@ app.use((err, req, res, next) => {
 // réponse ou de faire planter le serveur.
 // ============================================================
 app.use((err, req, res, next) => {
-  console.error('[Erreur non gérée]', err);
+  const st = Number(err && (err.status || err.statusCode));                         // corps trop gros, JSON mal formé… : erreur du visiteur, pas du serveur
+  if (st >= 400 && st < 500 && !res.headersSent) return res.status(st).json({ ok: false, error: st === 413 ? 'Message trop volumineux.' : 'Requête invalide.' });
+  console.error('[Erreur non gérée]', req.method, req.path.replace(/\/invite\/[a-z0-9]+/i, '/invite/***'), safeMsg(err));
   if (res.headersSent) return next(err);
   res.status(500).json({ error: 'Erreur serveur, veuillez réessayer.' });
 });
@@ -3347,16 +3372,16 @@ app.use((err, req, res, next) => {
 // pour un 502 signalé mais non reproductible directement.
 // ============================================================
 process.on('unhandledRejection', (reason) => {
-  console.error('[unhandledRejection]', reason);
+  console.error('[unhandledRejection]', safeMsg(reason));
 });
 process.on('uncaughtException', (err) => {
-  console.error('[uncaughtException]', err);
+  console.error('[uncaughtException]', safeMsg(err));
 });
 
 // ============================================================
 ensureAllServices()
   .then(n => { if (n) console.log(`[Catalogue] ${n} prestation(s) manquante(s) créée(s) en base.`); })
-  .catch(err => console.error('[Catalogue] Création des prestations impossible :', err.message));
+  .catch(err => console.error('[Catalogue] Création des prestations impossible :', safeMsg(err)));
 
 app.listen(PORT, () => {
   console.log(`\n  REYCE — Serveur démarré`);

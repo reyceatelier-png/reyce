@@ -6,6 +6,7 @@
 <title>Soirée privée REYCE — jeudi 3 décembre, 19h30</title>
 <meta name="description" content="Invitation privée à la soirée REYCE, le jeudi 3 décembre à 19h30, à l'atelier de La Mulatière.">
 <meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#050506">
 <meta name="color-scheme" content="dark">
 
@@ -33,7 +34,7 @@
 (function(){try{var d=document.documentElement;d.className+=' js';if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;d.className+=' anim';if(!sessionStorage.getItem('rv-intro')&&!location.hash)d.className+=' opening';}catch(e){}})();</script>
 <style>html,body{background:#050506;color:#f4f5f6}</style>
 <link rel="preload" as="image" href="/assets/soiree/chrono-800.webp" imagesrcset="/assets/soiree/chrono-800.webp 800w, /assets/soiree/chrono-1331.webp 1331w" imagesizes="(min-width:900px) and (min-aspect-ratio:5/4) 48vw, 100vw" fetchpriority="high">
-<link rel="stylesheet" href="/css/invitation.css?v=4">
+<link rel="stylesheet" href="/css/invitation.css?v=5">
 </head>
 <body>
 <a class="skip" href="#rsvp">Aller directement à la réponse</a>
@@ -61,6 +62,7 @@
 </header>
 
 <a class="reply-link" id="railReply" href="#rsvp">Déjà répondu ? Modifier</a>
+<button type="button" class="glide" id="glide" hidden aria-label="Mettre en pause le défilement automatique"><span class="glide__ico" aria-hidden="true"></span><span class="glide__txt">Pause</span></button>
 
 <main>
   <div class="story" id="story">
@@ -100,8 +102,8 @@
           <div><dt>Réponse</dt><dd id="cardReply">Obligatoire</dd></div>
         </dl>
         <div class="info__actions">
-          <a class="btn btn--line" id="routeLink" href="https://www.google.com/maps/search/?api=1&amp;query=Atelier%20REYCE%2C%2047%20chemin%20du%20Pras%2C%2069350%20La%20Mulati%C3%A8re" target="_blank" rel="noopener">Itinéraire</a>
-          <a class="btn btn--line" id="cardGcal" href="#" target="_blank" rel="noopener">Google Agenda</a>
+          <a class="btn btn--line" id="routeLink" href="https://www.google.com/maps/search/?api=1&amp;query=Atelier%20REYCE%2C%2047%20chemin%20du%20Pras%2C%2069350%20La%20Mulati%C3%A8re" target="_blank" rel="noopener noreferrer">Itinéraire</a>
+          <a class="btn btn--line" id="cardGcal" href="#" target="_blank" rel="noopener noreferrer">Google Agenda</a>
           <a class="btn btn--line" id="cardIcs" href="/api/events/soiree-reyce-2026-12-03/calendar.ics">Apple / Outlook</a>
         </div>
       </div>
@@ -177,8 +179,8 @@
         <p class="done__date">Jeudi 3 décembre, 19h30</p>
         <p class="done__place"><span class="nb">Atelier Reyce,</span> <span class="nb">47 chemin du Pras,</span> <span class="nb">69350 La Mulatière</span></p>
         <div class="cal">
-          <a class="btn btn--line" id="route" href="#" target="_blank" rel="noopener">Itinéraire</a>
-          <a class="btn btn--line" id="gcal" href="#" target="_blank" rel="noopener">Google Agenda</a>
+          <a class="btn btn--line" id="route" href="#" target="_blank" rel="noopener noreferrer">Itinéraire</a>
+          <a class="btn btn--line" id="gcal" href="#" target="_blank" rel="noopener noreferrer">Google Agenda</a>
           <a class="btn btn--line" id="ics" href="/api/events/soiree-reyce-2026-12-03/calendar.ics">Apple / Outlook</a>
         </div>
       </div>
@@ -192,6 +194,6 @@
   <p>Une question ? <a href="tel:+33763004385">07 63 00 43 85</a></p>
 </footer>
 
-<script src="/js/invitation.js?v=2" defer></script>
+<script src="/js/invitation.js?v=3" defer></script>
 </body>
 </html>

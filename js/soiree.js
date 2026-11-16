@@ -8,6 +8,9 @@
   var q = new URLSearchParams(window.location.search);
   var SLUG = /^[a-z0-9-]{3,80}$/.test(q.get('e') || '') ? q.get('e') : DEFAULT_SLUG;
   var CODE = (q.get('i') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);          // code du lien personnel (opaque)
+  /* le lien personnel est lu une fois, puis retiré de la barre d'adresse (historique, capture d'écran, copier-coller) ; il reste en mémoire de l'onglet pour un rechargement */
+  try { if (CODE) sessionStorage.setItem('rv-code', CODE); else CODE = (sessionStorage.getItem('rv-code') || '').replace(/[^a-z0-9]/g, '').slice(0, 12); } catch (e) {}
+  try { if (q.has('i')) { q.delete('i'); var rest = q.toString(); history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash); } } catch (e) {}
   var $ = function (id) { return document.getElementById(id); };
   var root = document.documentElement;
   var reduce = false;
@@ -102,7 +105,7 @@
   var form = $('rsvpForm'); if (!form) return;
   var btn = $('send'), msg = $('msg'), formBox = $('formBox'), done = $('done');
   var persBox = $('persBox'), allergBox = $('allergBox'), idFields = $('idFields'), known = $('known');
-  var sending = false, knownMode = false, knownFirst = '', needsEmail = false;
+  var sending = false, knownMode = false, knownFirst = '', needsEmail = false, storedAllergies = false;
 
   function radio(n) { var r = form.querySelectorAll('input[name="' + n + '"]'); for (var i = 0; i < r.length; i++) if (r[i].checked) return r[i].value; return ''; }
   function field(n) { var e = form.elements[n]; return e && e.length && !e.tagName ? e[0] : e; }
@@ -156,13 +159,14 @@
     var eye = $('eyebrow'); if (eye) eye.textContent = 'Invitation privée · ' + name(first);
     if (st && st.status && st.status !== 'pending') {
       var r = form.querySelector('input[name="reponse"][value="' + (st.status === 'confirmed' ? 'present' : 'absent') + '"]'); if (r) { r.checked = true; sync(); }
-      if (st.status === 'confirmed') { if (st.companions) form.querySelector('#p-2').checked = true; if (st.allergies) field('allergies').value = st.allergies; }
+      if (st.status === 'confirmed') { if (st.companions) form.querySelector('#p-2').checked = true; if (st.hasAllergies) { storedAllergies = true; field('allergies').placeholder = 'Déjà noté. Laissez vide pour le conserver.'; } }
       var note = document.createElement('p'); note.className = 'known-note'; note.id = 'knownNote';
       note.textContent = 'Vous avez déjà répondu : ' + (st.status === 'confirmed' ? 'présence confirmée' : 'invitation déclinée') + '. Vous pouvez modifier votre réponse.'; known.parentNode.insertBefore(note, form);
     }
   }
   function unknown() {                                                                                   // lien transféré : répondre pour soi-même
-    knownMode = false; CODE = ''; idFields.hidden = false; known.hidden = true;
+    knownMode = false; CODE = ''; storedAllergies = false; field('allergies').placeholder = ''; try { sessionStorage.removeItem('rv-code'); } catch (e) {}
+    idFields.hidden = false; known.hidden = true;
     ['prenom', 'nom', 'telephone'].forEach(function (n) { var b = box(n); if (b) b.hidden = false; });
     var eb = box('email'); if (eb) eb.querySelector('label').textContent = 'E-mail';
     var n = $('knownNote'); if (n) n.parentNode.removeChild(n);
@@ -203,6 +207,7 @@
     };
     if (!knownMode) { p.prenom = field('prenom').value.trim(); p.nom = field('nom').value.trim(); p.telephone = field('telephone').value.trim(); }
     p.email = field('email').value.trim();
+    if (knownMode && storedAllergies && present && !p.allergies) p.keepAllergies = true;               // l'information déjà notée n'est jamais renvoyée à l'écran : « vide » veut dire « inchangée »
     sending = true; btn.disabled = true;
     var label = btn.textContent; btn.textContent = 'Envoi en cours…';
     fetch('/api/events/' + encodeURIComponent(SLUG) + '/rsvp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
@@ -230,7 +235,7 @@
   }).catch(function () { /* la page garde ses valeurs par défaut */ });
   if (CODE.length === 10) {
     idFields.style.visibility = 'hidden';                                                               // évite d'afficher puis de retirer les champs d'identité
-    fetch('/api/events/' + encodeURIComponent(SLUG) + '/invite/' + CODE).then(function (r) { return r.json(); }).then(function (d) {
+    fetch('/api/events/' + encodeURIComponent(SLUG) + '/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: CODE }), referrerPolicy: 'no-referrer' }).then(function (r) { return r.json(); }).then(function (d) {
       if (d && d.ok && d.firstName) { needsEmail = !!d.needsEmail; setKnown(d.firstName, d); }
     }).catch(function () { /* le formulaire complet reste disponible */ }).then(function () { idFields.style.visibility = ''; });
   }

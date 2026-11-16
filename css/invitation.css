@@ -185,6 +185,17 @@ html.anim .hero__copy>.cue{animation:rise .9s cubic-bezier(.2,.7,.2,1) calc(var(
 .reply-link{position:fixed;z-index:61;top:clamp(18px,3vh,32px);right:clamp(20px,3vw,48px);display:none;padding:.6rem .2rem;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--cu);text-decoration:underline;text-underline-offset:4px}
 .reply-link.is-on{display:block}
 
+/* défilement automatique : le bouton reste à l'écran tant que la page se déplace seule (pause / reprendre) */
+.glide{position:fixed;z-index:60;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:.7rem;min-height:44px;padding:.55rem 1.15rem .55rem 1rem;border:1px solid rgba(198,165,106,.5);border-radius:999px;background:rgba(5,5,6,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--cu-hi);font:inherit;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;-webkit-tap-highlight-color:transparent;animation:glide-in .6s ease both}
+.glide[hidden]{display:none}
+.glide__ico{position:relative;width:10px;height:12px;flex:none}
+.glide__ico::before,.glide__ico::after{content:"";position:absolute;top:0;bottom:0;width:3px;background:currentColor}
+.glide__ico::before{left:0}.glide__ico::after{right:0}
+.glide.is-paused .glide__ico::before{width:0;height:0;background:none;border-left:10px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent;top:0;bottom:auto}
+.glide.is-paused .glide__ico::after{display:none}
+@keyframes glide-in{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translateX(-50%)}}
+@media (hover:hover) and (pointer:fine){.glide:hover{border-color:var(--cu-hi)}}
+
 /* ---------- les portes s'ouvrent : présentation complète par défaut (sans JavaScript, au clavier, « moins de mouvement ») ---------- */
 .story{position:relative;background:var(--bg)}
 .ch{position:relative;background:var(--bg)}
