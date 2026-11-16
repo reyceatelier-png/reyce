@@ -102,7 +102,7 @@
     function onKey() { end(true); } function onTap() { end(true); }
     if (!root.classList.contains('opening')) { if (el.parentNode) el.parentNode.removeChild(el); introEnded(); return; }
     el.addEventListener('pointerdown', onTap); document.addEventListener('keydown', onKey);
-    setTimeout(function () { end(false); }, 3300);                                                     // filet de sécurité : l'invitation n'est jamais retenue
+    setTimeout(function () { end(false); }, 2300);                                                     // filet de sécurité : l'invitation n'est jamais retenue
   })();
 
   /* ---------- les portes s'ouvrent : une scène pilotée par le défilement, réversible ---------- */
@@ -151,16 +151,16 @@
       g = { vh: vh, ch: ch.getBoundingClientRect().top + y, chH: ch.offsetHeight, fin: fin.getBoundingClientRect().top + y, finH: fin.offsetHeight, frame: frame.getBoundingClientRect().top + y };
     }
     var P = function (p) { return g.ch + p * Math.max(1, g.chH - g.vh); };                               // position dans la scène (même avancement que la scène)
-    var LEGS = [                                                                                         // [destination, durée ms, pause ms ensuite]
-      [function () { return P(0); }, 2200, 200],
-      [function () { return P(.52); }, 4400, 400],
-      [function () { return P(.72); }, 2000, 2400],                                                      // première phrase, le temps de la lire
-      [function () { return P(.88); }, 1600, 3000],                                                      // seconde phrase
-      [function () { return P(1); }, 1200, 300],
-      [function () { return g.fin - Math.max(0, (g.vh - g.finH) / 2); }, 1900, 1200],                    // la question, au centre
-      [function () { return g.frame - clamp(g.vh * .08, 16, 64); }, 2400, 0]                             // le cadre : informations et formulaire
+    var LEGS = [                                                                                         // [destination, durée ms, pause ms ensuite] : ≈ 12 s en tout
+      [function () { return P(0); }, 1200, 100],
+      [function () { return P(.52); }, 2000, 150],
+      [function () { return P(.72); }, 1000, 1100],                                                      // première phrase, le temps de la lire
+      [function () { return P(.88); }, 900, 1600],                                                       // seconde phrase
+      [function () { return P(1); }, 700, 100],
+      [function () { return g.fin - Math.max(0, (g.vh - g.finH) / 2); }, 1000, 500],                     // la question, au centre
+      [function () { return g.frame - clamp(g.vh * .08, 16, 64); }, 1300, 0]                             // le cadre : informations et formulaire
     ];
-        function show(on, paused) {
+    function show(on, paused) {
       btn.hidden = !on; if (!on) return;
       btn.classList.toggle('is-paused', !!paused);
       btn.setAttribute('aria-label', paused ? 'Reprendre le défilement automatique' : 'Mettre en pause le défilement automatique');
@@ -218,7 +218,7 @@
     geo();
     var off = false; try { off = !!sessionStorage.getItem(KEY); } catch (e) {}                           // interrupteur des tests automatisés ; jamais posé par la page
     if (!off) whenIntroEnded(function () {
-      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 2600);                // le temps de lire l'accroche ; au milieu de la page (rechargement), rien ne repart
+      timer = window.setTimeout(function () { timer = 0; if (!document.hidden && window.pageYOffset < 24) run(); }, 1500);                // le temps de lire l'accroche ; au milieu de la page (rechargement), rien ne repart
     });
   })();
 
