@@ -1622,7 +1622,15 @@ app.get('/.well-known/security.txt', (req, res) => {
 const PUBLIC_DIRS  = ['assets', 'css', 'js'];
 const PUBLIC_FILES = ['robots.txt', 'sitemap.xml', 'llms.txt', 'favicon.ico'];   // favicon.ico : Google et les navigateurs le demandent à la racine
 app.use((req, res, next) => {
-  const reqPath = req.path.split('?')[0];
+  const notFound = () => res.status(404).type('text/plain').send('Not found');
+  // Le chemin est décodé et normalisé AVANT tout contrôle, exactement comme le fait express.static. Auparavant seul le premier
+  // segment brut était lu : « /assets/..%2fserver.js » (ou « %2e%2e ») passait pour « assets » alors qu'il désigne server.js,
+  // et le code du serveur, le schéma de la base et les documents internes étaient téléchargeables. Tout chemin contenant
+  // « .. », une barre oblique inverse ou un octet nul est refusé d'emblée, y compris sous /api/.
+  let reqPath;
+  try { reqPath = decodeURIComponent(req.path); } catch (e) { return notFound(); }
+  if (/[\0\\]/.test(reqPath) || reqPath.split('/').includes('..')) return notFound();
+  reqPath = path.posix.normalize(reqPath);
   // Toute requête vers /api/... est gérée plus bas dans ce fichier — ce
   // filtre ne concerne que la diffusion de fichiers statiques, jamais l'API.
   if (reqPath.startsWith('/api/')) return next();
@@ -1630,7 +1638,7 @@ app.use((req, res, next) => {
   const isPublicDir  = PUBLIC_DIRS.includes(first);
   const isPublicFile = PUBLIC_FILES.includes(first) || reqPath === '/' || /^\/[a-z0-9][a-z0-9-]*\.html$/i.test(reqPath);
   if (isPublicDir || isPublicFile) return next();
-  return res.status(404).type('text/plain').send('Not found');
+  return notFound();
 });
 // Cache navigateur. Sans lui, express.static envoie max-age=0 : chaque visite
 // retélécharge toutes les images, le CSS et le JS (mesuré en production).
@@ -1647,7 +1655,7 @@ app.get('/index.html', (req, res) => {
   res.redirect(301, '/' + (q > -1 ? req.url.slice(q) : ''));
 });
 
-app.use(express.static(path.join(__dirname), {
+const staticOpts = {
   setHeaders(res, filePath) {
     // Le logo est affiché dans les e-mails envoyés aux clients : il doit pouvoir être
     // chargé depuis une autre origine (helmet envoie same-origin par défaut).
@@ -1662,7 +1670,13 @@ app.use(express.static(path.join(__dirname), {
       res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
     }
   },
-}));
+};
+// Deuxième verrou, indépendant du filtre ci-dessus : chaque dossier public a sa propre racine (impossible d'en sortir),
+// et la racine du dépôt ne sert que les pages « .html » et les quatre fichiers publics, jamais un chemin à plusieurs niveaux.
+for (const d of PUBLIC_DIRS) app.use('/' + d, express.static(path.join(__dirname, d), staticOpts));
+const rootStatic = express.static(path.join(__dirname), staticOpts);
+const ROOT_OK = new RegExp('^/(?:[a-z0-9][a-z0-9-]*\\.html|' + PUBLIC_FILES.map(f => f.replace(/\./g, '\\.')).join('|') + ')?$', 'i');
+app.use((req, res, next) => ROOT_OK.test(req.path) ? rootStatic(req, res, next) : next());
 
 // ============================================================
 // Routes API
