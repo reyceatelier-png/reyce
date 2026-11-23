@@ -3,8 +3,8 @@
    masquée et rien n'est affiché ni déclaré. Les textes sont insérés en texte brut. */
 (function () {
   'use strict';
-  var sec = document.querySelector('[data-avis]');
-  if (!sec) return;
+  var sec = document.querySelector('[data-avis]'), hero = document.querySelector('[data-avis-hero]');
+  if (!sec && !hero) return;
   fetch('assets/data/avis.json', { cache: 'no-cache' })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
@@ -15,6 +15,8 @@
       var avis = (Array.isArray(d.avis) ? d.avis : []).filter(function (a) { return a && a.texte && a.auteur; });
       var score = note && nb;
       if (!score && !avis.length) return;                       // rien de réel à montrer
+      if (hero && score) hero.textContent = '★ ' + note.toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' sur Google · ' + nb + ' avis';
+      if (!sec) return;
 
       var s = sec.querySelector('[data-avis-score]');
       if (s && score) s.textContent = note.toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' ★ · ' + nb + ' avis Google';
