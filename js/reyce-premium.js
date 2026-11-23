@@ -4,16 +4,16 @@
   var reduce = false;
   try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
 
-  /* ---------- Diaporama du héros : fondu enchaîné, sans commande à l'écran ----------
-     Un tour complet (≈ 32 s) puis il s'arrête sur la première photo ; en pause pendant que la souris ou le
-     clavier est sur les choix, quand il sort de l'écran ou quand l'onglet est caché ; immobile si le
-     téléphone demande moins d'animations. */
+  /* ---------- Diaporama du héros : les photos changent seules, en continu (≈ 4 s chacune, fondu 1,2 s) ----------
+     Aucune commande visible ; en pause quand on survole ou parcourt les choix au clavier, quand le héros
+     sort de l'écran ou que l'onglet est caché. Bouton pause caché, accessible au clavier et aux lecteurs
+     d'écran (règle d'accessibilité). Immobile si le téléphone demande moins d'animations. */
   (function reel() {
     var hero = document.querySelector('.gx-hero');
     if (!hero) return;
-    var slides = [].slice.call(hero.querySelectorAll('.gx-slide'));
-    if (slides.length < 2 || reduce) return;
-    var DELAY = 6500, cur = 0, steps = 0, timer = 0, hold = false, offscreen = false;
+    var slides = [].slice.call(hero.querySelectorAll('.gx-slide')), pp = hero.querySelector('.gx-pp');
+    if (slides.length < 2 || reduce) { if (pp) pp.hidden = true; return; }
+    var DELAY = 4000, cur = 0, timer = 0, hold = false, offscreen = false, stopped = false;
 
     /* les photos suivantes ne se chargent qu'une fois la page affichée */
     function loadRest() {
@@ -25,8 +25,8 @@
         });
       });
     }
-    if (document.readyState === 'complete') setTimeout(loadRest, 600);
-    else window.addEventListener('load', function () { setTimeout(loadRest, 600); });
+    if (document.readyState === 'complete') setTimeout(loadRest, 300);
+    else window.addEventListener('load', function () { setTimeout(loadRest, 300); });
 
     function go(n) {
       n = (n + slides.length) % slides.length;
@@ -38,16 +38,20 @@
     }
     function tick() {
       timer = 0;
-      if (hold || offscreen || document.hidden) return schedule();
-      steps++; go(cur + 1);
-      if (steps < slides.length) schedule();          /* dernier pas = retour à la 1re photo, puis arrêt */
+      if (!(hold || offscreen || stopped || document.hidden)) go(cur + 1);
+      schedule();
     }
-    function schedule() { if (!timer && steps < slides.length) timer = setTimeout(tick, DELAY); }
+    function schedule() { if (!timer && !stopped) timer = setTimeout(tick, DELAY); }
     var pick = hero.querySelector('.gx-pick') || hero;   /* pause pendant que l'on choisit une prestation */
     pick.addEventListener('mouseenter', function () { hold = true; });
     pick.addEventListener('mouseleave', function () { hold = false; });
     pick.addEventListener('focusin', function () { hold = true; });
     pick.addEventListener('focusout', function () { hold = false; });
+    if (pp) pp.addEventListener('click', function () {
+      stopped = !stopped; pp.setAttribute('aria-pressed', String(stopped));
+      pp.textContent = stopped ? 'Relancer le diaporama' : 'Mettre le diaporama en pause';
+      if (!stopped) schedule();
+    });
     if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { offscreen = !es[0].isIntersecting; }).observe(hero);
     schedule();
   })();
