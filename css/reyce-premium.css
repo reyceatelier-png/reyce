@@ -82,6 +82,12 @@
 .gx-pick__other,.gx-pick__tel{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:.9rem;color:rgba(255,255,255,.78);text-decoration:none}
 .gx-pick__tel::before{content:"";width:15px;height:15px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z%27/%3E%3C/svg%3E") center/contain no-repeat}
 .gx-pick__tel:hover{color:#fff}
+/* « Appelez-nous » : l'icône de téléphone sonne au survol (et au focus clavier) */
+@keyframes gxRing{0%,100%{transform:rotate(0) scale(1)}10%{transform:rotate(-16deg) scale(1.12)}22%{transform:rotate(14deg) scale(1.12)}34%{transform:rotate(-12deg) scale(1.1)}46%{transform:rotate(10deg) scale(1.08)}58%{transform:rotate(-6deg) scale(1.04)}70%{transform:rotate(3deg)}}
+.gx-pick__tel::before,.gx-btn--tel::before{transform-origin:50% 60%}
+.gx-pick__tel:hover::before,.gx-pick__tel:focus-visible::before,.gx-btn--tel:hover::before,.gx-btn--tel:focus-visible::before{animation:gxRing 1s ease-in-out infinite}
+.gx-btn--tel::after{display:none}
+.gx-btn--tel::before{content:"";width:16px;height:16px;flex:none;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z%27/%3E%3C/svg%3E") center/contain no-repeat}
 .gx-pick__other::after{content:"→";transition:transform .35s var(--gl-spring)}
 .gx-pick__other:hover{color:#fff}
 .gx-pick__other:hover::after{transform:translateX(4px)}
@@ -246,6 +252,7 @@
   .gx-slide{transition:none}
   .gx-slide.is-active img,.gx-slide.is-prev img{animation:none}
   .gx-soin img,.gx-spa img,.gx-j__frame img{transition:none}
+  .gx-pick__tel::before,.gx-btn--tel::before{animation:none!important}
   .gx-j__list{scroll-behavior:auto}
 }
 
