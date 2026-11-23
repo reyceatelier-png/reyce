@@ -1046,6 +1046,7 @@ document.addEventListener('click',function(e){
    LIENS D'ARRIVÉE (annonces Google Ads, pages du site)
    ?service=interieur|exterieur|complet|confort|premium|experience → nettoyage pré-orienté
    ?projet=ppf|ceramique|polissage|covering|vitres-teintees|jantes|car-staging → prestation choisie
+   &plus=ceramique (même liste) → une 2e prestation déjà cochée
    Les étapes déjà déterminées sont sautées ; tout reste modifiable via « retour ».
    ============================================================ */
 (function(){
@@ -1061,7 +1062,11 @@ document.addEventListener('click',function(e){
   if(proj){
     var map={'car-staging':'staging','staging':'staging','ceramique':'ceramique','ppf':'ppf','vitres-teintees':'vitres','vitres':'vitres','wrap':'covering','covering':'covering','polissage':'polissage','jantes':'jantes','renovation-jantes':'jantes'};
     if(proj==='nettoyage'){state.svc='nettoyage';state.skip.svc=true;}
-    else if(Object.prototype.hasOwnProperty.call(map,proj)){state.svc=map[proj];state.skip.svc=true;}
+    else if(Object.prototype.hasOwnProperty.call(map,proj)){state.svc=map[proj];state.skip.svc=true;
+      /* ?plus=ceramique : une 2e prestation déjà cochée dans « Aussi intéressé par ? » (ex. polissage + céramique depuis l'accueil) */
+      var plus=(sp.get('plus')||'').toLowerCase();
+      if(Object.prototype.hasOwnProperty.call(map,plus)&&map[plus]!==state.svc)state.more=[map[plus]];
+    }
   }
   render();
 })();

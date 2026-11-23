@@ -228,5 +228,10 @@ nav.main a{white-space:nowrap}
   .cc-veil--bar .cc{width:100%;border-radius:16px 16px 0 0;border-width:1px 0 0 0;padding:14px 16px calc(8px + env(safe-area-inset-bottom))}
   .cc-veil--bar .cc-actions{flex-direction:row;gap:10px}
   .cc-veil--bar .cc-btn{flex:1 1 0}
-  .cc-veil--bar .cc-link{min-height:40px}
+  .cc-veil--bar .cc-logo{display:none}
+  .cc-veil--bar .cc h2{font-size:.66rem;letter-spacing:.16em}
+  .cc-veil--bar .cc-text{font-size:.78rem;line-height:1.5}
+  /* « Personnaliser » remonte sur la ligne du titre : l'encart gagne une ligne */
+  .cc-veil--bar .cc-main>.cc-link{position:absolute;top:4px;right:10px;padding:0 6px;font-size:.62rem}
+  .cc-veil--bar .cc-actions{margin:10px 0 4px}
 }

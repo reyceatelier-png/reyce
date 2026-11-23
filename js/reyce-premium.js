@@ -4,73 +4,55 @@
   var reduce = false;
   try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
 
-  /* ---------- Diaporama du héros ---------- */
+  /* ---------- Diaporama du héros : fondu enchaîné, sans commande à l'écran ----------
+     Un tour complet (≈ 32 s) puis il s'arrête sur la première photo ; en pause pendant que la souris ou le
+     clavier est sur les choix, quand il sort de l'écran ou quand l'onglet est caché ; immobile si le
+     téléphone demande moins d'animations. */
   (function reel() {
     var hero = document.querySelector('.gx-hero');
     if (!hero) return;
     var slides = [].slice.call(hero.querySelectorAll('.gx-slide'));
-    var bars = [].slice.call(hero.querySelectorAll('.gx-reel__bar'));
-    var capEl = hero.querySelector('.gx-reel__cap b');
-    var reelEl = hero.querySelector('.gx-reel');
-    var pp = hero.querySelector('.gx-reel__pp');
-    var numEl = hero.querySelector('.gx-reel__num b');
-    if (slides.length < 2) return;
-    var cur = 0, playing = !reduce;
+    if (slides.length < 2 || reduce) return;
+    var DELAY = 6500, cur = 0, steps = 0, timer = 0, hold = false, offscreen = false;
 
     /* les photos suivantes ne se chargent qu'une fois la page affichée */
     function loadRest() {
       slides.forEach(function (s) {
-        var im = s.querySelector('img');
-        if (!im || !im.getAttribute('data-src')) return;
-        var ss = im.getAttribute('data-srcset');
-        if (ss) im.setAttribute('srcset', ss);
-        im.setAttribute('src', im.getAttribute('data-src'));
-        im.removeAttribute('data-src'); im.removeAttribute('data-srcset');
+        [].forEach.call(s.querySelectorAll('[data-srcset],[data-src]'), function (el) {
+          var ss = el.getAttribute('data-srcset'), sr = el.getAttribute('data-src');
+          if (ss) { el.setAttribute('srcset', ss); el.removeAttribute('data-srcset'); }
+          if (sr) { el.setAttribute('src', sr); el.removeAttribute('data-src'); }
+        });
       });
     }
     if (document.readyState === 'complete') setTimeout(loadRest, 600);
     else window.addEventListener('load', function () { setTimeout(loadRest, 600); });
 
-    function go(n, manual) {
+    function go(n) {
       n = (n + slides.length) % slides.length;
-      if (n === cur && !manual) return;
+      if (n === cur) return;
       loadRest();
       slides.forEach(function (s) { s.classList.remove('is-prev'); });
       slides[cur].classList.remove('is-active'); slides[cur].classList.add('is-prev');
-      bars[cur].classList.remove('is-on'); bars[cur].removeAttribute('aria-current');
-      cur = n;
-      slides[cur].classList.add('is-active');
-      bars[cur].classList.add('is-on'); bars[cur].setAttribute('aria-current', 'true');
-      /* redémarre la barre de progression */
-      var i = bars[cur].querySelector('i'); i.style.animation = 'none'; void i.offsetWidth; i.style.animation = '';
-      if (capEl) capEl.textContent = slides[cur].getAttribute('data-cap') || '';
-      if (numEl) numEl.textContent = String(cur + 1);
+      cur = n; slides[cur].classList.add('is-active');
     }
-
-    bars.forEach(function (b, k) {
-      b.addEventListener('click', function () { go(k, true); });
-      /* la fin de l'animation de la barre déclenche la photo suivante */
-      b.querySelector('i').addEventListener('animationend', function () { if (k === cur && playing) go(cur + 1); });
-    });
-
-    function setPlaying(v) {
-      playing = v;
-      reelEl.classList.toggle('is-paused', !v);
-      if (pp) pp.setAttribute('aria-label', v ? 'Mettre le diaporama en pause' : 'Relancer le diaporama');
-      if (pp) pp.classList.toggle('is-paused', !v);
+    function tick() {
+      timer = 0;
+      if (hold || offscreen || document.hidden) return schedule();
+      steps++; go(cur + 1);
+      if (steps < slides.length) schedule();          /* dernier pas = retour à la 1re photo, puis arrêt */
     }
-    if (pp) pp.addEventListener('click', function () { setPlaying(!playing); });
-    /* balayage du doigt sur mobile */
-    var sx = 0, sy = 0;
-    hero.addEventListener('touchstart', function (e) { var t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
-    hero.addEventListener('touchend', function (e) {
-      var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.6) go(cur + (dx < 0 ? 1 : -1), true);
-    }, { passive: true });
-    setPlaying(playing);
+    function schedule() { if (!timer && steps < slides.length) timer = setTimeout(tick, DELAY); }
+    var pick = hero.querySelector('.gx-pick') || hero;   /* pause pendant que l'on choisit une prestation */
+    pick.addEventListener('mouseenter', function () { hold = true; });
+    pick.addEventListener('mouseleave', function () { hold = false; });
+    pick.addEventListener('focusin', function () { hold = true; });
+    pick.addEventListener('focusout', function () { hold = false; });
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { offscreen = !es[0].isIntersecting; }).observe(hero);
+    schedule();
   })();
 
-  /* ---------- Protocole : une étape à la fois ---------- */
+  /* ---------- Déroulé : une étape à la fois ---------- */
   (function journey() {
     var root = document.querySelector('.gx-j');
     if (!root) return;
