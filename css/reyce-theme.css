@@ -235,3 +235,8 @@ nav.main a{white-space:nowrap}
   .cc-veil--bar .cc-main>.cc-link{position:absolute;top:4px;right:10px;padding:0 6px;font-size:.62rem}
   .cc-veil--bar .cc-actions{margin:10px 0 4px}
 }
+@media(max-width:360px){
+  .cc-veil--bar .cc{padding:12px 14px calc(6px + env(safe-area-inset-bottom))}
+  .cc-veil--bar .cc-text{font-size:.72rem;line-height:1.45}
+  .cc-veil--bar .cc-btn{min-height:44px;padding:8px 10px;letter-spacing:.12em}
+}

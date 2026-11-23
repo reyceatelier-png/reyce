@@ -49,7 +49,9 @@
   background:linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,0) 26%,rgba(0,0,0,.15) 52%,rgba(0,0,0,.9) 100%),linear-gradient(90deg,rgba(0,0,0,.66) 0%,rgba(0,0,0,.28) 40%,transparent 64%)}
 .gx-hero__in{width:100%;max-width:var(--gx-max);margin:0 auto;padding:clamp(110px,14vh,160px) var(--gx-pad) clamp(36px,6vh,64px);text-shadow:0 2px 28px rgba(0,0,0,.45)}
 /* le H1 porte le mot-clé (métiers + ville) en petite ligne, puis la signature en grand */
-.gx-h1{font-weight:700;font-size:clamp(2.6rem,min(4.8vw,7.4vh),5.2rem);line-height:.98;letter-spacing:-.05em;margin:0;max-width:19ch}
+.gx-h1{font-weight:700;font-size:clamp(2.6rem,min(4.8vw,7.6vh),5.4rem);line-height:.98;letter-spacing:-.05em;margin:0;max-width:20ch}
+/* deuxième titre : les prestations, plus petit et en gris, dans le même H1 */
+.gx-h1 .gx-h1__sub{margin-top:.38em;max-width:30ch;font-size:.46em;line-height:1.12;letter-spacing:-.025em;color:rgba(255,255,255,.62)}
 .gx-h1 span{text-wrap:balance}
 .gx-h1 span{display:block}
 .gx-h1 .o{color:rgba(255,255,255,.5)}
@@ -58,7 +60,7 @@
 .gx-stars{letter-spacing:.06em;color:#fff}
 .gx-kick .gx-stars{margin-right:6px;font-size:.9rem;vertical-align:-1px}
 /* sous le titre : les preuves (savoir-faire, garantie, délai de réponse) */
-.gx-proof{margin:18px 0 0;max-width:72ch;font-size:clamp(.98rem,1.25vw,1.1rem);line-height:1.5;color:rgba(255,255,255,.84)}
+.gx-proof{text-wrap:balance;margin:18px 0 0;max-width:72ch;font-size:clamp(.98rem,1.25vw,1.1rem);line-height:1.5;color:rgba(255,255,255,.84)}
 /* le choix : six portes d'entrée, chacune ouvre la réservation avec la prestation déjà cochée */
 .gx-pick{margin-top:clamp(26px,4.5vh,44px);text-shadow:none}
 .gx-pick__q{margin:0 0 12px;font:600 .7rem/1.2 var(--disp);letter-spacing:.26em;text-transform:uppercase;color:rgba(255,255,255,.76)}
@@ -253,7 +255,8 @@
   .gx-hero__in{display:flex;flex-direction:column;justify-content:space-between;padding:92px var(--gx-pad) 18px}
   .gx-slide img{object-position:var(--mx,50%) var(--my,50%);transform-origin:50% 50%;filter:brightness(var(--bm,.9))}
   .gx-hero__shade{background:linear-gradient(180deg,rgba(0,0,0,.82) 0%,rgba(0,0,0,.62) 34%,rgba(0,0,0,.12) 52%,rgba(0,0,0,.55) 66%,rgba(0,0,0,.94) 84%,#000 100%)}
-  .gx-h1{font-size:clamp(2rem,9.2vw,2.8rem);line-height:1.02;letter-spacing:-.045em;max-width:none}
+  .gx-h1{font-size:clamp(2rem,9vw,2.6rem);line-height:1.02;letter-spacing:-.045em;max-width:none}
+  .gx-h1 .gx-h1__sub{font-size:.56em;margin-top:.42em}
   .gx-kick{margin-bottom:12px;font-size:.64rem;letter-spacing:.18em}
   .gx-proof{margin-top:12px;font-size:.92rem;line-height:1.45}
   .gx-pick{margin-top:24px}
@@ -271,7 +274,7 @@
   .gx-dock--4 div,.gx-dock--4 div+div{display:block;padding:15px 16px;border-top:0;border-left:0}
   .gx-dock--4 div:nth-child(even){border-left:1px solid var(--gl-line)}
   .gx-dock--4 div:nth-child(n+3){border-top:1px solid var(--gl-line)}
-  .gx-dock--4 b{font-size:1.08rem}
+  .gx-dock--4 b{font-size:1rem}
   .gx-dock--4 span{display:block;margin-top:4px;font-size:.82rem}
   .gx-dock b{flex:0 0 7.2em;font-size:1.2rem}
   .gx-dock span{margin:0;font-size:.92rem;line-height:1.35}
