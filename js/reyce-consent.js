@@ -133,14 +133,14 @@
     return { node: label, input: input };
   }
 
-  function build(startInPanel) {
+  function build(startInPanel, compact) {
     var a = toggle('cc-analytics', 'Mesure d’audience', 'Statistiques de fréquentation (Google Analytics), pour améliorer le site.', current && current.analytics);
     var p = toggle('cc-ads', 'Publicité et marketing', 'Mesure des résultats de nos annonces (Google Ads) et, si activé, de nos campagnes Meta.', current && current.ads);
     var n = toggle('cc-necessary', 'Strictement nécessaires', 'Toujours actifs : mémorisent votre choix et le bon fonctionnement du site. Aucune donnée personnelle.', true, true);
 
     var main = el('div', { 'class': 'cc-main' }, [
-      el('p', { 'class': 'cc-text', text: 'REYCE utilise des cookies pour mesurer l’audience du site et l’efficacité de ses annonces. Rien n’est activé sans votre accord, et vous pouvez changer d’avis à tout moment depuis « Gérer les cookies », en bas de page.' }),
       el('p', { 'class': 'cc-text' }, [
+        document.createTextNode('REYCE utilise des cookies pour mesurer l’audience du site et l’efficacité de ses annonces. Rien n’est activé sans votre accord, modifiable à tout moment depuis « Gérer les cookies », en bas de page. '),
         el('a', { href: '/confidentialite', text: 'Politique de confidentialité' })
       ]),
       el('div', { 'class': 'cc-actions' }, [
@@ -159,7 +159,7 @@
       ])
     ]);
 
-    var box = el('div', { id: 'cc', role: 'dialog', 'aria-labelledby': 'cc-title', 'aria-modal': 'true', tabindex: '-1', 'class': 'cc' }, [
+    var box = el('div', { id: 'cc', role: 'dialog', 'aria-labelledby': 'cc-title', 'aria-modal': compact ? 'false' : 'true', tabindex: '-1', 'class': 'cc' }, [
       el('div', { 'class': 'cc-head' }, [
         el('div', { 'class': 'cc-brand' }, [el('img', { 'class': 'cc-logo', src: '/assets/images/logo.png', alt: '', width: '26', height: '26' }), el('h2', { id: 'cc-title', text: 'Vos choix sur les cookies' })])
       ]),
@@ -170,7 +170,7 @@
     }
     box.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { if (!panel.hidden && !current) showPanel(false); else if (current) close(); }
-      if (e.key === 'Tab') { // le focus reste dans la fenêtre tant qu'elle est ouverte
+      if (e.key === 'Tab' && !compact) { // fenêtre modale : le focus y reste ; l'encart, lui, ne bloque pas la navigation au clavier
         var f = Array.prototype.filter.call(box.querySelectorAll('button, input:not([disabled]), a[href]'), function (n) { return n.offsetParent !== null; });
         if (!f.length) return;
         var first = f[0], last = f[f.length - 1];
@@ -193,11 +193,12 @@
   function open(startInPanel) {
     if (root) return;
     returnFocus = document.activeElement;
-    root = build(!!startInPanel);
-    veil = el('div', { 'class': 'cc-veil' }, [root]);
+    var compact = !startInPanel && !current;  // premier passage : petit encart, la page reste visible et utilisable
+    root = build(!!startInPanel, compact);
+    veil = el('div', { 'class': 'cc-veil' + (compact ? ' cc-veil--bar' : '') }, [root]);
     veil.addEventListener('click', function (e) { if (e.target === veil && current) close(); }); // clic à côté : fermer, seulement si un choix existe déjà
     document.body.appendChild(veil);
-    document.documentElement.classList.add('cc-lock');
+    if (!compact) document.documentElement.classList.add('cc-lock');
     requestAnimationFrame(function () { if (!veil) return; veil.classList.add('on'); root.classList.add('on'); root.focus({ preventScroll: true }); });
   }
   function close() {

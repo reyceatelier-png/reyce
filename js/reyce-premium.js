@@ -1,4 +1,4 @@
-/* REYCE — page d'accueil premium : diaporama du héros + protocole en parcours (test) */
+/* REYCE — page d'accueil : diaporama du héros + déroulé en parcours (ordinateur) / cartes qui défilent (téléphone) */
 (function () {
   'use strict';
   var reduce = false;
@@ -90,5 +90,20 @@
     steps.forEach(function (s) { io.observe(s); });
     /* un clic sur une étape la met en avant */
     steps.forEach(function (s, k) { s.addEventListener('click', function () { on(k); }); });
+
+    /* téléphone : les étapes défilent côte à côte, le compteur suit la carte la plus visible */
+    var list = root.querySelector('.gx-j__list'), pos = root.querySelector('.gx-j__pos b');
+    if (list && pos) {
+      var t = 0;
+      list.addEventListener('scroll', function () {
+        if (t) return;
+        t = setTimeout(function () {
+          t = 0;
+          var best = 0, bd = 1e9, c = list.scrollLeft + list.clientWidth / 2;
+          steps.forEach(function (s, k) { var d = Math.abs(s.offsetLeft + s.offsetWidth / 2 - c); if (d < bd) { bd = d; best = k; } });
+          pos.textContent = String(best + 1);
+        }, 80);
+      }, { passive: true });
+    }
   })();
 })();
