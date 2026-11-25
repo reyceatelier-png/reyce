@@ -288,3 +288,14 @@ main:not(.gx){--dim-2:rgba(255,255,255,.52)}
 main:not(.gx) .lead p a:not(.btn){text-decoration:underline;text-underline-offset:3px}
 /* bande à faire défiler (Car Spa) : atteignable au clavier, contour visible quand elle a le focus */
 main:not(.gx) .rail:focus-visible{outline:2px solid #fff;outline-offset:4px}
+
+/* Black Friday 2026 — bandeau d'offre (js/reyce-offre.js le retire après le 13/12/2026 à minuit) */
+.bf-pill{display:inline-flex;align-items:center;gap:10px;max-width:100%;margin:0 0 16px;padding:7px 14px 7px 7px;border-radius:14px;border:1px solid rgba(255,255,255,.28);background:rgba(10,10,13,.55);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);color:#fff;text-decoration:none;text-shadow:none;font-size:.82rem;line-height:1.35;transition:border-color .3s,background .3s}
+.bf-pill b{flex:none;padding:6px 9px;border-radius:9px;background:#0A66E0;color:#fff;font-family:var(--disp);font-weight:700;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap}
+.bf-pill span{min-width:0}
+.bf-pill:hover{border-color:rgba(255,255,255,.6);background:rgba(10,10,13,.72)}
+.bf-pill:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.pin .bf-pill{margin:4px 0 18px}
+.bf-note b{color:#fff}
+@media (max-width:600px){.bf-pill{font-size:.74rem;gap:8px;padding:6px 10px 6px 6px}.bf-pill b{font-size:.56rem;padding:5px 7px}}
+@media (max-width:340px){.bf-pill{font-size:.66rem;line-height:1.28;margin-bottom:10px;padding:5px 8px 5px 5px}.bf-pill b{font-size:.5rem;padding:4px 6px;letter-spacing:.12em}}
