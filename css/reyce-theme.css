@@ -207,6 +207,18 @@ nav.main a{white-space:nowrap}
   nav.main a.cta{padding:10px 16px}
   header{padding-left:clamp(20px,3vw,44px);padding-right:clamp(20px,3vw,44px)}
 }
+/* libellés longs (« Polissage & céramique », « Nettoyage & detailing ») : un peu moins d'écart entre les liens
+   jusqu'à 1439 px, pour garder de l'air entre le logo et le menu */
+@media(min-width:1241px) and (max-width:1439px){
+  nav.main{gap:24px}
+  nav.main a{letter-spacing:.16em}
+}
+/* menu téléphone : chaque entrée tient sur une ligne, et le menu n'est jamais coupé en haut ou en bas
+   (petit écran, téléphone en paysage) : il défile alors sous l'en-tête au lieu de déborder */
+#drawer{justify-content:flex-start;overflow-y:auto;overscroll-behavior:contain;padding-top:88px;padding-bottom:24px}
+#drawer>a:first-child{margin-top:auto}
+#drawer>a:last-child{margin-bottom:auto}
+#drawer a{font-size:clamp(1.05rem,calc(7vw - 6px),2.3rem)}
 
 /* pied de page à quatre colonnes : studio, navigation, prestations, contact */
 .foot-grid{grid-template-columns:minmax(0,1.3fr) repeat(3,minmax(0,1fr));gap:36px}
@@ -264,3 +276,15 @@ body.lp-form-in-view .lp-sticky,body.lp-form-in-view .mbar{transform:translateY(
 .lp-form form.is-steps .lp-more[open] summary{margin-bottom:12px}
 .lp-form form.is-steps p.lp-step__count{font-size:.62rem;line-height:1.4}
 @media (prefers-reduced-motion:reduce){.lp-progress span{transition:none}}
+
+/* ---------- accessibilité : contrastes (WCAG AA) et clavier, pages hors accueil/PPF (main:not(.gx)) ----------
+   Gris secondaire (--dim-2) : sur ordinateur il était à 38 % de blanc, soit 3,4:1 sur fond noir, trop peu pour les petits
+   textes (numéros d'étape .st-n, numéros d'article .an des CGV, « Faites glisser », notes sous les sections). Dans le contenu,
+   il prend la valeur déjà utilisée sur téléphone (52 %, 5,7:1). En-tête, menu et pied de page ne changent pas. */
+main:not(.gx){--dim-2:rgba(255,255,255,.52)}
+/* numéros d'étape .pn (céramique, polissage…) : petits sur téléphone (1,1 rem), donc même niveau de gris */
+@media(max-width:640px){main:not(.gx) .proto li .pn{opacity:.52}}
+/* liens au milieu d'un paragraphe (confidentialité, « Voir les avis sur Google », renvois) : soulignés, pas seulement blancs */
+main:not(.gx) .lead p a:not(.btn){text-decoration:underline;text-underline-offset:3px}
+/* bande à faire défiler (Car Spa) : atteignable au clavier, contour visible quand elle a le focus */
+main:not(.gx) .rail:focus-visible{outline:2px solid #fff;outline-offset:4px}

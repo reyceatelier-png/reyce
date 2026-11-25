@@ -1619,10 +1619,24 @@ app.get('/.well-known/security.txt', (req, res) => {
     'Canonical: https://www.reyce.fr/.well-known/security.txt\n');
 });
 
+// ── Page introuvable ──────────────────────────────────────────
+// Une adresse de page inconnue demandée par un navigateur ou un moteur de recherche (GET/HEAD qui accepte du HTML)
+// reçoit la vraie page 404.html, avec le statut 404 : menu, liens utiles, au lieu d'une page blanche « Not found ».
+// L'API et les fichiers (/assets, /css, /js) gardent une réponse 404 en texte brut : pas 25 Ko de HTML à la place
+// d'une image, d'une feuille de style ou d'une réponse JSON manquante.
+const PAGE_404 = path.join(__dirname, '404.html');
+function sendNotFound(req, res) {
+  const isPage = (req.method === 'GET' || req.method === 'HEAD')
+    && /text\/html/i.test(String(req.headers.accept || ''))
+    && !/^\/(?:api|assets|css|js)(?:\/|$)/i.test(req.path);
+  if (isPage) return res.status(404).sendFile(PAGE_404);
+  return res.status(404).type('text/plain').send('Not found');
+}
+
 const PUBLIC_DIRS  = ['assets', 'css', 'js'];
 const PUBLIC_FILES = ['robots.txt', 'sitemap.xml', 'llms.txt', 'favicon.ico'];   // favicon.ico : Google et les navigateurs le demandent à la racine
 app.use((req, res, next) => {
-  const notFound = () => res.status(404).type('text/plain').send('Not found');
+  const notFound = () => sendNotFound(req, res);
   // Le chemin est décodé et normalisé AVANT tout contrôle, exactement comme le fait express.static. Auparavant seul le premier
   // segment brut était lu : « /assets/..%2fserver.js » (ou « %2e%2e ») passait pour « assets » alors qu'il désigne server.js,
   // et le code du serveur, le schéma de la base et les documents internes étaient téléchargeables. Tout chemin contenant
@@ -3350,11 +3364,9 @@ if (process.env.REMINDERS_DISABLED !== '1') {
 require('./events')(app, { prisma, express, rateLimit, sendEmail, escapeHtml, cleanText, cleanPhone, isValidEmail, safeMsg });
 
 // ============================================================
-// 404 — page introuvable
+// 404 — page introuvable (page 404.html pour une page, texte brut pour l'API et les fichiers : voir sendNotFound)
 // ============================================================
-app.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, '404.html'));
-});
+app.use((req, res) => sendNotFound(req, res));
 
 // ============================================================
 // Erreurs Multer (photos trop lourdes / trop nombreuses)

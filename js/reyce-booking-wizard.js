@@ -245,8 +245,11 @@ function visibleOptions(){
 }
 
 
-/* Code promo — réservé aux formules Premium & Expérience */
-var PROMO={active:true, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', formules:['Premium','Expérience']};
+/* Code promo — réservé aux formules Premium & Expérience.
+   DÉSACTIVÉ : BIENVENUE10 a expiré le 31 août 2026. Avec active:false, le parcours n'affiche ni champ,
+   ni texte, ni remise, et les totaux restent les prix normaux. Pour une nouvelle offre : nouveau code et
+   nouvelle date de fin, puis active:true. */
+var PROMO={active:false, code:'BIENVENUE10', rate:0.10, until:'31 août 2026', formules:['Premium','Expérience']};
 
 /* ============================================================
    RÉSERVATION EN ÉTAPES — une question par écran, avance automatique
