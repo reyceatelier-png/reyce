@@ -240,3 +240,27 @@ nav.main a{white-space:nowrap}
   .cc-veil--bar .cc-text{font-size:.72rem;line-height:1.45}
   .cc-veil--bar .cc-btn{min-height:44px;padding:8px 10px;letter-spacing:.12em}
 }
+
+/* Formulaire de devis « à clics » (js/reyce-devis-steps.js) : une question par écran */
+.lp-form form.is-steps .lp-step[hidden]{display:none}
+.lp-form form.is-steps .lp-glabel.is-q{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.lp-form form.is-steps .lp-fgroup{margin-bottom:0}
+.lp-progress{height:3px;margin:6px 0 20px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.lp-progress span{display:block;width:0;height:100%;border-radius:3px;background:#fff;transition:width .35s ease}
+.lp-step__head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.lp-step__count{margin:0;font-family:var(--disp);font-weight:600;font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.lp-form .lp-step__q{margin:0 0 18px;font-family:var(--disp);font-weight:700;font-size:clamp(1.2rem,2.6vw,1.5rem);line-height:1.2;letter-spacing:-.03em;text-transform:none;outline:none}
+.lp-form form.is-steps .lp-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:10px}
+.lp-form form.is-steps .lp-choice span{display:flex;align-items:center;min-height:58px;padding:14px 18px;border-radius:16px;font-size:.74rem;letter-spacing:.06em;line-height:1.3}
+.lp-step__nav{display:flex;justify-content:flex-end;margin-top:18px}
+body.lp-form-in-view .lp-sticky,body.lp-form-in-view .mbar{transform:translateY(120%)!important;pointer-events:none}
+.lp-back{padding:8px 0;border:0;background:none;color:var(--dim);font-family:var(--disp);font-weight:600;font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
+.lp-back::before{content:"← "}
+.lp-back:hover,.lp-back:focus-visible{color:#fff}
+.lp-back[hidden]{display:none}
+.lp-form form.is-steps .lp-next{width:auto;margin:0 0 0 auto}
+.lp-form form.is-steps .lp-more{margin:16px 0 18px}
+.lp-form form.is-steps .lp-more summary{cursor:pointer;color:var(--dim);font-size:.86rem;padding:8px 0}
+.lp-form form.is-steps .lp-more[open] summary{margin-bottom:12px}
+.lp-form form.is-steps p.lp-step__count{font-size:.62rem;line-height:1.4}
+@media (prefers-reduced-motion:reduce){.lp-progress span{transition:none}}
