@@ -299,3 +299,5 @@ main:not(.gx) .rail:focus-visible{outline:2px solid #fff;outline-offset:4px}
 .bf-note b{color:#fff}
 @media (max-width:600px){.bf-pill{font-size:.74rem;gap:8px;padding:6px 10px 6px 6px}.bf-pill b{font-size:.56rem;padding:5px 7px}}
 @media (max-width:340px){.bf-pill{font-size:.66rem;line-height:1.28;margin-bottom:10px;padding:5px 8px 5px 5px}.bf-pill b{font-size:.5rem;padding:4px 6px;letter-spacing:.12em}}
+/* Articles de conseil : sur tablette et téléphone, le titre passe avant la photo (classe has-car--texte) */
+@media (max-width:1024px){.phero.has-car.has-car--texte .hero-car{order:0}}
